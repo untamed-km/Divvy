@@ -1,7 +1,7 @@
 // Divvy Service Worker — v1
 // Cache-first strategy: app loads instantly after first visit, works offline
 
-const CACHE_NAME = 'divvy-v1';
+const CACHE_NAME = 'divvy-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -18,7 +18,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(ASSETS).catch(err => {
-        // Don't fail install if CDN assets can't be cached (e.g. offline during install)
         console.warn('SW: some assets could not be cached', err);
       });
     })
@@ -42,21 +41,18 @@ self.addEventListener('activate', event => {
 
 // Fetch: serve from cache first, fall back to network
 self.addEventListener('fetch', event => {
-  // Skip non-GET requests and chrome-extension requests
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
 
-  // For API calls (Anthropic, Formspree) — network only, no caching
   const url = new URL(event.request.url);
   if (url.hostname === 'api.anthropic.com' || url.hostname === 'formspree.io') {
-    return; // Let the browser handle it normally
+    return;
   }
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
 
-      // Not in cache — fetch from network and cache for next time
       return fetch(event.request).then(response => {
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
@@ -66,7 +62,6 @@ self.addEventListener('fetch', event => {
         return response;
       });
     }).catch(() => {
-      // Fully offline and not cached — return the app shell
       return caches.match('/index.html');
     })
   );
