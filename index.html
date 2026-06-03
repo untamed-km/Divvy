@@ -691,7 +691,17 @@ function fmt(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDi
 function fmtD(s){return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function bucketColor(p){return p>=1?'var(--red)':p>=.75?'var(--amber)':'var(--green)';}
 function totalIncome(){return(C.income||[]).reduce((s,l)=>s+(l.amount||0),0);}
-function totalBills(){return C.bills.reduce((a,b)=>a+(b.amount||0),0);}
+function billInPeriod(b){
+  if(b.paid) return true;
+  if(!b.dueDay) return true;
+  if(!C.startDate||!C.endDate) return true;
+  const start=new Date(C.startDate+'T00:00:00');
+  const end=new Date(C.endDate+'T00:00:00');
+  const sd=start.getDate(),ed=end.getDate(),d=b.dueDay;
+  if(start.getMonth()!==end.getMonth()) return d>=sd||d<=ed;
+  return d>=sd&&d<=ed;
+}
+function totalBills(){return C.bills.reduce((a,b)=>a+(billInPeriod(b)?b.amount||0:0),0);}
 function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amount||0),0);}
 function bucketSpent(k){return C.buckets[k].transactions.reduce((a,t)=>a+(t.amount||0),0);}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
@@ -3095,6 +3105,8 @@ function renderHome(){
 
 function dueBadge(b){
   if(!b.dueDay)return'';
+  // Show 'next period' tag if bill is outside current period and unpaid
+  if(!b.paid&&!billInPeriod(b))return`<span style="font-size:10px;background:#3b82f618;color:var(--blue);padding:1px 6px;border-radius:99px;font-weight:600;margin-left:4px">next period</span>`;
   const now=new Date();
   const due=new Date(now.getFullYear(),now.getMonth(),b.dueDay);
   const diff=Math.ceil((due-now)/(864e5));
@@ -3170,7 +3182,7 @@ function renderNextBillBanner(){
     else sub='Tap to set a due date';
   }
 
-  banner.innerHTML=`<div onclick="openBillModal(${next.i})" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:14px 16px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
+  banner.innerHTML=`<div onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:14px 16px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
     <div style="width:40px;height:40px;border-radius:50%;background:${border};display:flex;align-items:center;justify-content:center;flex-shrink:0">
       <i class="ti ${icon}" style="font-size:20px;color:${textCol}"></i>
     </div>
@@ -3216,7 +3228,7 @@ function renderNextBillBanner(){
       else if(diff<=3){bg='#f59e0b12';border='#f59e0b33';icon='ti-clock';label=`Due in ${diff}d`;textCol='var(--amber)';}
       else{bg='#6366f112';border='#6366f133';icon='ti-calendar';label=`Due ${b.dueDay}${ordinal(b.dueDay)}`;textCol='var(--accent)';}
     } else {bg='#6366f112';border='#6366f133';icon='ti-calendar-event';label='Up next';textCol='var(--accent)';}
-    return `<div onclick="openBillModal(${b.i})" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:50%;background:${border};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${icon}" style="font-size:18px;color:${textCol}"></i></div><div style="flex:1;min-width:0"><div style="font-size:11px;color:${textCol};text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:2px">${label}</div><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</div></div><span style="font-size:14px;font-weight:500;color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums">${b.amount?fmt(b.amount):'TBD'}</span></div>`;
+    return `<div onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:50%;background:${border};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${icon}" style="font-size:18px;color:${textCol}"></i></div><div style="flex:1;min-width:0"><div style="font-size:11px;color:${textCol};text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:2px">${label}</div><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</div></div><span style="font-size:14px;font-weight:500;color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums">${b.amount?fmt(b.amount):'TBD'}</span></div>`;
   };
   const show=[...withDates,...noDates].slice(0,3);
   const remaining=allUnpaid-show.length;
