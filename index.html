@@ -305,6 +305,25 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Powered by Claude</span>
     </div>
     <div id="ai-context-chip"></div>
+    <div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);overflow:hidden">
+      <div id="ai-chat-messages" style="padding:14px;display:flex;flex-direction:column;gap:10px;min-height:120px;max-height:300px;overflow-y:auto">
+        <div style="background:var(--card2);border-radius:10px;padding:12px;font-size:13px;line-height:1.6;color:var(--muted)">
+          <i class="ti ti-sparkles" style="color:var(--accent);font-size:15px;vertical-align:-2px;margin-right:6px"></i>
+          Hi! I'm your investment advisor. I can see your full financial picture. Ask me anything about your investments, goals, or how to allocate your money.
+        </div>
+      </div>
+      <div id="ai-suggestions" style="padding:8px 12px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div style="border-top:0.5px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;margin-top:8px">
+        <textarea id="ai-input" placeholder="Type your question here..." rows="2"
+          style="flex:1;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 12px;resize:none;outline:none;line-height:1.5;max-height:120px;overflow-y:auto;min-height:44px;transition:border-color .15s"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToAdvisor();}"></textarea>
+        <button onclick="sendToAdvisor()" id="ai-send-btn"
+          style="background:var(--accent);border:none;border-radius:10px;color:#fff;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity .15s">
+          <i class="ti ti-send" style="font-size:18px"></i>
+        </button>
+      </div>
+    </div>
     <div class="section-label">Investments</div>
     <div id="invest-list"></div>
     <button class="add-row-btn" onclick="openInvModal()"><i class="ti ti-plus"></i> Add investment</button>
@@ -335,26 +354,6 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div class="summary-row">
       <div class="stat-card"><div class="label">Your contribution</div><div class="value" style="font-size:18px" id="invest-401k-me">$0.00</div></div>
       <div class="stat-card"><div class="label">Employer match</div><div class="value" style="font-size:18px" id="invest-401k-emp">$0.00</div></div>
-    </div>
-
-    <div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);overflow:hidden">
-      <div id="ai-chat-messages" style="padding:14px;display:flex;flex-direction:column;gap:10px;min-height:120px;max-height:300px;overflow-y:auto">
-        <div style="background:var(--card2);border-radius:10px;padding:12px;font-size:13px;line-height:1.6;color:var(--muted)">
-          <i class="ti ti-sparkles" style="color:var(--accent);font-size:15px;vertical-align:-2px;margin-right:6px"></i>
-          Hi! I'm your investment advisor. I can see your full financial picture. Ask me anything about your investments, goals, or how to allocate your money.
-        </div>
-      </div>
-      <div id="ai-suggestions" style="padding:8px 12px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
-      <div style="border-top:0.5px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;margin-top:8px">
-        <textarea id="ai-input" placeholder="Type your question here..." rows="2"
-          style="flex:1;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 12px;resize:none;outline:none;line-height:1.5;max-height:120px;overflow-y:auto;min-height:44px;transition:border-color .15s"
-          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToAdvisor();}"></textarea>
-        <button onclick="sendToAdvisor()" id="ai-send-btn"
-          style="background:var(--accent);border:none;border-radius:10px;color:#fff;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity .15s">
-          <i class="ti ti-send" style="font-size:18px"></i>
-        </button>
-      </div>
     </div>
   </div>
   <div id="screen-snapshot" class="screen">
