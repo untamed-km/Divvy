@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/advisor.js": {
-      "runtime": "@vercel/node"
+      "maxDuration": 30
     }
   }
 }
