@@ -569,7 +569,7 @@ const DEFAULT_INVESTMENTS=[{name:'Coinbase',amount:0},{name:'Webull',amount:0},{
 
 function newCycleData(){
   const now=new Date(),day=now.getDate();
-  const freq=typeof STATE!=='undefined'?getFreq():'semimonthly';
+  let freq;try{freq=getFreq();}catch(e){freq='semimonthly';}
   let start,end;
   if(freq==='weekly'){
     const dow=now.getDay();start=new Date(now);start.setDate(now.getDate()-dow);
