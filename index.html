@@ -1896,6 +1896,7 @@ function openPartnerSetup(){
     <label class="modal-label">Person 2 (partner, optional)</label>
     <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off"/>
     <div class="modal-btns">
+      ${p.p2?`<button class="btn btn-danger" onclick="removePartner()"><i class="ti ti-user-minus" style="font-size:16px;vertical-align:-2px"></i> Remove</button>`:''}
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="savePartners()">Save</button>
     </div>
@@ -1906,6 +1907,10 @@ function savePartners(){
   const p1=document.getElementById('p1-name').value.trim()||'You';
   const p2=document.getElementById('p2-name').value.trim();
   STATE.partners={p1,p2};
+  saveState();closeModal();render();
+}
+function removePartner(){
+  STATE.partners={p1:STATE.partners.p1||'You',p2:''};
   saveState();closeModal();render();
 }
 function openFreqPicker(){
