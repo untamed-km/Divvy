@@ -558,9 +558,9 @@ const DEFAULT_BILLS=[
   {name:'Credit Card',amount:100.00,paid:false,dueDay:null,recurring:true}
 ];
 const DEFAULT_BUCKETS={
-  food:{label:'Food',icon:'ti-shopping-cart',budget:400,transactions:[]},
-  gas:{label:'Gas',icon:'ti-gas-station',budget:396.63,transactions:[]},
-  personal:{label:'Personal',icon:'ti-user',budget:150,transactions:[]}
+  food:{label:'Food',icon:'ti-shopping-cart',budget:0,transactions:[]},
+  gas:{label:'Gas',icon:'ti-gas-station',budget:0,transactions:[]},
+  personal:{label:'Personal',icon:'ti-user',budget:0,transactions:[]}
 };
 const DEFAULT_INCOME=[];
 const DEFAULT_SAVINGS={perPaycheck:0};
@@ -1782,11 +1782,11 @@ async function sendToAdvisor(){
 ${buildFinancialContext()}`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('/api/advisor',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-5',
         max_tokens:1000,
         system:systemPrompt,
         messages:aiHistory
@@ -1857,7 +1857,7 @@ function selectFreq(f){
 }
 
 // ── Onboarding ──
-const FORMSPREE_ID='YOUR_FORM_ID';
+const FORMSPREE_ID='xgobwbye';
 const ONBOARD_KEY='divvy_onboarded';
 let _onboardSelected=new Set();
 const ONBOARD_OPTIONS=[
