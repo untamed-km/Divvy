@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/advisor.js": {
+      "runtime": "@vercel/node"
+    }
+  }
+}
