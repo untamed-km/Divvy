@@ -2032,6 +2032,10 @@ function openSettingsModal(){
         </div>
         ${isPro()?'<span style="font-size:11px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;padding:3px 10px;border-radius:99px;font-weight:700">PRO</span>':'<i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>'}
       </div>
+      <div onclick="openFeedbackModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <i class="ti ti-message-circle" style="font-size:20px;color:var(--accent)"></i>
+        <div><div style="font-size:15px;font-weight:500">Send feedback</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bugs, ideas, or anything on your mind</div></div>
+      </div>
       <div onclick="confirmLogout();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-logout" style="font-size:20px;color:var(--muted)"></i>
         <div><div style="font-size:15px;font-weight:500">Log out</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="settings-auth-sub">Signed in</div></div>
@@ -2046,6 +2050,49 @@ function openSettingsModal(){
   if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':(a.email||a.name||'Signed in');}
 }
 
+function openFeedbackModal(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Send feedback</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Help us improve Divvy — bugs, ideas, or anything on your mind.</p>
+    <span class="modal-label">Type</span>
+    <select id="fb-type" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;appearance:none">
+      <option value="Suggestion">💡 Suggestion</option>
+      <option value="Bug report">🐛 Bug report</option>
+      <option value="General">💬 General feedback</option>
+    </select>
+    <span class="modal-label">Message</span>
+    <textarea id="fb-msg" placeholder="Tell us what's on your mind..." rows="4"
+      style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-family:inherit;margin-bottom:12px;outline:none;resize:none;line-height:1.5"></textarea>
+    <span class="modal-label">Email (optional — for follow-up)</span>
+    <input type="email" id="fb-email" placeholder="your@email.com" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;outline:none"/>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitFeedback()">Send</button>
+    </div>
+  </div></div>`;
+  setTimeout(()=>document.getElementById('fb-msg').focus(),100);
+}
+async function submitFeedback(){
+  const type=document.getElementById('fb-type').value;
+  const msg=document.getElementById('fb-msg').value.trim();
+  const email=document.getElementById('fb-email').value.trim();
+  if(!msg){document.getElementById('fb-msg').style.borderColor='var(--red)';return;}
+  const btn=document.querySelector('#modal-root .btn-primary');
+  btn.disabled=true;btn.textContent='Sending...';
+  try{
+    await fetch('https://formspree.io/f/'+FORMSPREE_ID,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({type,message:msg,email:email||'not provided',source:'in-app feedback'})
+    });
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="text-align:center;padding:32px 24px">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green);display:block;margin-bottom:16px"></i>
+      <div style="font-size:18px;font-weight:600;margin-bottom:8px">Thanks for the feedback!</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.5">We read every message and use it to make Divvy better.</div>
+      <button class="btn btn-primary" style="width:100%" onclick="closeModal()">Done</button>
+    </div></div>`;
+  }catch(e){btn.disabled=false;btn.textContent='Send';}
+}
 function confirmLogout(){
   const a=getAuth();
   const isGuest=a&&a.method==='guest';
