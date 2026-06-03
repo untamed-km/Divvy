@@ -314,7 +314,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <div id="ai-suggestions" style="padding:8px 12px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div style="border-top:0.5px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;margin-top:8px">
-        <textarea id="ai-input" placeholder="Type your question here..." rows="2"
+        <textarea id="ai-input" placeholder="Ask about your budget, spending, or goals…" rows="2"
           style="flex:1;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 12px;resize:none;outline:none;line-height:1.5;max-height:120px;overflow-y:auto;min-height:44px;transition:border-color .15s"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToAdvisor();}"></textarea>
@@ -324,7 +324,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         </button>
       </div>
     </div>
-    <div onclick="showScreen('invgoals',null)" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
+    <div onclick="showScreen('invgoals',document.querySelectorAll('.nav-btn')[3])" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
       <div style="width:44px;height:44px;border-radius:12px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-trending-up" style="font-size:22px;color:var(--accent)"></i>
       </div>
@@ -334,7 +334,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted);flex-shrink:0"></i>
     </div>
-    <div onclick="showScreen('savings',null)" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
+    <div onclick="showScreen('savings',document.querySelectorAll('.nav-btn')[3])" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
       <div style="width:44px;height:44px;border-radius:12px;background:#22c55e18;display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-piggy-bank" style="font-size:22px;color:var(--green)"></i>
       </div>
@@ -344,12 +344,12 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted);flex-shrink:0"></i>
     </div>
-    <div onclick="showScreen('401k',null)" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
+    <div onclick="showScreen('401k',document.querySelectorAll('.nav-btn')[3])" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
       <div style="width:44px;height:44px;border-radius:12px;background:#3b82f618;display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-building-bank" style="font-size:22px;color:var(--blue)"></i>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:15px;font-weight:600">401K</div>
+        <div style="font-size:15px;font-weight:600">401(k)</div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px" id="banner-401k-sub">Tap to manage</div>
       </div>
       <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted);flex-shrink:0"></i>
@@ -458,7 +458,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="savings-buckets-list"></div>
     <div id="savings-empty" style="display:none;text-align:center;color:var(--muted);font-size:14px;padding:40px 0">
       <i class="ti ti-piggy-bank" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>
-      Tap "+ New" to create your first savings goal
+      Tap "+ Goal" to create your first savings goal
     </div>
   </div>
 
@@ -498,7 +498,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="invgoals-list"></div>
     <div id="invgoals-empty" style="display:none;text-align:center;color:var(--muted);font-size:14px;padding:40px 0">
       <i class="ti ti-trending-up" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>
-      Tap "+ New" to create your first investment goal
+      Tap "+ Goal" to create your first investment goal
     </div>
   </div>
 
@@ -506,7 +506,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div class="top-bar">
       <div style="display:flex;align-items:center;gap:10px">
         <button onclick="showScreen('invest',document.querySelectorAll('.nav-btn')[3])" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex;align-items:center"><i class="ti ti-arrow-left" style="font-size:22px"></i></button>
-        <h2>401K</h2>
+        <h2>401(k)</h2>
       </div>
       <button class="icon-btn" onclick="open401KModal()" style="margin-right:-4px"><i class="ti ti-edit"></i></button>
     </div>
@@ -748,7 +748,7 @@ function selectIcon(icon,gid){selectedIcon=icon;renderIconGrid(gid);}
 function open401KModal(){
   const k=C.k401||DEFAULT_K401;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Edit 401K</h3>
+    <h3>Edit 401(k)</h3>
     <span class="modal-label">Your contribution</span>
     <input type="number" id="k401-me" value="${k.me||''}" inputmode="decimal" step="0.01" min="0" placeholder="0.00"/>
     <span class="modal-label">Employer match</span>
@@ -1877,12 +1877,19 @@ ${buildFinancialContext()}`;
 
 function isLight(){const cl=document.documentElement.classList;return cl.contains('light')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches&&!cl.contains('dark')&&!cl.contains('light'));}
 function toggleTheme(){
-  if(!isLight()){}// lightmode now free
   const cl=document.documentElement.classList;
   const light=!isLight();
   cl.toggle('light',light);cl.toggle('dark',!light);
   localStorage.setItem('divvy_theme',light?'light':'dark');
-  openSettingsModal();
+  // Update toggle knob in settings modal if open
+  const tog=document.getElementById('theme-toggle-knob');
+  const bar=document.getElementById('theme-toggle-bar');
+  if(tog){tog.style.left=light?'21px':'3px';}
+  if(bar){bar.style.background=light?'var(--accent)':'var(--border)';}
+  const lbl=document.getElementById('theme-toggle-label');
+  if(lbl)lbl.textContent=light?'Dark':'Light';
+  const sub=document.getElementById('theme-toggle-sub');
+  if(sub)sub.textContent='Currently '+(light?'light':'dark');
 }
 
 
@@ -1988,13 +1995,13 @@ function openSettingsModal(){
       <div onclick="toggleTheme()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px">
           <i class="ti ti-${light?'moon':'sun'}" style="font-size:20px;color:var(--amber)"></i>
-          <div><div style="font-size:15px;font-weight:500">${light?'Dark':'Light'} mode</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Currently ${light?'light':'dark'}</div></div>
+          <div><div id="theme-toggle-label" style="font-size:15px;font-weight:500">${light?'Dark':'Light'} mode</div><div id="theme-toggle-sub" style="font-size:12px;color:var(--muted);margin-top:2px">Currently ${light?'light':'dark'}</div></div>
         </div>
-        <div style="width:44px;height:26px;border-radius:99px;background:${light?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;flex-shrink:0">
-          <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${light?'21px':'3px'};transition:left .2s"></div>
+        <div id="theme-toggle-bar" style="width:44px;height:26px;border-radius:99px;background:${light?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;flex-shrink:0">
+          <div id="theme-toggle-knob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${light?'21px':'3px'};transition:left .2s"></div>
         </div>
       </div>
-      <div onclick="openPartnerSetup();closeModal();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="openPartnerSetup()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getPartners().p2?p1Name()+' & '+p2Name():'Solo — tap to add partner'}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
@@ -2103,7 +2110,7 @@ function confirmClearData(){
 }
 
 function clearAllData(){
-  localStorage.removeItem('divvy_app');
+  localStorage.clear();
   location.reload();
 }
 
@@ -3050,7 +3057,7 @@ function dueBadge(b){
   if(diff<=3)return`<span style="font-size:11px;color:var(--amber);background:#f59e0b22;padding:2px 8px;border-radius:99px;margin-left:6px">Due in ${diff}d</span>`;
   return`<span style="font-size:11px;color:var(--muted);padding:2px 0px;margin-left:6px">Due ${b.dueDay}${ordinal(b.dueDay)}</span>`;
 }
-function ordinal(n){const s=['th','st','nd','rd'];const v=n%100;return s[(v-20)%10]||s[v]||s[0];}
+
 function renderNextBillBanner(){
   const banner=document.getElementById('home-next-bill');
   if(!banner)return;
@@ -3182,6 +3189,7 @@ function renderBills(){
     const ad=a.dueDay||999,bd=b.dueDay||999;
     return ad-bd;
   });
+  if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px"><i class="ti ti-checklist" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No bills yet — tap + to add one</div>';return;}
   sorted.forEach(b=>{
     const i=b._i;
     const wrap=document.createElement('div');wrap.className='bill-card-wrap';
@@ -3521,7 +3529,7 @@ function startNewCycle(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
     <h3>Start new pay period?</h3>
     <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Bills will reset to unpaid. This cycle will be saved to history.</p>
-    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle()">Start new cycle</button></div>
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle()">Start new period</button></div>
   </div></div>`;
 }
 function confirmNewCycle(){
