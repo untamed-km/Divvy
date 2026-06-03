@@ -256,7 +256,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
     <!-- 2×2 supporting stats -->
     <div class="summary-row" style="margin-bottom:10px">
-      <div class="stat-card"><div class="label">Income</div><div class="value" id="home-income">$0</div><div id="delta-income" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
+      <div class="stat-card" onclick="openIncomeModal()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Income<i class="ti ti-edit" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-income">$0</div><div id="delta-income" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
       <div class="stat-card"><div class="label">Bills left</div><div class="value amber" id="home-bills-left">$0</div><div id="delta-bills" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
     </div>
     <div class="summary-row">
@@ -582,10 +582,7 @@ const ICON_OPTIONS=[
   {icon:'ti-device-mobile',label:'Tech'},{icon:'ti-baby-carriage',label:'Kids'},
   {icon:'ti-star',label:'Other'}
 ];
-const DEFAULT_BILLS=[
-
-  {name:'Credit Card',amount:100.00,paid:false,dueDay:null,recurring:true}
-];
+const DEFAULT_BILLS=[];
 const DEFAULT_BUCKETS={
   food:{label:'Food',icon:'ti-shopping-cart',budget:0,transactions:[]},
   gas:{label:'Gas',icon:'ti-gas-station',budget:0,transactions:[]},
@@ -593,7 +590,7 @@ const DEFAULT_BUCKETS={
 };
 const DEFAULT_INCOME=[];
 const DEFAULT_SAVINGS={perPaycheck:0};
-const DEFAULT_K401={me:0,emp:0};
+const DEFAULT_K401={me:0,emp:0,recurring:true};
 const DEFAULT_INVESTMENTS=[];
 
 function newCycleData(){
@@ -697,13 +694,16 @@ function billInPeriod(b){
   if(!C.startDate||!C.endDate) return true;
   const start=new Date(C.startDate+'T00:00:00');
   const end=new Date(C.endDate+'T00:00:00');
-  const sd=start.getDate(),ed=end.getDate(),d=b.dueDay;
-  if(start.getMonth()!==end.getMonth()) return d>=sd||d<=ed;
-  return d>=sd&&d<=ed;
+  const d=b.dueDay;
+  const dueInStartMonth=new Date(start.getFullYear(),start.getMonth(),d);
+  if(dueInStartMonth>=start&&dueInStartMonth<=end) return true;
+  const dueInEndMonth=new Date(end.getFullYear(),end.getMonth(),d);
+  if(dueInEndMonth>=start&&dueInEndMonth<=end) return true;
+  return false;
 }
 function totalBills(){return C.bills.reduce((a,b)=>a+(billInPeriod(b)?b.amount||0:0),0);}
 function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amount||0),0);}
-function bucketSpent(k){return C.buckets[k].transactions.reduce((a,t)=>a+(t.amount||0),0);}
+function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
 function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings();}
@@ -757,12 +757,22 @@ function selectIcon(icon,gid){selectedIcon=icon;renderIconGrid(gid);}
 
 function open401KModal(){
   const k=C.k401||DEFAULT_K401;
+  let _rec401k=k.recurring!==false;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Edit 401(k)</h3>
     <span class="modal-label">Your contribution</span>
     <input type="number" id="k401-me" value="${k.me||''}" inputmode="decimal" step="0.01" min="0" placeholder="0.00"/>
     <span class="modal-label">Employer match</span>
     <input type="number" id="k401-emp" value="${k.emp||''}" inputmode="decimal" step="0.01" min="0" placeholder="0.00"/>
+    <div onclick="toggle401KRecurring()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-top:4px;cursor:pointer">
+      <div>
+        <div style="font-size:15px;font-weight:500">Recurring</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Carries forward each pay period</div>
+      </div>
+      <div id="k401-rec-bar" style="width:44px;height:26px;border-radius:99px;background:${_rec401k?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;flex-shrink:0">
+        <div id="k401-rec-knob" style="position:absolute;top:3px;left:${_rec401k?'21px':'3px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="save401K()">Save</button>
@@ -770,10 +780,19 @@ function open401KModal(){
   </div></div>`;
   setTimeout(()=>document.getElementById('k401-me').focus(),100);
 }
+function toggle401KRecurring(){
+  const bar=document.getElementById('k401-rec-bar');
+  const knob=document.getElementById('k401-rec-knob');
+  const on=knob.style.left==='3px';
+  knob.style.left=on?'21px':'3px';
+  bar.style.background=on?'var(--accent)':'var(--border)';
+}
 function save401K(){
   if(!C.k401)C.k401={...DEFAULT_K401};
   C.k401.me=parseFloat(document.getElementById('k401-me').value)||0;
   C.k401.emp=parseFloat(document.getElementById('k401-emp').value)||0;
+  const knob=document.getElementById('k401-rec-knob');
+  C.k401.recurring=knob?knob.style.left==='21px':true;
   saveState();closeModal();render();
 }
 
@@ -2976,7 +2995,7 @@ function renderHome(){
   const heroSub=document.getElementById('home-remaining-sub');
   if(heroSub){
     const pct=income>0?Math.round((rem/income)*100):0;
-    heroSub.textContent=rem>=0?`${pct}% of income · ${fmtD(C.startDate)} – ${fmtD(C.endDate)}`:`over budget · ${fmtD(C.startDate)} – ${fmtD(C.endDate)}`;
+    heroSub.style.cursor='default';heroSub.onclick=null;heroSub.textContent=income<=0?`Add income to get started · ${fmtD(C.startDate)} – ${fmtD(C.endDate)}`:(rem>=0?`${pct}% of income · ${fmtD(C.startDate)} – ${fmtD(C.endDate)}`:`over budget · ${fmtD(C.startDate)} – ${fmtD(C.endDate)}`);;
   }
   // Saved stat
   const hs=document.getElementById('home-saved');
@@ -3486,18 +3505,16 @@ function renderInvest(){
 }
 
 function renderSnapshot(){
-  const income=totalIncome(),bills=totalBills(),savings=C.savings.perPaycheck,spent=totalSpent(),rem=income-bills-savings-spent;
+  const income=totalIncome(),bills=totalBills(),savings=C.savings.perPaycheck,spent=totalSpent(),invested=totalInvested(),extraSavingsAmt=currentExtraSavings(),rem=income-bills-savings-spent-invested-extraSavingsAmt;
   const ic=document.getElementById('income-card');
   const incLines=C.income||[];
   ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${r.label}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
   document.getElementById('income-total-display').textContent=fmt(income);
   const tbl=document.getElementById('snapshot-table');
-  const extraSav=currentExtraSavings();
-  const invested=totalInvested();
-  const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings+(extraSav?extraSav:0),'sub'],['Investments',invested,'sub'],
+  const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings+extraSavingsAmt,'sub'],['Investments',invested,'sub'],
     ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub'])];
   tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${l}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
-  `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<200?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
+  `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<Math.max(200,income*0.1)?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
   const allCycles=[...STATE.history,C];
   document.getElementById('alltime-savings').textContent=fmt(allTimeSavings());
   document.getElementById('alltime-savings-sub').textContent=`across ${allCycles.length} pay period${allCycles.length!==1?'s':''}`;
@@ -3587,7 +3604,7 @@ function renderHistory(){
 function startNewCycle(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
     <h3>Start new pay period?</h3>
-    <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Bills will reset to unpaid. This cycle will be saved to history.</p>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Recurring bills carry forward (unpaid). One-time bills are removed. This period will be saved to history.</p>
     <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle()">Start new period</button></div>
   </div></div>`;
 }
@@ -3603,9 +3620,11 @@ function confirmNewCycle(){
   STATE.history.push(JSON.parse(JSON.stringify(C)));
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
   const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
+  const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
   STATE.current=newCycleData();C=STATE.current;
   if(recurringBills.length) C.bills=recurringBills;
   if(recurringInvs.length) C.investments=recurringInvs;
+  if(recurring401k) C.k401=recurring401k;
   Object.keys(rolloverMap).forEach(k=>{
     if(C.buckets[k]){
       const r=rolloverMap[k];
