@@ -541,22 +541,22 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <i class="ti ti-crown" style="font-size:30px;color:#fff"></i>
       </div>
       <div style="font-size:20px;font-weight:700;margin-bottom:6px">Members Only</div>
-      <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;max-width:280px">Upgrade to unlock your personalised Members area — deals, insights, and tools matched to your finances.</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;max-width:280px">Upgrade to unlock your Members area — deals, insights, and tools matched to your finances.</div>
       <div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;width:100%;margin-bottom:20px;text-align:left">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">What's inside</div>
-        ${[['ti-sparkles','AI weekly insights on your spending'],['ti-trending-up','Live watchlist — stocks & crypto'],['ti-news','Personalised financial news feed'],['ti-school','Financial lessons & guides'],['ti-gift','Member-only partner deals']].map(([icon,label])=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)"><i class="ti ${icon}" style="font-size:16px;color:var(--accent);flex-shrink:0"></i><span style="font-size:13px">${label}</span></div>`).join('')}
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="color:#2dd4bf;font-size:16px;flex-shrink:0">&#8226;</span><span style="font-size:13px">AI spending insights</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="color:#2dd4bf;font-size:16px;flex-shrink:0">&#8226;</span><span style="font-size:13px">Stock &amp; crypto watchlist</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="color:#2dd4bf;font-size:16px;flex-shrink:0">&#8226;</span><span style="font-size:13px">Curated financial news</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="color:#2dd4bf;font-size:16px;flex-shrink:0">&#8226;</span><span style="font-size:13px">Money lessons &amp; guides</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="color:#2dd4bf;font-size:16px;flex-shrink:0">&#8226;</span><span style="font-size:13px">Exclusive member deals</span></div>
       </div>
-      <button onclick="closeModal();openProSettings()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">Unlock Members — from $2.99/mo</button>
+      <button onclick="openProSettings()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">Unlock Members &mdash; from $2.99/mo</button>
       <button onclick="openProSettings()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">See all plans</button>
     </div>
-
     <!-- PRO/COUPLES CONTENT -->
     <div id="members-content" style="display:none">
       <div id="members-tier-badge" style="margin-bottom:14px"></div>
-
       <div id="members-insight" style="margin-bottom:4px"></div>
-
-      <!-- Couples shared perks -->
       <div id="members-couples" style="display:none;margin-bottom:4px">
         <div class="section-label">Shared perks</div>
         <div style="background:linear-gradient(135deg,#ec489912,#f43f5e0a);border:0.5px solid #ec489933;border-radius:14px;padding:16px;margin-bottom:8px">
@@ -565,15 +565,9 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
             <div style="font-size:14px;font-weight:600">Partner sync</div>
             <span style="margin-left:auto;font-size:10px;font-weight:700;background:#ec489922;color:#ec4899;padding:3px 8px;border-radius:99px">Coming soon</span>
           </div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.5">Real-time shared budgets, combined net worth, and per-person spending breakdowns are on the roadmap.</div>
-        </div>
-        <div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-          <div style="width:40px;height:40px;border-radius:10px;background:#ec489918;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-home" style="font-size:20px;color:#ec4899"></i></div>
-          <div style="flex:1"><div style="font-size:14px;font-weight:600">Joint mortgage calculator</div><div style="font-size:12px;color:var(--muted);margin-top:2px">See what you can afford together</div></div>
-          <span style="font-size:11px;font-weight:600;color:#ec4899;border:0.5px solid #ec489944;padding:4px 10px;border-radius:99px">Soon</span>
+          <div style="font-size:13px;color:var(--muted);line-height:1.5">Real-time shared budgets and combined net worth are on the roadmap.</div>
         </div>
       </div>
-
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
         <span class="section-label" style="margin-top:0">Markets today</span>
         <button onclick="openWatchEditor('stocks')" style="background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;padding:2px 0"><i class="ti ti-adjustments" style="font-size:14px"></i> Customize</button>
@@ -590,9 +584,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="mkt-learn"></div>
       <div class="section-label">Member deals</div>
       <div id="mkt-affiliate"></div>
-      <div style="font-size:10px;color:var(--muted);text-align:center;padding:8px 16px 0;line-height:1.5">
-        Member deals are curated partnerships. DistroFi may earn a referral fee — this never affects which products are shown.
-      </div>
+      <div style="font-size:10px;color:var(--muted);text-align:center;padding:8px 16px 0;line-height:1.5">Member deals are curated partnerships. DistroFi may earn a referral fee.</div>
     </div>
   </div>
 
@@ -2736,109 +2728,42 @@ function renderWatchEditor(type){
 }
 
 function renderMarketplace(){
-  // Hide/show the lock dot on Members button
   const dot=document.getElementById('members-lock-dot');
   if(dot)dot.style.display=isPro()?'none':'block';
-
-  const pro=isPro();
-  const couples=isCouplePro();
-
-  // ── FREE USER GATE ──────────────────────────────────────────
-  if(!pro){
-    const gate=document.getElementById('members-gate');
+  const gate=document.getElementById('members-gate');
+  const content=document.getElementById('members-content');
+  if(!isPro()){
     if(gate)gate.style.display='flex';
-    const content=document.getElementById('members-content');
     if(content)content.style.display='none';
     return;
   }
-
-  // ── PRO/COUPLES: show content ────────────────────────────────
-  const gate=document.getElementById('members-gate');
   if(gate)gate.style.display='none';
-  const content=document.getElementById('members-content');
   if(content)content.style.display='block';
-
-  // Tier badge
   const badge=document.getElementById('members-tier-badge');
-  if(badge){
-    badge.innerHTML=couples
-      ?'<span style="background:linear-gradient(135deg,#ec4899,#f43f5e);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:.04em">COUPLES</span>'
-      :'<span style="background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:.04em">PRO SOLO</span>';
-  }
-
-  // Weekly AI Insight card
+  if(badge){badge.innerHTML=isCouplePro()
+    ?'<span style="background:linear-gradient(135deg,#ec4899,#f43f5e);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:.04em">COUPLES</span>'
+    :'<span style="background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:.04em">PRO SOLO</span>';}
   const insight=document.getElementById('members-insight');
   if(insight){
-    const spent=totalSpent(),income=totalIncome(),bills=totalBills(),saved=C.savings?.perPaycheck||0;
-    const pct=income>0?Math.round((spent/income)*100):0;
-    const remaining=income-bills-spent-saved;
-    const tip=remaining>0?`You have ${fmt(remaining)} left — consider moving some to savings.`
-      :spent>income*0.5?`Spending is at ${pct}% of income this period. Review your top buckets.`
-      :`On track this period — ${pct}% of income spent so far.`;
-    insight.innerHTML=`<div style="background:linear-gradient(135deg,#6366f114,#2dd4bf0a);border:0.5px solid #6366f133;border-radius:14px;padding:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-sparkles" style="font-size:18px;color:#fff"></i>
-        </div>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text)">AI Weekly Insight</div>
-          <div style="font-size:11px;color:var(--muted)">Based on your current period</div>
-        </div>
-      </div>
-      <div style="font-size:14px;color:var(--text);line-height:1.6">${tip}</div>
-      <button onclick="showScreen('invest',document.querySelectorAll('.nav-btn')[3])" style="margin-top:12px;padding:8px 14px;background:#6366f118;border:0.5px solid #6366f144;border-radius:99px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">View full breakdown →</button>
-    </div>`;
-  }
-
-  // Couples shared perks
-  const couplesSection=document.getElementById('members-couples');
-  if(couplesSection)couplesSection.style.display=couples?'block':'none';
-
-  // Watchlist
+    const spent=totalSpent(),income=totalIncome(),pct=income>0?Math.round((spent/income)*100):0;
+    const rem=income-totalBills()-(C.savings?.perPaycheck||0)-spent;
+    const tip=rem>0?`You have ${fmt(rem)} left this period — consider moving some to savings.`
+      :pct>50?`Spending is at ${pct}% of income. Review your top buckets.`
+      :`On track — ${pct}% of income spent so far this period.`;
+    insight.innerHTML=`<div style="background:linear-gradient(135deg,#6366f114,#2dd4bf0a);border:0.5px solid #6366f133;border-radius:14px;padding:16px;margin-bottom:4px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:#fff"></i></div><div><div style="font-size:13px;font-weight:700">AI Weekly Insight</div><div style="font-size:11px;color:var(--muted)">Based on your current period</div></div></div><div style="font-size:14px;line-height:1.6">${tip}</div></div>`;}
+  const cs=document.getElementById('members-couples');
+  if(cs)cs.style.display=isCouplePro()?'block':'none';
   const wl=getWatchlist();
   const st=document.getElementById('mkt-stocks');
-  if(st){
-    const shown=MKT_STOCKS.filter(s=>wl.stocks.includes(s.sym));
-    if(!shown.length){st.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No stocks in watchlist — tap Customize to add some</div>';}
-    else{st.innerHTML=shown.map(s=>{const i=MKT_STOCKS.indexOf(s);return `<div onclick="openMktChart('stock',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer">
-      <div style="width:40px;height:40px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:var(--text)">${s.sym}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>
-      ${sparkSVG(s.spark,s.up)}
-      <div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div>
-    </div>`;}).join('');}
-  }
+  if(st){const shown=MKT_STOCKS.filter(s=>wl.stocks.includes(s.sym));st.innerHTML=shown.length?shown.map(s=>{const i=MKT_STOCKS.indexOf(s);return `<div onclick="openMktChart('stock',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:var(--text)">${s.sym}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>${sparkSVG(s.spark,s.up)}<div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div></div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Tap Customize to add stocks</div>';}
   const cr=document.getElementById('mkt-crypto');
-  if(cr){
-    const shownC=MKT_CRYPTO.filter(s=>wl.crypto.includes(s.sym));
-    if(!shownC.length){cr.innerHTML='';}
-    else{cr.innerHTML=shownC.map(s=>{const i=MKT_CRYPTO.indexOf(s);return `<div onclick="openMktChart('crypto',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer">
-      <div style="width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent)">${s.sym}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>
-      ${sparkSVG(s.spark,s.up)}
-      <div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div>
-    </div>`;}).join('');}
-  }
-  // News
+  if(cr){const shownC=MKT_CRYPTO.filter(s=>wl.crypto.includes(s.sym));cr.innerHTML=shownC.length?shownC.map(s=>{const i=MKT_CRYPTO.indexOf(s);return `<div onclick="openMktChart('crypto',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent)">${s.sym}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>${sparkSVG(s.spark,s.up)}<div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div></div>`;}).join(''):'';}
   const nw=document.getElementById('mkt-news');
-  if(nw){nw.innerHTML=MKT_NEWS.map((n,i)=>`<div onclick="openMktNews(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f114;padding:3px 8px;border-radius:99px">${n.tag}</span><span style="font-size:11px;color:var(--muted)">${n.time}</span></div>
-    <div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${n.title}</div>
-    <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n.summary}</div>
-  </div>`).join('');}
-  // Learn
+  if(nw)nw.innerHTML=MKT_NEWS.map((n,i)=>`<div onclick="openMktNews(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f114;padding:3px 8px;border-radius:99px">${n.tag}</span><span style="font-size:11px;color:var(--muted)">${n.time}</span></div><div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${n.title}</div><div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n.summary}</div></div>`).join('');
   const ln=document.getElementById('mkt-learn');
-  if(ln){ln.innerHTML=MKT_LEARN.map((l,i)=>`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer">
-    <div style="width:40px;height:40px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${l.icon}" style="font-size:20px;color:var(--accent)"></i></div>
-    <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px"><i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> ${l.mins} read</div></div>
-    <i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted)"></i>
-  </div>`).join('');}
-  // Affiliate deals
+  if(ln)ln.innerHTML=MKT_LEARN.map((l,i)=>`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${l.icon}" style="font-size:20px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px"><i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> ${l.mins} read</div></div><i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted)"></i></div>`).join('');
   const af=document.getElementById('mkt-affiliate');
-  if(af){af.innerHTML=MKT_AFFILIATE.map((a,i)=>`<div onclick="openMktAffiliate(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid ${a.color}44;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer">
-    <div style="width:40px;height:40px;border-radius:10px;background:${a.color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${a.icon}" style="font-size:20px;color:${a.color}"></i></div>
-    <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${a.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${a.sub}</div></div>
-    <span style="font-size:11px;font-weight:600;color:${a.color};border:0.5px solid ${a.color}44;padding:4px 10px;border-radius:99px;flex-shrink:0">View</span>
-  </div>`).join('');}
+  if(af)af.innerHTML=MKT_AFFILIATE.map((a,i)=>`<div onclick="openMktAffiliate(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid ${a.color}44;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:10px;background:${a.color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${a.icon}" style="font-size:20px;color:${a.color}"></i></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${a.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${a.sub}</div></div><span style="font-size:11px;font-weight:600;color:${a.color};border:0.5px solid ${a.color}44;padding:4px 10px;border-radius:99px;flex-shrink:0">View</span></div>`).join('');
 }
 function bigChartSVG(data,up){
   const w=300,h=120,max=Math.max(...data),min=Math.min(...data),range=(max-min)||1;
@@ -3127,8 +3052,8 @@ function render(){renderHome();renderBills();renderSpend();renderInvest();render
 function renderHome(){
   const badge=document.getElementById('pro-badge');
   if(badge)badge.style.display=isPro()?'inline-block':'none';
-  const ftBanner=document.getElementById('home-finance-together');
-  if(ftBanner)ftBanner.style.display=(getPartners().p2?'block':'none');
+  const ft=document.getElementById('home-finance-together');
+  if(ft)ft.style.display=getPartners().p2?'block':'none';
   const income=totalIncome(),bills=totalBills()-paidBillsAmt(),spent=totalSpent(),rem=remaining();
   document.getElementById('home-income').textContent=fmt(income);
   const bl=document.getElementById('home-bills-left');bl.textContent=fmt(bills);bl.className='value '+(bills<=0?'green':'amber');
