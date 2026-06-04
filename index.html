@@ -12,6 +12,7 @@
 <title>DistroFi</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--app-bg:#0f1117;--card:#1a1d27;--card2:#21253a;--border:#2a2e42;--text:#e2e8f0;--muted:#8892a4;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--accent:#6366f1;--purple:#a855f7;}
@@ -191,7 +192,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
 
       <div id="auth-name-wrap" style="display:none">
-        <input type="text" id="auth-name" placeholder="Your name" autocomplete="name"/>
+        <input type="text" id="auth-username" placeholder="Choose a username (e.g. kirk123)" autocomplete="username" style="margin-bottom:8px"/>
+        <input type="text" id="auth-name" placeholder="Your display name" autocomplete="name"/>
+      </div>
+      <div id="auth-username-login-wrap">
+        <input type="text" id="auth-username-login" placeholder="Username" autocomplete="username" style="margin-bottom:8px"/>
       </div>
       <div style="position:relative">
         <input type="password" id="auth-pin" placeholder="4-digit PIN" inputmode="numeric" maxlength="4" autocomplete="current-password"
@@ -226,7 +231,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
             <span id="pro-badge" style="display:none;font-size:9px;font-weight:700;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;padding:2px 7px;border-radius:99px;letter-spacing:.04em">PRO</span>
           </div>
           <div id="home-finance-together" style="display:none;font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#2dd4bf;margin-top:2px">Finance Together</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px" id="cycle-days"></div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+            <div style="font-size:11px;color:var(--muted)" id="cycle-days"></div>
+            <div id="sync-dot" title="Sync status" style="display:none;width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+          </div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:2px">
@@ -666,7 +674,43 @@ function setFreq(f){STATE.payFrequency=f;saveState();}
 function freqLabel(){return FREQ_OPTIONS.find(o=>o.id===getFreq())?.label||'Twice a month';}
 function savingsFreqLabel(){const m={weekly:'per week',biweekly:'per paycheck',semimonthly:'per paycheck',monthly:'per month'};return m[getFreq()]||'per paycheck';}
 
-function saveState(){try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}}
+// ── Supabase ─────────────────────────────────────────────────────────
+const SUPA_URL='https://lvpslwmodbhenxcnaifk.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHNsd21vZGJoZW54Y25haWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Nzk2OTIsImV4cCI6MjA5NjE1NTY5Mn0.Ne-NWRI5Y0ZuLJJAP08cUvitfS3-XYv_g4uyc_PWj0Y';
+let _sb=null;
+function getSB(){if(!_sb&&window.supabase){_sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);}return _sb;}
+
+// Sync status dot
+function setSyncStatus(status){
+  const dot=document.getElementById('sync-dot');
+  if(!dot)return;
+  const colors={synced:'#22c55e',syncing:'#f59e0b',offline:'#6b7280',error:'#ef4444'};
+  dot.style.display='block';
+  dot.style.background=colors[status]||colors.offline;
+  dot.title=status==='synced'?'Synced':status==='syncing'?'Syncing…':status==='error'?'Sync error':'Offline';
+}
+
+// Debounced cloud push
+let _syncTimer=null;
+function scheduleSyncPush(){
+  clearTimeout(_syncTimer);
+  setSyncStatus('syncing');
+  _syncTimer=setTimeout(async()=>{
+    const sb=getSB();if(!sb)return;
+    try{
+      const {data:{user}}=await sb.auth.getUser();
+      if(!user){setSyncStatus('offline');return;}
+      const {error}=await sb.from('app_state').upsert({user_id:user.id,state_json:STATE,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      if(error){console.warn('Sync error:',error.message);setSyncStatus('error');}
+      else setSyncStatus('synced');
+    }catch(e){setSyncStatus('offline');}
+  },800);
+}
+
+function saveState(){
+  try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+  scheduleSyncPush();
+}
 
 // ── Pro state ──
 const PRO_KEY='distrofi_pro';
@@ -2134,7 +2178,7 @@ function openSettingsModal(){
   </div></div>`;
   const a=getAuth();
   const sub=document.getElementById('settings-auth-sub');
-  if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':(a.name||'Signed in');}
+  if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':a.username?'@'+a.username:(a.name||'Signed in');}
 }
 
 function openFeedbackModal(){
@@ -2852,9 +2896,11 @@ function openMktAffiliate(i){
 }
 
 
-// ── AUTH (UI demo — swap for Supabase Auth in Phase 3) ──
+// ── AUTH — Supabase ───────────────────────────────────────────────
 const AUTH_KEY='distrofi_auth';
-let authMode='login'; // 'login' or 'signup'
+let authMode='login';
+
+// Local session cache (fast access without async)
 function getAuth(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null');}catch(e){return null;}}
 function setAuth(a){localStorage.setItem(AUTH_KEY,JSON.stringify(a));}
 function clearAuth(){localStorage.removeItem(AUTH_KEY);}
@@ -2865,6 +2911,10 @@ function showAuthError(msg){
   if(e){e.textContent=msg;e.style.display='block';}
 }
 function clearAuthError(){const e=document.getElementById('auth-error');if(e)e.style.display='none';}
+function setAuthLoading(loading){
+  const btn=document.getElementById('auth-submit-btn');
+  if(btn){btn.disabled=loading;btn.textContent=loading?'Please wait…':(authMode==='signup'?'Create account':'Log in');}
+}
 
 function toggleAuthMode(){
   authMode=authMode==='login'?'signup':'login';
@@ -2874,14 +2924,17 @@ function toggleAuthMode(){
   const toggleText=document.getElementById('auth-toggle-text');
   const toggleLink=document.getElementById('auth-toggle-link');
   const pin=document.getElementById('auth-pin');
+  const loginUsernameWrap=document.getElementById('auth-username-login-wrap');
   if(authMode==='signup'){
     nameWrap.style.display='block';
+    if(loginUsernameWrap)loginUsernameWrap.style.display='none';
     submitBtn.textContent='Create account';
     toggleText.textContent='Already have an account? ';
     toggleLink.textContent='Log in';
     if(pin){pin.setAttribute('autocomplete','new-password');pin.placeholder='Choose a 4-digit PIN';}
   }else{
     nameWrap.style.display='none';
+    if(loginUsernameWrap)loginUsernameWrap.style.display='block';
     submitBtn.textContent='Log in';
     toggleText.textContent="Don't have an account? ";
     toggleLink.textContent='Sign up';
@@ -2889,47 +2942,125 @@ function toggleAuthMode(){
   }
 }
 
-function submitAuth(){
+// Derive a secure password from username + pin (never sent raw)
+function derivePassword(username,pin){return'df_'+username.toLowerCase()+'_'+pin+'_2024';}
+// Synthetic email for Supabase (users never see this)
+function syntheticEmail(username){return username.toLowerCase().replace(/[^a-z0-9]/g,'')+'@distrofi.app';}
+
+async function submitAuth(){
   clearAuthError();
   const pin=(document.getElementById('auth-pin').value||'').replace(/\D/g,'');
   if(pin.length!==4){showAuthError('Please enter your 4-digit PIN.');return;}
+  const sb=getSB();
+  setAuthLoading(true);
+
   if(authMode==='signup'){
-    const name=document.getElementById('auth-name').value.trim();
-    if(!name){showAuthError('Please enter your name.');return;}
-    setAuth({loggedIn:true,name,pin,method:'pin',since:new Date().toISOString()});
-    // Sync name into partner p1 if not already set
-    if(!STATE.partners||!STATE.partners.p1||STATE.partners.p1==='You'){if(!STATE.partners)STATE.partners={};STATE.partners.p1=name;saveState();}
+    const username=(document.getElementById('auth-username')?.value||'').trim().toLowerCase().replace(/\s+/g,'');
+    const displayName=document.getElementById('auth-name')?.value.trim()||username;
+    if(!username){showAuthError('Please choose a username.');setAuthLoading(false);return;}
+    if(username.length<3){showAuthError('Username must be at least 3 characters.');setAuthLoading(false);return;}
+    if(!/^[a-z0-9_]+$/.test(username)){showAuthError('Username can only contain letters, numbers, and underscores.');setAuthLoading(false);return;}
+    if(!displayName){showAuthError('Please enter your display name.');setAuthLoading(false);return;}
+
+    const email=syntheticEmail(username);
+    const password=derivePassword(username,pin);
+
+    // Check username availability
+    if(sb){
+      const {data:existing}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
+      if(existing){showAuthError('Username taken — try another.');setAuthLoading(false);return;}
+      // Create Supabase account
+      const {data,error}=await sb.auth.signUp({email,password,options:{data:{username,display_name:displayName}}});
+      if(error){showAuthError(error.message);setAuthLoading(false);return;}
+      // Save profile
+      if(data.user){
+        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName});
+        setAuth({loggedIn:true,name:displayName,username,method:'supabase',since:new Date().toISOString()});
+      }
+    } else {
+      // Offline fallback
+      setAuth({loggedIn:true,name:displayName,username,pin,method:'local',since:new Date().toISOString()});
+    }
+    if(!STATE.partners||!STATE.partners.p1||STATE.partners.p1==='You'){if(!STATE.partners)STATE.partners={};STATE.partners.p1=displayName;saveState();}
+
   }else{
-    const saved=getAuth();
-    if(!saved||!saved.pin){showAuthError('No account found. Please sign up first.');return;}
-    if(saved.pin!==pin){showAuthError('Incorrect PIN. Try again.');return;}
-    setAuth({...saved,loggedIn:true});
+    // Login
+    const username=(document.getElementById('auth-username-login')?.value||'').trim().toLowerCase();
+    const usernameVal=username||getAuth()?.username||'';
+    if(!usernameVal){showAuthError('Please enter your username.');setAuthLoading(false);return;}
+
+    if(sb){
+      const email=syntheticEmail(usernameVal);
+      const password=derivePassword(usernameVal,pin);
+      const {data,error}=await sb.auth.signInWithPassword({email,password});
+      if(error){showAuthError('Incorrect username or PIN.');setAuthLoading(false);return;}
+      // Pull cloud state
+      if(data.user){
+        const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',data.user.id).maybeSingle();
+        if(cloudState?.state_json){
+          STATE=cloudState.state_json;C=STATE.current;
+          try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+        }
+        const {data:profile}=await sb.from('profiles').select('display_name,username').eq('id',data.user.id).maybeSingle();
+        setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,method:'supabase',since:new Date().toISOString()});
+      }
+    } else {
+      // Offline: validate against cached PIN
+      const saved=getAuth();
+      if(!saved?.pin){showAuthError('No account found. Please sign up first.');setAuthLoading(false);return;}
+      if(saved.pin!==pin){showAuthError('Incorrect PIN. Try again.');setAuthLoading(false);return;}
+      setAuth({...saved,loggedIn:true});
+    }
   }
+  setAuthLoading(false);
   enterApp();
 }
 
 function guestAuth(){
-  setAuth({loggedIn:true,name:'Guest',pin:null,method:'guest',since:new Date().toISOString()});
+  setAuth({loggedIn:true,name:'Guest',username:null,pin:null,method:'guest',since:new Date().toISOString()});
   enterApp();
 }
 
-function enterApp(){
+async function enterApp(){
   const ov=document.getElementById('auth-overlay');
   if(ov)ov.style.display='none';
   render();
+  setSyncStatus('synced');
   if(!localStorage.getItem(ONBOARD_KEY)){setTimeout(showOnboarding,400);}
 }
 
-function logOut(){
+async function logOut(){
+  const sb=getSB();
+  if(sb)await sb.auth.signOut();
   clearAuth();
   closeModal();
+  const dot=document.getElementById('sync-dot');
+  if(dot)dot.style.display='none';
   const ov=document.getElementById('auth-overlay');
   if(ov)ov.style.display='flex';
 }
 
-function checkAuthGate(){
+async function checkAuthGate(){
   const ov=document.getElementById('auth-overlay');
   if(!ov)return;
+  // Check Supabase session first
+  const sb=getSB();
+  if(sb){
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){
+      if(!isLoggedIn()){
+        // Restore from Supabase session
+        const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',session.user.id).maybeSingle();
+        if(cloudState?.state_json){STATE=cloudState.state_json;C=STATE.current;try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}}
+        const {data:profile}=await sb.from('profiles').select('display_name,username').eq('id',session.user.id).maybeSingle();
+        setAuth({loggedIn:true,name:profile?.display_name||'User',username:profile?.username||'',method:'supabase',since:new Date().toISOString()});
+        render();
+      }
+      ov.style.display='none';
+      setSyncStatus('synced');
+      return;
+    }
+  }
   if(isLoggedIn()){ov.style.display='none';}
   else{ov.style.display='flex';}
 }
