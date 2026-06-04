@@ -199,7 +199,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:14px">Letters, numbers &amp; underscores only. Used to log in on new devices.</div>
         <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Display name</label>
         <input type="text" id="auth-name" placeholder="Your name" autocomplete="name"/>
-        <div style="margin-bottom:6px"></div>
+        <div style="margin-bottom:14px"></div>
+        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Recovery email <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional)</span></label>
+        <input type="email" id="auth-recovery-email" placeholder="your@email.com" autocomplete="email" inputmode="email"/>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:6px">Used only to recover your username if you forget it. Never shown publicly.</div>
       </div>
 
       <!-- Login username field -->
@@ -233,9 +236,12 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 
       <button class="btn btn-primary" style="width:100%;margin-top:16px;margin-bottom:14px;padding:16px" onclick="submitAuth()" id="auth-submit-btn">Log in</button>
 
-      <div style="text-align:center;margin-bottom:14px">
+      <div style="text-align:center;margin-bottom:8px">
         <span style="font-size:13px;color:var(--muted)" id="auth-toggle-text">Don't have an account? </span>
         <span onclick="toggleAuthMode()" style="font-size:13px;color:var(--accent);font-weight:600;cursor:pointer" id="auth-toggle-link">Sign up</span>
+      </div>
+      <div id="auth-forgot-wrap" style="text-align:center;margin-bottom:6px">
+        <span onclick="openForgotUsername()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Forgot your username?</span>
       </div>
 
       <button onclick="guestAuth()" style="width:100%;padding:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">
@@ -2951,11 +2957,13 @@ function toggleAuthMode(){
   const pin=document.getElementById('auth-pin');
   const loginUsernameWrap=document.getElementById('auth-username-login-wrap');
   const tosWrap=document.getElementById('auth-tos-wrap');
+  const forgotWrap=document.getElementById('auth-forgot-wrap');
   clearPinBoxes();
   if(authMode==='signup'){
     nameWrap.style.display='block';
     if(loginUsernameWrap)loginUsernameWrap.style.display='none';
     if(tosWrap)tosWrap.style.display='block';
+    if(forgotWrap)forgotWrap.style.display='none';
     submitBtn.textContent='Create account';
     toggleText.textContent='Already have an account? ';
     toggleLink.textContent='Log in';
@@ -2964,6 +2972,7 @@ function toggleAuthMode(){
     nameWrap.style.display='none';
     if(loginUsernameWrap)loginUsernameWrap.style.display='block';
     if(tosWrap)tosWrap.style.display='none';
+    if(forgotWrap)forgotWrap.style.display='block';
     submitBtn.textContent='Log in';
     toggleText.textContent="Don't have an account? ";
     toggleLink.textContent='Sign up';
@@ -2997,6 +3006,44 @@ function clearPinBoxes(){
 }
 
 // ── ToS / Privacy placeholders ───────────────────────────────────
+function openForgotUsername(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Forgot your username?</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Enter the recovery email you provided at signup and we'll look up your username.</p>
+    <div id="forgot-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
+    <div id="forgot-success" style="display:none;background:#22c55e18;border:0.5px solid #22c55e44;color:var(--green);font-size:14px;padding:14px;border-radius:12px;margin-bottom:12px;text-align:center;font-weight:600"></div>
+    <input type="email" id="forgot-email" placeholder="your@email.com" inputmode="email" autocomplete="email" style="margin-bottom:12px"/>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitForgotUsername()">Look up</button>
+    </div>
+  </div></div>`;
+}
+
+async function submitForgotUsername(){
+  const email=(document.getElementById('forgot-email')?.value||'').trim();
+  const errEl=document.getElementById('forgot-error');
+  const okEl=document.getElementById('forgot-success');
+  if(!email){if(errEl){errEl.textContent='Please enter your email.';errEl.style.display='block';}return;}
+  const btn=document.querySelector('#modal-root .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Looking up…';}
+  if(errEl)errEl.style.display='none';
+  const sb=getSB();
+  if(sb){
+    const {data,error}=await sb.rpc('get_username_by_recovery_email',{lookup_email:email});
+    if(error||!data){
+      if(errEl){errEl.textContent='No account found with that email. Try another address or sign up.';errEl.style.display='block';}
+    }else{
+      if(okEl){okEl.innerHTML=`Your username is <span style="color:var(--accent)">@${data}</span>`;okEl.style.display='block';}
+      const inp=document.getElementById('forgot-email');if(inp)inp.style.display='none';
+      if(btn)btn.style.display='none';
+    }
+  }else{
+    if(errEl){errEl.textContent='You appear to be offline. Please try again when connected.';errEl.style.display='block';}
+  }
+  if(btn){btn.disabled=false;btn.textContent='Look up';}
+}
+
 function openToS(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -3071,7 +3118,8 @@ async function submitAuth(){
       if(error){showAuthError(error.message);setAuthLoading(false);return;}
       // Save profile
       if(data.user){
-        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName});
+        const recoveryEmail=(document.getElementById('auth-recovery-email')?.value||'').trim().toLowerCase()||null;
+        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,recovery_email:recoveryEmail});
         setAuth({loggedIn:true,name:displayName,username,method:'supabase',since:new Date().toISOString()});
       }
     } else {
