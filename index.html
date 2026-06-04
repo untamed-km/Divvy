@@ -191,24 +191,44 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 
       <div id="auth-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
 
+      <!-- Signup fields -->
       <div id="auth-name-wrap" style="display:none">
-        <input type="text" id="auth-username" placeholder="Choose a username (e.g. kirk123)" autocomplete="username" style="margin-bottom:8px"/>
-        <input type="text" id="auth-name" placeholder="Your display name" autocomplete="name"/>
+        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Username</label>
+        <input type="text" id="auth-username" placeholder="e.g. kirk123" autocomplete="username"/>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:14px">Letters, numbers &amp; underscores only. Used to log in on new devices.</div>
+        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Display name</label>
+        <input type="text" id="auth-name" placeholder="Your name" autocomplete="name"/>
+        <div style="margin-bottom:6px"></div>
       </div>
+
+      <!-- Login username field -->
       <div id="auth-username-login-wrap">
-        <input type="text" id="auth-username-login" placeholder="Username" autocomplete="username" style="margin-bottom:8px"/>
-      </div>
-      <div style="position:relative">
-        <input type="password" id="auth-pin" placeholder="4-digit PIN" inputmode="numeric" maxlength="4" autocomplete="current-password"
-          style="letter-spacing:6px;font-size:22px;text-align:center"
-          oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-          onkeydown="if(event.key==='Enter')submitAuth()"/>
-        <div id="auth-pin-dots" style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:10px;pointer-events:none"></div>
+        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Username</label>
+        <input type="text" id="auth-username-login" placeholder="Your username" autocomplete="username"/>
+        <div style="margin-bottom:6px"></div>
       </div>
 
-      <button class="btn btn-primary" style="width:100%;margin-top:6px;margin-bottom:18px" onclick="submitAuth()" id="auth-submit-btn">Log in</button>
+      <!-- 4-box PIN input -->
+      <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">PIN</label>
+      <div style="display:flex;justify-content:center;gap:10px;margin-bottom:6px">
+        <input type="password" inputmode="numeric" maxlength="1" id="pin-0" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,0)" onkeydown="pinBoxKeydown(event,0)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+        <input type="password" inputmode="numeric" maxlength="1" id="pin-1" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,1)" onkeydown="pinBoxKeydown(event,1)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+        <input type="password" inputmode="numeric" maxlength="1" id="pin-2" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,2)" onkeydown="pinBoxKeydown(event,2)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+        <input type="password" inputmode="numeric" maxlength="1" id="pin-3" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,3)" onkeydown="pinBoxKeydown(event,3)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+      <input type="hidden" id="auth-pin"/>
 
-      <div style="text-align:center;margin-bottom:16px">
+      <!-- ToS checkbox — signup only -->
+      <div id="auth-tos-wrap" style="display:none;margin:16px 0 4px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" id="auth-tos-check" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--accent)"/>
+          <span style="font-size:12px;color:var(--muted);line-height:1.6">I agree to the <span onclick="openToS()" style="color:var(--accent);font-weight:600;cursor:pointer">Terms of Service</span> and <span onclick="openPrivacy()" style="color:var(--accent);font-weight:600;cursor:pointer">Privacy Policy</span></span>
+        </label>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;margin-bottom:14px;padding:16px" onclick="submitAuth()" id="auth-submit-btn">Log in</button>
+
+      <div style="text-align:center;margin-bottom:14px">
         <span style="font-size:13px;color:var(--muted)" id="auth-toggle-text">Don't have an account? </span>
         <span onclick="toggleAuthMode()" style="font-size:13px;color:var(--accent);font-weight:600;cursor:pointer" id="auth-toggle-link">Sign up</span>
       </div>
@@ -2925,27 +2945,97 @@ function toggleAuthMode(){
   const toggleLink=document.getElementById('auth-toggle-link');
   const pin=document.getElementById('auth-pin');
   const loginUsernameWrap=document.getElementById('auth-username-login-wrap');
+  const tosWrap=document.getElementById('auth-tos-wrap');
+  clearPinBoxes();
   if(authMode==='signup'){
     nameWrap.style.display='block';
     if(loginUsernameWrap)loginUsernameWrap.style.display='none';
+    if(tosWrap)tosWrap.style.display='block';
     submitBtn.textContent='Create account';
     toggleText.textContent='Already have an account? ';
     toggleLink.textContent='Log in';
-    if(pin){pin.setAttribute('autocomplete','new-password');pin.placeholder='Choose a 4-digit PIN';}
+    setTimeout(()=>document.getElementById('auth-username')?.focus(),100);
   }else{
     nameWrap.style.display='none';
     if(loginUsernameWrap)loginUsernameWrap.style.display='block';
+    if(tosWrap)tosWrap.style.display='none';
     submitBtn.textContent='Log in';
     toggleText.textContent="Don't have an account? ";
     toggleLink.textContent='Sign up';
-    if(pin){pin.setAttribute('autocomplete','current-password');pin.placeholder='4-digit PIN';}
+    setTimeout(()=>document.getElementById('auth-username-login')?.focus(),100);
   }
 }
 
 // Derive a secure password from username + pin (never sent raw)
 function derivePassword(username,pin){return'df_'+username.toLowerCase()+'_'+pin+'_2024';}
-// Synthetic email for Supabase (users never see this)
 function syntheticEmail(username){return username.toLowerCase().replace(/[^a-z0-9]/g,'')+'@distrofi.app';}
+
+// ── PIN boxes ────────────────────────────────────────────────────
+function pinBoxInput(el,idx){
+  el.value=el.value.replace(/\D/g,'').slice(0,1);
+  updateHiddenPin();
+  if(el.value&&idx<3)document.getElementById('pin-'+(idx+1))?.focus();
+}
+function pinBoxKeydown(e,idx){
+  if(e.key==='Backspace'&&!e.target.value&&idx>0){
+    document.getElementById('pin-'+(idx-1))?.focus();
+  }
+  if(e.key==='Enter')submitAuth();
+}
+function updateHiddenPin(){
+  const vals=[0,1,2,3].map(i=>document.getElementById('pin-'+i)?.value||'').join('');
+  const h=document.getElementById('auth-pin');if(h)h.value=vals;
+}
+function clearPinBoxes(){
+  [0,1,2,3].forEach(i=>{const b=document.getElementById('pin-'+i);if(b)b.value='';});
+  const h=document.getElementById('auth-pin');if(h)h.value='';
+}
+
+// ── ToS / Privacy placeholders ───────────────────────────────────
+function openToS(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">Terms of Service</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Application: DistroFi &nbsp;·&nbsp; Mayer Ventures LLC &nbsp;·&nbsp; Version 1.1</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.8">
+      <p style="margin-bottom:12px">Welcome to DistroFi. This Terms of Service agreement ("Agreement") constitutes a legally binding contract between you ("User") and Mayer Ventures LLC ("Company"), the parent legal entity owning and operating DistroFi. By signing up, you acknowledge you have read and agreed to be bound by this Agreement.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">1. Scope of Service</p>
+      <p style="margin-bottom:12px">DistroFi is a structured capital scheduling, visual budgeting, and personal resource-allocation tool. It facilitates a manual or semi-automated approach to dividing user-inputted income into designated containers to help organize expenses, overhead, and savings goals.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">2. Financial Disclaimers</p>
+      <p style="margin-bottom:6px;color:var(--red);font-weight:600;font-size:12px">DISTROFI AND MAYER VENTURES LLC ARE NOT LICENSED FINANCIAL ADVISORS, INVESTMENT ADVISORY SERVICES, OR REGISTERED LEGAL COUNSEL. THE APPLICATION IS A MATHEMATICAL VISUALIZATION UTILITY ONLY.</p>
+      <p style="margin-bottom:12px">All calculations and projections are purely computational and provided for educational purposes only. Nothing in the Application constitutes personal financial planning, tax structuring, or investment advice. You assume complete legal responsibility for any financial decisions made in reliance on the Application. Mayer Ventures LLC shall not be liable for any negative financial outcomes arising from your use of the software.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">3. Account Security</p>
+      <p style="margin-bottom:12px">You bear full responsibility for maintaining confidentiality of your access credentials. You agree to notify the Company immediately of any unauthorized breach of your account. Mayer Ventures LLC disclaims all liability for financial exposure resulting from an unlocked device, shared browser, or negligent handling of credentials.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">4. Third-Party Integrations</p>
+      <p style="margin-bottom:12px">The Application may use encrypted third-party data networks to pull informational balances. These are read-only protocols. Mayer Ventures LLC does not store your banking passwords directly. The Company is not liable for data delivery lag, sync failures, or security events originating within external banking APIs.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">5. Acceptable Use & Intellectual Property</p>
+      <p style="margin-bottom:6px">The architectural flow, visual assets, container configuration system, and source code of DistroFi are protected intellectual property of Mayer Ventures LLC. Users are strictly prohibited from:</p>
+      <ul style="margin-left:16px;margin-bottom:12px;font-size:13px">
+        <li style="margin-bottom:4px">Reverse engineering, decompiling, or extracting source code</li>
+        <li style="margin-bottom:4px">Scraping, crawling, or extracting data via automated tools</li>
+        <li style="margin-bottom:4px">Circumventing or abusing the Application's APIs</li>
+      </ul>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">6. Account Termination</p>
+      <p style="margin-bottom:12px">Mayer Ventures LLC reserves the right to suspend or permanently terminate access to the Application for violations of this Agreement, API abuse, or platform compromise, without prior notification.</p>
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">7. Governing Law</p>
+      <p style="margin-bottom:16px">This Agreement is governed by the laws of the State of Florida, United States. Any legal proceedings shall be filed exclusively within state or federal courts in Florida.</p>
+      <p style="font-size:11px;color:var(--muted)">Mayer Ventures LLC &nbsp;·&nbsp; DistroFi Terms of Service v1.1 &nbsp;·&nbsp; State of Florida, United States</p>
+    </div>
+    <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  </div></div>`;
+}
+function openPrivacy(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">Privacy Policy</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
+    </div>
+    <p style="font-size:14px;color:var(--muted);line-height:1.7">Privacy Policy coming soon. For questions about your data, contact us through the feedback form in the app.</p>
+    <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  </div></div>`;
+}
 
 async function submitAuth(){
   clearAuthError();
@@ -2961,6 +3051,8 @@ async function submitAuth(){
     if(username.length<3){showAuthError('Username must be at least 3 characters.');setAuthLoading(false);return;}
     if(!/^[a-z0-9_]+$/.test(username)){showAuthError('Username can only contain letters, numbers, and underscores.');setAuthLoading(false);return;}
     if(!displayName){showAuthError('Please enter your display name.');setAuthLoading(false);return;}
+    const tosCheck=document.getElementById('auth-tos-check');
+    if(tosCheck&&!tosCheck.checked){showAuthError('Please agree to the Terms of Service to continue.');setAuthLoading(false);return;}
 
     const email=syntheticEmail(username);
     const password=derivePassword(username,pin);
