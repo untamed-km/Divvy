@@ -188,21 +188,15 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-name-wrap" style="display:none">
         <input type="text" id="auth-name" placeholder="Your name" autocomplete="name"/>
       </div>
-      <input type="email" id="auth-email" placeholder="Email" autocomplete="email" inputmode="email"/>
-      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password"/>
-
-      <button class="btn btn-primary" style="width:100%;margin-top:6px;margin-bottom:12px" onclick="submitAuth()" id="auth-submit-btn">Log in</button>
-
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="flex:1;height:0.5px;background:var(--border)"></div>
-        <span style="font-size:11px;color:var(--muted)">or</span>
-        <div style="flex:1;height:0.5px;background:var(--border)"></div>
+      <div style="position:relative">
+        <input type="password" id="auth-pin" placeholder="4-digit PIN" inputmode="numeric" maxlength="4" autocomplete="current-password"
+          style="letter-spacing:6px;font-size:22px;text-align:center"
+          oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+          onkeydown="if(event.key==='Enter')submitAuth()"/>
+        <div id="auth-pin-dots" style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:10px;pointer-events:none"></div>
       </div>
 
-      <button onclick="googleAuth()" style="width:100%;padding:13px;background:var(--card);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 009 18z" fill="#34A853"/><path d="M3.97 10.72a5.41 5.41 0 010-3.44V4.95H.96a9 9 0 000 8.1l3.01-2.33z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 00.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335"/></svg>
-        Continue with Google
-      </button>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px;margin-bottom:18px" onclick="submitAuth()" id="auth-submit-btn">Log in</button>
 
       <div style="text-align:center;margin-bottom:16px">
         <span style="font-size:13px;color:var(--muted)" id="auth-toggle-text">Don't have an account? </span>
@@ -422,7 +416,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div class="section-label">This period</div>
     <div class="savings-summary">
       <div class="savings-row">
-        <span style="font-size:15px;color:var(--muted)">Per period</span>
+        <span style="font-size:15px;color:var(--muted)" id="sav-per-label">Per period</span>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:16px;font-weight:500;font-variant-numeric:tabular-nums" id="sav-per">$0.00</span>
           <button class="icon-btn" onclick="openSavingsModal()"><i class="ti ti-edit"></i></button>
@@ -635,6 +629,7 @@ const FREQ_OPTIONS=[
 function getFreq(){return STATE.payFrequency||'semimonthly';}
 function setFreq(f){STATE.payFrequency=f;saveState();}
 function freqLabel(){return FREQ_OPTIONS.find(o=>o.id===getFreq())?.label||'Twice a month';}
+function savingsFreqLabel(){const m={weekly:'per week',biweekly:'per paycheck',semimonthly:'per paycheck',monthly:'per month'};return m[getFreq()]||'per paycheck';}
 
 function saveState(){try{localStorage.setItem('divvy_app',JSON.stringify(STATE));}catch(e){}}
 
@@ -684,7 +679,26 @@ let STATE=loadState(),C=STATE.current,selectedIcon='ti-star';
   else if(t==='dark')document.documentElement.classList.add('dark');
 })();
 
-function fmt(n){return'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+const CURRENCIES=[
+  {code:'USD',symbol:'$',locale:'en-US',label:'USD — US Dollar ($)'},
+  {code:'EUR',symbol:'€',locale:'de-DE',label:'EUR — Euro (€)'},
+  {code:'GBP',symbol:'£',locale:'en-GB',label:'GBP — British Pound (£)'},
+  {code:'CAD',symbol:'CA$',locale:'en-CA',label:'CAD — Canadian Dollar (CA$)'},
+  {code:'AUD',symbol:'A$',locale:'en-AU',label:'AUD — Australian Dollar (A$)'},
+  {code:'MXN',symbol:'MX$',locale:'es-MX',label:'MXN — Mexican Peso (MX$)'},
+  {code:'JPY',symbol:'¥',locale:'ja-JP',label:'JPY — Japanese Yen (¥)',noDecimals:true},
+  {code:'INR',symbol:'₹',locale:'en-IN',label:'INR — Indian Rupee (₹)'},
+  {code:'BRL',symbol:'R$',locale:'pt-BR',label:'BRL — Brazilian Real (R$)'},
+  {code:'CHF',symbol:'CHF',locale:'de-CH',label:'CHF — Swiss Franc (CHF)'},
+];
+function getCurrencyCode(){return STATE.currency||'USD';}
+function getCurrencyDef(){return CURRENCIES.find(c=>c.code===getCurrencyCode())||CURRENCIES[0];}
+function fmt(n){
+  const c=getCurrencyDef();
+  const opts={minimumFractionDigits:c.noDecimals?0:2,maximumFractionDigits:c.noDecimals?0:2};
+  const num=Number(n||0).toLocaleString(c.locale,opts);
+  return c.code==='EUR'||c.code==='CHF'?num+' '+c.symbol:c.symbol+num;
+}
 function fmtD(s){return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function bucketColor(p){return p>=1?'var(--red)':p>=.75?'var(--amber)':'var(--green)';}
 function totalIncome(){return(C.income||[]).reduce((s,l)=>s+(l.amount||0),0);}
@@ -945,7 +959,7 @@ function saveIncome(){
 function openSavingsModal(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Edit savings</h3>
-    <span class="modal-label">Amount saved per period</span>
+    <span class="modal-label">Amount saved ${savingsFreqLabel()}</span>
     <input type="number" id="sav-input" value="${C.savings.perPaycheck||''}" inputmode="decimal" step="0.01" min="0" placeholder="0.00"/>
     <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSavings()">Save</button></div>
   </div></div>`;
@@ -1092,7 +1106,7 @@ function saveBill(idx){
   const name=document.getElementById('bill-name-input').value.trim();
   const amount=parseFloat(document.getElementById('bill-amount-input').value)||0;
   if(!name)return;
-  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:_recurringBill,priority:_priorityHigh?'high':null});
+  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now()});
   else{C.bills[idx].name=name;C.bills[idx].amount=amount;C.bills[idx].dueDay=_selectedDay;C.bills[idx].recurring=_recurringBill;C.bills[idx].priority=_priorityHigh?'high':null;}
   saveState();closeModal();render();
 }
@@ -2034,6 +2048,10 @@ function openSettingsModal(){
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getPartners().p2?p1Name()+' & '+p2Name():'Solo — tap to add partner'}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
+      <div onclick="openCurrencyPicker();closeModal();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-currency-dollar" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Currency</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="currency-setting-sub">${getCurrencyDef().label}</div></div></div>
+        <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
+      </div>
       <div onclick="openFreqPicker();closeModal();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-calendar-repeat" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Pay frequency</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${freqLabel()}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
@@ -2076,7 +2094,7 @@ function openSettingsModal(){
   </div></div>`;
   const a=getAuth();
   const sub=document.getElementById('settings-auth-sub');
-  if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':(a.email||a.name||'Signed in');}
+  if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':(a.name||'Signed in');}
 }
 
 function openFeedbackModal(){
@@ -2134,6 +2152,18 @@ function confirmLogout(){
     </div>
   </div></div>`;
 }
+
+function openCurrencyPicker(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Currency</h3>
+    ${CURRENCIES.map(c=>`<div onclick="selectCurrency('${c.code}')" style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:${getCurrencyCode()===c.code?'#6366f114':'var(--card2)'};border:1.5px solid ${getCurrencyCode()===c.code?'var(--accent)':'var(--border)'};border-radius:12px;margin-bottom:8px;cursor:pointer">
+      <span style="font-size:15px;font-weight:${getCurrencyCode()===c.code?'600':'400'};color:${getCurrencyCode()===c.code?'var(--accent)':'var(--text)'}">${c.label}</span>
+      ${getCurrencyCode()===c.code?'<i class="ti ti-check" style="font-size:18px;color:var(--accent)"></i>':''}
+    </div>`).join('')}
+    <div class="modal-btns" style="margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
+  </div></div>`;
+}
+function selectCurrency(code){STATE.currency=code;saveState();closeModal();render();}
 
 function openAccountModal(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -2801,45 +2831,43 @@ function toggleAuthMode(){
   const submitBtn=document.getElementById('auth-submit-btn');
   const toggleText=document.getElementById('auth-toggle-text');
   const toggleLink=document.getElementById('auth-toggle-link');
-  const pw=document.getElementById('auth-password');
+  const pin=document.getElementById('auth-pin');
   if(authMode==='signup'){
     nameWrap.style.display='block';
     submitBtn.textContent='Create account';
     toggleText.textContent='Already have an account? ';
     toggleLink.textContent='Log in';
-    pw.setAttribute('autocomplete','new-password');
+    if(pin){pin.setAttribute('autocomplete','new-password');pin.placeholder='Choose a 4-digit PIN';}
   }else{
     nameWrap.style.display='none';
     submitBtn.textContent='Log in';
     toggleText.textContent="Don't have an account? ";
     toggleLink.textContent='Sign up';
-    pw.setAttribute('autocomplete','current-password');
+    if(pin){pin.setAttribute('autocomplete','current-password');pin.placeholder='4-digit PIN';}
   }
 }
 
-function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
-
 function submitAuth(){
   clearAuthError();
-  const email=document.getElementById('auth-email').value.trim();
-  const pw=document.getElementById('auth-password').value;
-  const name=authMode==='signup'?document.getElementById('auth-name').value.trim():'';
-  if(authMode==='signup'&&!name){showAuthError('Please enter your name.');return;}
-  if(!validEmail(email)){showAuthError('Please enter a valid email address.');return;}
-  if(pw.length<6){showAuthError('Password must be at least 6 characters.');return;}
-  // Connect to your auth provider here (e.g. Supabase, Firebase)
-  setAuth({loggedIn:true,email,name:name||email.split('@')[0],method:'email',since:new Date().toISOString()});
-  enterApp();
-}
-
-function googleAuth(){
-  // Connect to your OAuth provider here (e.g. supabase.auth.signInWithOAuth({provider:'google'}))
-  setAuth({loggedIn:true,email:'you@gmail.com',name:'Google User',method:'google',since:new Date().toISOString()});
+  const pin=(document.getElementById('auth-pin').value||'').replace(/\D/g,'');
+  if(pin.length!==4){showAuthError('Please enter your 4-digit PIN.');return;}
+  if(authMode==='signup'){
+    const name=document.getElementById('auth-name').value.trim();
+    if(!name){showAuthError('Please enter your name.');return;}
+    setAuth({loggedIn:true,name,pin,method:'pin',since:new Date().toISOString()});
+    // Sync name into partner p1 if not already set
+    if(!STATE.partners||!STATE.partners.p1||STATE.partners.p1==='You'){if(!STATE.partners)STATE.partners={};STATE.partners.p1=name;saveState();}
+  }else{
+    const saved=getAuth();
+    if(!saved||!saved.pin){showAuthError('No account found. Please sign up first.');return;}
+    if(saved.pin!==pin){showAuthError('Incorrect PIN. Try again.');return;}
+    setAuth({...saved,loggedIn:true});
+  }
   enterApp();
 }
 
 function guestAuth(){
-  setAuth({loggedIn:true,email:null,name:'Guest',method:'guest',since:new Date().toISOString()});
+  setAuth({loggedIn:true,name:'Guest',pin:null,method:'guest',since:new Date().toISOString()});
   enterApp();
 }
 
@@ -3253,35 +3281,90 @@ function renderNextBillBanner(){
   const remaining=allUnpaid-show.length;
   banner.innerHTML=show.map(makeBillCard).join('')+(remaining>0?`<div onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="text-align:center;font-size:12px;color:var(--accent);padding:2px 0 6px;cursor:pointer">+${remaining} more unpaid bill${remaining!==1?'s':''} →</div>`:'');
 }
+// ── Bill drag-to-reorder state ──
+let _billDragIdx=null,_billDragEl=null,_billDragStartY=0,_billDragCurY=0,_billDragList=[];
+
 function renderBills(){
   renderNextBillBanner();
   const list=document.getElementById('bills-list');list.innerHTML='';
-  // Sort: unpaid overdue first, then by dueDay, then no due date
+  // Ensure all bills have a sortOrder
+  C.bills.forEach((b,i)=>{if(!b.sortOrder)b.sortOrder=i*1000+1000;});
+  // Sort: paid→priority→manual sortOrder
   const sorted=[...C.bills.map((b,i)=>({...b,_i:i}))].sort((a,b)=>{
-    // Paid bills go to bottom
     if(a.paid!==b.paid) return a.paid?1:-1;
-    // High priority unpaid bills float to top
     const ap=a.priority==='high'?0:1, bp=b.priority==='high'?0:1;
     if(ap!==bp) return ap-bp;
-    // Then sort by due date
-    const ad=a.dueDay||999,bd=b.dueDay||999;
-    return ad-bd;
+    return (a.sortOrder||0)-(b.sortOrder||0);
   });
+  _billDragList=sorted;
   if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px"><i class="ti ti-checklist" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No bills yet — tap + to add one</div>';return;}
-  sorted.forEach(b=>{
+  sorted.forEach((b,sortedIdx)=>{
     const i=b._i;
-    const wrap=document.createElement('div');wrap.className='bill-card-wrap';
+    const wrap=document.createElement('div');wrap.className='bill-card-wrap';wrap.dataset.sortedIdx=sortedIdx;wrap.dataset.billIdx=i;
     const bg=document.createElement('div');bg.className='bill-swipe-bg '+(b.paid?'unpay':'pay');
     bg.innerHTML=b.paid?'<i class="ti ti-rotate-clockwise" style="font-size:20px;color:#fff"></i>':'<i class="ti ti-check" style="font-size:20px;color:#fff"></i>';
     const d=document.createElement('div');d.className='bill-card';
+    // Drag handle — only for unpaid bills
+    const dragHandle=b.paid?'':' <span class="bill-drag-handle" style="cursor:grab;padding:6px 4px 6px 8px;color:var(--border);touch-action:none" title="Drag to reorder"><i class="ti ti-grip-vertical" style="font-size:16px"></i></span>';
     d.innerHTML=`${b.priority==='high'&&!b.paid?'<div class="bill-priority-bar"></div>':''}<div class="bill-toggle ${b.paid?'paid':''}" onclick="toggleBill(${i})"><i class="ti ti-check"></i></div>
       <div class="bill-info" onclick="openBillHistory('${b.name.replace(/'/g,"\'")}')" style="cursor:pointer">
         <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${b.name}${dueBadge(b)}${b.recurring!==false?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
         <div class="bill-amount" style="display:flex;align-items:center;gap:6px">${b.amount?fmt(b.amount):'Amount TBD'}${STATE.history.length?'<i class="ti ti-history" style="font-size:11px;color:var(--muted);opacity:.5"></i>':''}</div>
       </div>
-      <button class="icon-btn" onclick="openBillModal(${i})"><i class="ti ti-edit"></i></button>`;
-    addBillSwipe(d,i);wrap.appendChild(bg);wrap.appendChild(d);list.appendChild(wrap);
+      ${dragHandle}<button class="icon-btn" onclick="openBillModal(${i})"><i class="ti ti-edit"></i></button>`;
+    addBillSwipe(d,i);
+    if(!b.paid){
+      const handle=d.querySelector('.bill-drag-handle');
+      if(handle){handle.addEventListener('touchstart',e=>startBillDrag(e,sortedIdx,wrap),{passive:true});}
+    }
+    wrap.appendChild(bg);wrap.appendChild(d);list.appendChild(wrap);
   });
+}
+
+function startBillDrag(e,sortedIdx,el){
+  _billDragIdx=sortedIdx;_billDragEl=el;
+  _billDragStartY=e.touches[0].clientY;_billDragCurY=_billDragStartY;
+  el.style.opacity='0.7';el.style.zIndex='10';el.style.position='relative';
+  const onMove=ev=>{
+    _billDragCurY=ev.touches[0].clientY;
+    el.style.transform=`translateY(${_billDragCurY-_billDragStartY}px)`;
+    // Highlight drop target
+    const list=document.getElementById('bills-list');
+    const cards=[...list.querySelectorAll('.bill-card-wrap')];
+    cards.forEach(c=>c.style.borderTop='');
+    const deltaIdx=Math.round((_billDragCurY-_billDragStartY)/60);
+    const targetIdx=Math.max(0,Math.min(cards.length-1,sortedIdx+deltaIdx));
+    if(targetIdx!==sortedIdx&&cards[targetIdx]){
+      cards[targetIdx].style.borderTop=deltaIdx<0?'2px solid var(--accent)':'';
+      cards[targetIdx].style.borderBottom=deltaIdx>0?'2px solid var(--accent)':'';
+    }
+  };
+  const onEnd=()=>{
+    document.removeEventListener('touchmove',onMove);
+    document.removeEventListener('touchend',onEnd);
+    el.style.opacity='';el.style.zIndex='';el.style.position='';el.style.transform='';
+    // Clear highlights
+    const list=document.getElementById('bills-list');
+    [...list.querySelectorAll('.bill-card-wrap')].forEach(c=>{c.style.borderTop='';c.style.borderBottom='';});
+    // Compute target
+    const deltaIdx=Math.round((_billDragCurY-_billDragStartY)/60);
+    const targetSortedIdx=Math.max(0,Math.min(_billDragList.length-1,sortedIdx+deltaIdx));
+    if(targetSortedIdx!==sortedIdx){
+      // Only reorder within same priority group
+      const dragged=_billDragList[sortedIdx];
+      const target=_billDragList[targetSortedIdx];
+      if(dragged.priority===target.priority&&!target.paid){
+        // Reassign sortOrder: swap sortOrders
+        const tmp=C.bills[dragged._i].sortOrder;
+        C.bills[dragged._i].sortOrder=C.bills[target._i].sortOrder||targetSortedIdx*1000;
+        C.bills[target._i].sortOrder=tmp||sortedIdx*1000;
+        saveState();renderBills();
+      }
+    }
+    _billDragIdx=null;_billDragEl=null;
+  };
+  document.addEventListener('touchmove',onMove,{passive:true});
+  document.addEventListener('touchend',onEnd);
 }
 
 
@@ -3465,7 +3548,9 @@ function renderInvest(){
   const savPer=document.getElementById('sav-per');
   const savExtraTotal=document.getElementById('sav-extra-total');
   const savTotal=document.getElementById('sav-total');
+  const savPerLabel=document.getElementById('sav-per-label');
   if(savPer)savPer.textContent=fmt(per);
+  if(savPerLabel)savPerLabel.textContent=savingsFreqLabel().charAt(0).toUpperCase()+savingsFreqLabel().slice(1);
   if(savExtraTotal)savExtraTotal.textContent=fmt(extraTotal);
   if(savTotal)savTotal.textContent=fmt(per+extraTotal);
   const el=document.getElementById('sav-extra-list');
