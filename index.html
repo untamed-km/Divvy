@@ -248,7 +248,6 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         Continue as guest
       </button>
 
-      <p style="font-size:10px;color:var(--muted);text-align:center;margin-top:20px;line-height:1.5;opacity:.7">Demo sign-in for preview. Real accounts connect when the app goes online.</p>
     </div>
   </div>
   <div id="screen-home" class="screen active">
@@ -575,7 +574,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
 
     <!-- FREE USER GATE -->
-    <div id="members-gate" style="display:none;flex-direction:column;align-items:center;padding:32px 16px;text-align:center">
+    <div id="members-gate" style="display:flex;flex-direction:column;align-items:center;padding:32px 16px;text-align:center">
       <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#6366f1);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
         <i class="ti ti-crown" style="font-size:30px;color:#fff"></i>
       </div>
@@ -686,9 +685,9 @@ function newCycleData(){
     buckets:JSON.parse(JSON.stringify(DEFAULT_BUCKETS)),savings:{...DEFAULT_SAVINGS,extra:[]},
     savingsBuckets:[],k401:{...DEFAULT_K401},investments:JSON.parse(JSON.stringify(DEFAULT_INVESTMENTS))};
 }
-function loadState(){try{const r=localStorage.getItem('distrofi_app');if(r){const s=JSON.parse(r);if(!s.savingsBuckets)s.savingsBuckets=[];if(!s.invGoals)s.invGoals=[];if(!s.partners)s.partners={p1:'You',p2:'Partner'};return s;}}catch(e){}return{current:newCycleData(),history:[],savingsBuckets:[],invGoals:[],partners:{p1:'You',p2:'Partner'}};}
+function loadState(){try{const r=localStorage.getItem('distrofi_app');if(r){const s=JSON.parse(r);if(!s.savingsBuckets)s.savingsBuckets=[];if(!s.invGoals)s.invGoals=[];if(!s.partners)s.partners={p1:'You',p2:''};return s;}}catch(e){}return{current:newCycleData(),history:[],savingsBuckets:[],invGoals:[],partners:{p1:'You',p2:''}};}
 
-function getPartners(){return STATE.partners||(STATE.partners={p1:'You',p2:'Partner'});}
+function getPartners(){return STATE.partners||(STATE.partners={p1:'You',p2:''});}
 function p1Name(){return getPartners().p1||'You';}
 function p2Name(){return getPartners().p2||'Partner';}
 function partnerColor(id){return id==='p1'?'#6366f1':'#ec4899';}
@@ -748,10 +747,19 @@ const PRO_KEY='distrofi_pro';
 const USAGE_KEY='distrofi_usage';
 // tier: null | 'solo' | 'couples'
 function getProData(){try{return JSON.parse(localStorage.getItem(PRO_KEY)||'{}');}catch(e){return{};}}
-function isPro(){const p=getProData();return p.active===true;}
-function isCouplePro(){const p=getProData();return p.active===true&&p.tier==='couples';}
-function activatePro(tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:tier||'solo',since:new Date().toISOString()}));render();}
-function deactivatePro(){localStorage.removeItem(PRO_KEY);render();}
+// Pro status now driven by Supabase profiles.pro_tier — cached in auth object
+function isPro(){const a=getAuth();return !!(a?.pro_tier)||(getProData().active===true);}
+function isCouplePro(){const a=getAuth();const tier=a?.pro_tier||(getProData().active?getProData().tier:null);return tier==='couples';}
+function activatePro(tier){
+  // Update local cache — Supabase is the source of truth after payment
+  const a=getAuth();if(a){setAuth({...a,pro_tier:tier||'solo'});}
+  localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:tier||'solo',since:new Date().toISOString()}));
+  render();
+}
+function deactivatePro(){
+  const a=getAuth();if(a){setAuth({...a,pro_tier:null});}
+  localStorage.removeItem(PRO_KEY);render();
+}
 function getUsage(){try{return JSON.parse(localStorage.getItem(USAGE_KEY)||'{}')}catch(e){return{}}}
 function setUsage(u){localStorage.setItem(USAGE_KEY,JSON.stringify(u));}
 function hasUsedTrial(feature){return getUsage()[feature]===true;}
@@ -761,13 +769,15 @@ function markTrialUsed(feature){const u=getUsage();u[feature]=true;setUsage(u);}
 // Pro Couples features: partner sync (future) — partner UI is free for now
 // Free: everything core, unlimited quantities
 function gateFeature(feature){
+  const FEATURE_LABELS={advisor:'AI Advisor',invgoals:'Investment Goals',export:'Data Export',trends:'Spending Trends',partner:'Partner features',partnersync:'Partner sync'};
+  const label=FEATURE_LABELS[feature]||'this feature';
   if(feature==='partner'||feature==='partnersync'){
     if(isCouplePro())return true;
-    if(!hasUsedTrial(feature)){markTrialUsed(feature);return true;}
+    if(!hasUsedTrial(feature)){markTrialUsed(feature);showToast('Free preview: '+label+' — upgrade to keep access',3500);return true;}
     openPaywall(feature);return false;
   }
   if(isPro())return true;
-  if(!hasUsedTrial(feature)){markTrialUsed(feature);return true;}
+  if(!hasUsedTrial(feature)){markTrialUsed(feature);showToast('Free preview: '+label+' — upgrade to keep access',3500);return true;}
   openPaywall(feature);return false;
 }
 
@@ -946,7 +956,7 @@ function openNewBucketModal(){
 function saveNewBucket(){
   const name=document.getElementById('new-bucket-name').value.trim();
   const budget=parseFloat(document.getElementById('new-bucket-amt').value)||0;
-  if(!name)return;
+  if(!name){showToast('Please enter a category name.');return;}
   if(!checkLimit('buckets',Object.keys(C.buckets).length)){closeModal();return;}
   C.buckets['b'+Date.now()]={label:name,icon:selectedIcon,budget,transactions:[]};
   saveState();closeModal();render();
@@ -1022,12 +1032,18 @@ function renderIncomeModal(){
           oninput="updateIncomeAmount(${i},this.value)"
           style="width:100px;padding:12px;background:var(--app-bg);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;font-variant-numeric:tabular-nums"/>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <i class="ti ti-calendar-event" style="font-size:15px;color:var(--muted);flex-shrink:0"></i>
         <div style="font-size:12px;color:var(--muted);flex-shrink:0">Deposit date:</div>
         <input type="date" value="${l.depositDate||''}"
           oninput="updateIncomeDate(${i},this.value)"
           style="flex:1;padding:8px 10px;background:var(--app-bg);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"/>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">Carry to next period</span>
+        <div onclick="updateIncomeRecurring(${i},!${l.recurring!==false})" style="width:44px;height:26px;border-radius:99px;background:${l.recurring!==false?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;cursor:pointer;flex-shrink:0">
+          <div style="position:absolute;top:3px;left:${l.recurring!==false?'21px':'3px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+        </div>
       </div>
     </div>`).join('');
   const chips=availableChips.length?`<div style="margin-bottom:14px">
@@ -1058,6 +1074,7 @@ function updateIncomeOwner(i,owner){if(C.income[i])C.income[i].owner=owner;rende
 function updateIncomeLabel(i,val){if(C.income[i])C.income[i].label=val;}
 function updateIncomeAmount(i,val){if(C.income[i])C.income[i].amount=parseFloat(val)||0;}
 function updateIncomeDate(i,val){if(C.income[i])C.income[i].depositDate=val;}
+function updateIncomeRecurring(i,val){if(C.income[i]){C.income[i].recurring=val;saveState();renderIncomeModal();}}
 function addIncomeLine(){
   const sug=['Primary job','Side hustle','Partner income','Freelance','Rental income','Other'];
   C.income.push({label:sug[C.income.length]||'Income '+(C.income.length+1),amount:0});
@@ -2163,7 +2180,7 @@ function openSettingsModal(){
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getPartners().p2?p1Name()+' & '+p2Name():'Solo — tap to add partner'}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
-      <div onclick="openCurrencyPicker();closeModal();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="openCurrencyPicker();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-currency-dollar" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Currency</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="currency-setting-sub">${getCurrencyDef().label}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
@@ -2171,7 +2188,7 @@ function openSettingsModal(){
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-calendar-repeat" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Pay frequency</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${freqLabel()}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
-      <div onclick="startNewCycle();closeModal();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="closeModal();startNewCycle();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-refresh" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">New pay period</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Archive current cycle and start fresh</div></div>
       </div>
@@ -2611,7 +2628,7 @@ function openSpendingTrends(){
 
   // Build per-cycle stats
   const data=allCycles.map(cyc=>{
-    const inc=(cyc.income||[]).reduce((s,l)=>s+(l.amount||0),0);
+    const inc=Array.isArray(cyc.income)?cyc.income.reduce((s,l)=>s+(l.amount||0),0):((cyc.income?.week1||0)+(cyc.income?.week2||0)+(cyc.income?.extra||0));
     const bills=(cyc.bills||[]).reduce((s,b)=>s+(b.amount||0),0);
     const sav=((cyc.savings?.perPaycheck||0))+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0));
     const spent=Object.keys(cyc.buckets||{}).reduce((a,k)=>a+(cyc.buckets[k].transactions||[]).reduce((b,t)=>b+(t.amount||0),0),0);
@@ -3122,7 +3139,7 @@ async function submitAuth(){
       if(data.user){
         const recoveryEmail=(document.getElementById('auth-recovery-email')?.value||'').trim().toLowerCase()||null;
         await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,recovery_email:recoveryEmail});
-        setAuth({loggedIn:true,name:displayName,username,method:'supabase',since:new Date().toISOString()});
+        setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
       // Offline fallback
@@ -3148,8 +3165,10 @@ async function submitAuth(){
           STATE=cloudState.state_json;C=STATE.current;
           try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
         }
-        const {data:profile}=await sb.from('profiles').select('display_name,username').eq('id',data.user.id).maybeSingle();
-        setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,method:'supabase',since:new Date().toISOString()});
+        const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier').eq('id',data.user.id).maybeSingle();
+        setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,user_id:data.user.id,pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
+        if(profile?.pro_tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:profile.pro_tier,since:new Date().toISOString()}));}
+        else{localStorage.removeItem(PRO_KEY);}
       }
     } else {
       // Offline: validate against cached PIN
@@ -3354,7 +3373,7 @@ function renderHome(){
   // vs. last period deltas
   const prev=STATE.history.length?STATE.history[STATE.history.length-1]:null;
   if(prev){
-    const prevIncome=(prev.income||[]).reduce((a,l)=>a+(l.amount||0),0);
+    const prevIncome=Array.isArray(prev.income)?prev.income.reduce((a,l)=>a+(l.amount||0),0):((prev.income?.week1||0)+(prev.income?.week2||0)+(prev.income?.extra||0));
     const prevBills=(prev.bills||[]).reduce((a,b)=>a+(b.amount||0),0)-((prev.bills||[]).filter(b=>b.paid).reduce((a,b)=>a+(b.amount||0),0));
     const prevSpent=Object.keys(prev.buckets||{}).reduce((a,k)=>a+(prev.buckets[k].transactions||[]).reduce((b,t)=>b+(t.amount||0),0),0);
     const fmtDelta=(cur,prev,lowerIsBetter)=>{
@@ -3793,6 +3812,7 @@ function renderSpend(){
     donutEl.innerHTML=`<div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;margin-bottom:4px;display:flex;align-items:center;gap:16px"><div style="flex-shrink:0"><svg width="160" height="160" viewBox="0 0 160 160">${segments}<text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)" font-family="-apple-system,sans-serif">${fmt(totalSpentAmt)}</text><text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="-apple-system,sans-serif">spent of ${fmt(totalBudget)}</text><text x="${cx}" y="${cy+26}" text-anchor="middle" font-size="11" font-weight="600" fill="${over?'var(--red)':rem_<50?'var(--amber)':'var(--green)'}" font-family="-apple-system,sans-serif">${over?'Over budget':fmt(rem_)+' left'}</text></svg></div><div style="flex:1;min-width:0">${legendItems||'<span style="font-size:13px;color:var(--muted)">Add a budget to get started</span>'}</div></div>`;
   }
   const c=document.getElementById('spend-buckets');c.innerHTML='';
+  if(!Object.keys(C.buckets).length){c.innerHTML='<div style="text-align:center;padding:48px 16px"><i class="ti ti-wallet-off" style="font-size:48px;color:var(--muted);opacity:.4"></i><div style="font-size:15px;font-weight:500;color:var(--text);margin-top:14px">No spending categories yet</div><div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5">Add a budget to start tracking where your money goes.</div><button onclick="openNewBucketModal()" class="btn btn-primary" style="margin-top:20px;display:inline-flex;gap:6px;align-items:center"><i class="ti ti-plus"></i> Add budget</button></div>';return;}
   Object.keys(C.buckets).forEach(k=>{
     const b=C.buckets[k],spent=bucketSpent(k),pct=spent/b.budget,col=bucketColor(pct);
     const isExpanded=!!_bucketExpanded[k];
@@ -3912,7 +3932,7 @@ function renderInvest(){
 }
 
 function renderSnapshot(){
-  const income=totalIncome(),bills=totalBills(),savings=C.savings.perPaycheck,spent=totalSpent(),invested=totalInvested(),extraSavingsAmt=currentExtraSavings(),rem=income-bills-savings-spent-invested-extraSavingsAmt;
+  const income=totalIncome(),bills=totalBills()-paidBillsAmt(),savings=C.savings.perPaycheck+currentExtraSavings(),spent=totalSpent(),invested=totalInvested(),rem=remaining();
   const ic=document.getElementById('income-card');
   const incLines=C.income||[];
   ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${r.label}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
@@ -3961,10 +3981,10 @@ function openCycleDetail(idx){
   const billsAmt=cycle.bills.reduce((a,b)=>a+(b.amount||0),0);
   const paidBillsCount=cycle.bills.filter(b=>b.paid).length;
   const savings=(cycle.savings?.perPaycheck||0)+(cycle.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0);
-  const k401=((cycle.k401?.me||0)+(cycle.k401?.emp||0));
+  const k401me=cycle.k401?.me||0,k401emp=cycle.k401?.emp||0;
   const bucketKeys=Object.keys(cycle.buckets||{});
   const spent=bucketKeys.reduce((a,k)=>a+(cycle.buckets[k].transactions||[]).reduce((b,t)=>b+(t.amount||0),0),0);
-  const rem=incAmt-billsAmt-savings-spent-k401;
+  const rem=incAmt-billsAmt-savings-spent;
   const bucketRows=bucketKeys.map(k=>{
     const b=cycle.buckets[k],s=(b.transactions||[]).reduce((a,t)=>a+(t.amount||0),0),pct=b.budget>0?Math.min(s/b.budget,1):0,col=bucketColor(pct);
     return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)"><i class="ti ${b.icon}" style="vertical-align:-2px;margin-right:4px"></i>${b.label}</span><span style="font-variant-numeric:tabular-nums;color:${col}">${fmt(s)} <span style="color:var(--muted)">/ ${fmt(b.budget)}</span></span></div><div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(pct*100)}%;background:${col};border-radius:99px"></div></div></div>`;
@@ -3977,6 +3997,7 @@ function openCycleDetail(idx){
       <div class="stat-card"><div class="label">Remaining</div><div class="value ${rem>=0?'green':'red'}" style="font-size:18px">${fmt(rem)}</div></div>
       <div class="stat-card"><div class="label">Bills</div><div class="value" style="font-size:18px">${fmt(billsAmt)}</div></div>
       <div class="stat-card"><div class="label">Spent</div><div class="value" style="font-size:18px">${fmt(spent)}</div></div>
+      ${(k401me||k401emp)?`<div class="stat-card" style="grid-column:span 2"><div class="label">401k this period</div><div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:14px;font-variant-numeric:tabular-nums">${fmt(k401me)} <span style="font-size:11px;color:var(--muted)">you</span></span><span style="font-size:14px;font-variant-numeric:tabular-nums">${fmt(k401emp)} <span style="font-size:11px;color:var(--muted)">employer</span></span><span style="font-size:14px;font-weight:600;color:var(--blue);font-variant-numeric:tabular-nums">${fmt(k401me+k401emp)} <span style="font-size:11px;color:var(--muted)">total</span></span></div></div>`:''}
     </div>
     ${bucketKeys.length?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Spending</div>${bucketRows}`:''}
     ${cycle.bills.length?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px">Bills (${paidBillsCount}/${cycle.bills.length} paid)</div>${billRows}`:''}
@@ -3995,9 +4016,9 @@ function renderHistory(){
     </div>`;
   }
   histToShow.slice().reverse().forEach(cycle=>{
-    const inc=(cycle.income.week1||0)+(cycle.income.week2||0)+(cycle.income.extra||0);
+    const inc=Array.isArray(cycle.income)?cycle.income.reduce((s,l)=>s+(l.amount||0),0):((cycle.income.week1||0)+(cycle.income.week2||0)+(cycle.income.extra||0));
     const bills=cycle.bills.reduce((a,b)=>a+(b.amount||0),0);
-    const savings=(cycle.savings.perPaycheck||0);
+    const savings=(cycle.savings?.perPaycheck||0)+(cycle.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0);
     const spent=Object.keys(cycle.buckets).reduce((a,k)=>a+cycle.buckets[k].transactions.reduce((b,t)=>b+(t.amount||0),0),0);
     const rem=inc-bills-savings-spent;
     const d=document.createElement('div');d.className='cycle-card';
@@ -4025,10 +4046,12 @@ function confirmNewCycle(){
     }
   });
   STATE.history.push(JSON.parse(JSON.stringify(C)));
+  const recurringIncome=C.income.filter(l=>l.recurring!==false).map(l=>({...l,depositDate:''}));
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
   const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
   const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
   STATE.current=newCycleData();C=STATE.current;
+  if(recurringIncome.length) C.income=recurringIncome;
   if(recurringBills.length) C.bills=recurringBills;
   if(recurringInvs.length) C.investments=recurringInvs;
   if(recurring401k) C.k401=recurring401k;
