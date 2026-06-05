@@ -375,7 +375,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
     <div onclick="showScreen('savings',document.querySelectorAll('.nav-btn')[3])" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px">
       <div style="width:44px;height:44px;border-radius:12px;background:#22c55e18;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="ti ti-piggy-bank" style="font-size:22px;color:var(--green)"></i>
+        <i class="ti ti-pig-money" style="font-size:22px;color:var(--green)"></i>
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:15px;font-weight:600">Savings</div>
@@ -412,7 +412,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div class="total-banner green" onclick="showScreen('savings',null)" style="cursor:pointer">
       <div><div class="tb-label" style="color:var(--green)">Total savings</div><div class="tb-value" style="color:var(--green)" id="alltime-savings">$0</div><div class="tb-sub" style="color:var(--green)" id="alltime-savings-sub">across 0 pay periods</div><div class="tb-sub" style="color:var(--green);margin-top:2px" id="snap-savings-sub"></div></div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
-        <i class="ti ti-piggy-bank" style="font-size:36px;color:var(--green);opacity:.35"></i>
+        <i class="ti ti-pig-money" style="font-size:36px;color:var(--green);opacity:.35"></i>
         <span style="font-size:10px;color:var(--green);opacity:.6;text-transform:uppercase;letter-spacing:.05em">View goals</span>
       </div>
     </div>
@@ -496,7 +496,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="savings-waterfall-info"></div>
     <div id="savings-buckets-list"></div>
     <div id="savings-empty" style="display:none;text-align:center;color:var(--muted);font-size:14px;padding:40px 0">
-      <i class="ti ti-piggy-bank" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>
+      <i class="ti ti-pig-money" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>
       Tap "+ Goal" to create your first savings goal
     </div>
   </div>
@@ -1628,7 +1628,7 @@ function renderSavingsScreen(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:36px;height:36px;border-radius:50%;background:${c.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="ti ti-piggy-bank" style="font-size:17px;color:${c.fg}"></i>
+            <i class="ti ti-pig-money" style="font-size:17px;color:${c.fg}"></i>
           </div>
           <div>
             <div style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -2119,7 +2119,7 @@ let _onboardSelected=new Set();
 const ONBOARD_OPTIONS=[
   {icon:'ti-checklist',label:'Track my bills & due dates'},
   {icon:'ti-wallet',label:'Manage my spending by category'},
-  {icon:'ti-piggy-bank',label:'Plan & grow my savings'},
+  {icon:'ti-pig-money',label:'Plan & grow my savings'},
   {icon:'ti-trending-up',label:'Monitor my investments'},
   {icon:'ti-chart-pie',label:'See my full financial picture'},
   {icon:'ti-users',label:'Manage finances with a partner'},
@@ -2587,7 +2587,7 @@ function renderWhatIf(){
   };
   const scenarios=[
     {key:'income',label:'Income',icon:'ti-cash',col:'var(--green)',step:50,min:-500,max:1000},
-    {key:'savings',label:'Savings',icon:'ti-piggy-bank',col:'var(--blue)',step:25,min:-200,max:500},
+    {key:'savings',label:'Savings',icon:'ti-pig-money',col:'var(--blue)',step:25,min:-200,max:500},
     {key:'bills',label:'Bills',icon:'ti-checklist',col:'var(--amber)',step:25,min:-300,max:300},
     {key:'spend',label:'Spending',icon:'ti-wallet',col:'var(--red)',step:25,min:-300,max:300},
   ];
@@ -3938,7 +3938,7 @@ function renderSnapshot(){
   ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${r.label}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
   document.getElementById('income-total-display').textContent=fmt(income);
   const tbl=document.getElementById('snapshot-table');
-  const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings+extraSavingsAmt,'sub'],['Investments',invested,'sub'],
+  const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings,'sub'],['Investments',invested,'sub'],
     ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub'])];
   tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${l}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
   `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<Math.max(200,income*0.1)?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
