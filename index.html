@@ -3786,8 +3786,8 @@ function renderMarketplace(){
       {id:'shop',icon:'ti-shopping-bag',color:'var(--amber)',bg:'#f59e0b18',label:'Shop',sub:'Templates & tools',subCol:'var(--muted)',badge:'NEW',badgeCol:'var(--amber)'},
       {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:'4 partner offers',subCol:'var(--muted)',badge:'4',badgeCol:'#ec4899'},
     ];
-    hubCards.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      ${tiles.map((t,i)=>`<div onclick="showMembersView('${t.id}')" style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;min-width:0;overflow:hidden${i===tiles.length-1&&tiles.length%2!==0?';grid-column:span 2':''}">
+    hubCards.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
+      ${tiles.map(t=>`<div onclick="showMembersView('${t.id}')" style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between">
         ${t.badge?`<span style="position:absolute;top:10px;right:10px;background:${t.badgeCol}22;color:${t.badgeCol};font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px">${t.badge}</span>`:''}
         <div style="width:40px;height:40px;border-radius:11px;background:${t.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
           <i class="ti ${t.icon}" style="font-size:22px;color:${t.color}"></i>
@@ -3798,6 +3798,7 @@ function renderMarketplace(){
         </div>
       </div>`).join('')}
     </div>`;
+    if(tiles.length%2!==0){const g=hubCards.querySelector('div>div:last-child');if(g)g.style.gridColumn='span 2';}
   }
 
 
