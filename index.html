@@ -710,6 +710,80 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 let _sb=null;
 function getSB(){if(!_sb&&window.supabase){_sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);}return _sb;}
 
+// ── Household / partner sync ──────────────────────────────────────────
+let _householdId=null;
+let _realtimeChannel=null;
+function getHouseholdId(){return _householdId||localStorage.getItem('distrofi_household')||null;}
+function setHouseholdId(id){_householdId=id;if(id)localStorage.setItem('distrofi_household',id);else localStorage.removeItem('distrofi_household');}
+
+async function resolveHousehold(userId){
+  const sb=getSB();if(!sb||!userId)return null;
+  const{data,error}=await sb.from('households').select('id,status,user1_id,user2_id').or(`user1_id.eq.${userId},user2_id.eq.${userId}`).eq('status','active').maybeSingle();
+  if(error||!data)return null;
+  setHouseholdId(data.id);
+  return data.id;
+}
+
+function generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
+
+async function createInviteCode(){
+  const sb=getSB();if(!sb)return null;
+  const{data:{user}}=await sb.auth.getUser();if(!user)return null;
+  // Remove any existing pending household for this user
+  await sb.from('households').delete().eq('user1_id',user.id).eq('status','pending');
+  const code=generateCode();
+  const{data,error}=await sb.from('households').insert({user1_id:user.id,invite_code:code,status:'pending'}).select('id,invite_code').single();
+  if(error){console.warn('Invite error:',error.message);return null;}
+  return data;
+}
+
+async function acceptInviteCode(code){
+  const sb=getSB();if(!sb)return{ok:false,msg:'Not connected'};
+  const{data:{user}}=await sb.auth.getUser();if(!user)return{ok:false,msg:'Not logged in'};
+  // Find the household by code
+  const{data:hh,error:fe}=await sb.from('households').select('id,user1_id,status').eq('invite_code',code.toUpperCase()).maybeSingle();
+  if(fe||!hh)return{ok:false,msg:'Code not found. Check and try again.'};
+  if(hh.status==='active')return{ok:false,msg:'This code has already been used.'};
+  if(hh.user1_id===user.id)return{ok:false,msg:"That's your own invite code."};
+  // Link user2 and activate
+  const{error:ue}=await sb.from('households').update({user2_id:user.id,status:'active'}).eq('id',hh.id);
+  if(ue)return{ok:false,msg:'Could not link accounts. Try again.'};
+  setHouseholdId(hh.id);
+  // Push current state as shared state
+  await sb.from('app_state').upsert({user_id:user.id,household_id:hh.id,state_json:STATE,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  subscribeRealtime(hh.id);
+  return{ok:true};
+}
+
+async function leaveHousehold(){
+  const sb=getSB();if(!sb)return;
+  const hid=getHouseholdId();if(!hid)return;
+  const{data:{user}}=await sb.auth.getUser();if(!user)return;
+  await sb.from('households').update({status:'left'}).eq('id',hid);
+  setHouseholdId(null);
+  if(_realtimeChannel){sb.removeChannel(_realtimeChannel);_realtimeChannel=null;}
+  STATE.partners={p1:STATE.partners?.p1||'You',p2:''};
+  saveState();render();
+}
+
+function subscribeRealtime(householdId){
+  const sb=getSB();if(!sb||!householdId)return;
+  if(_realtimeChannel)sb.removeChannel(_realtimeChannel);
+  _realtimeChannel=sb.channel('household:'+householdId)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'app_state',filter:`household_id=eq.${householdId}`},payload=>{
+      const incoming=payload.new?.state_json;
+      if(!incoming)return;
+      // Only update if newer
+      const cur=JSON.parse(localStorage.getItem('distrofi_app')||'{}');
+      if(!cur.lastUpdated||incoming.lastUpdated>cur.lastUpdated){
+        Object.assign(STATE,incoming);
+        try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+        render();showToast("Partner updated the budget",2500);
+      }
+    })
+    .subscribe();
+}
+
 // Sync status dot
 function setSyncStatus(status){
   const dot=document.getElementById('sync-dot');
@@ -730,7 +804,11 @@ function scheduleSyncPush(){
     try{
       const {data:{user}}=await sb.auth.getUser();
       if(!user){setSyncStatus('offline');return;}
-      const {error}=await sb.from('app_state').upsert({user_id:user.id,state_json:STATE,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      const hid=getHouseholdId();
+      const stateWithTs={...STATE,lastUpdated:new Date().toISOString()};
+      const row={user_id:user.id,state_json:stateWithTs,updated_at:new Date().toISOString()};
+      if(hid)row.household_id=hid;
+      const {error}=await sb.from('app_state').upsert(row,{onConflict:'user_id'});
       if(error){console.warn('Sync error:',error.message);setSyncStatus('error');}
       else setSyncStatus('synced');
     }catch(e){setSyncStatus('offline');}
@@ -740,6 +818,20 @@ function scheduleSyncPush(){
 function saveState(){
   try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
   scheduleSyncPush();
+}
+
+async function initHousehold(userId){
+  const hid=await resolveHousehold(userId);
+  if(hid){
+    // Pull shared state
+    const sb=getSB();
+    const{data}=await sb.from('app_state').select('state_json').eq('household_id',hid).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+    if(data?.state_json){
+      Object.assign(STATE,data.state_json);
+      try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+    }
+    subscribeRealtime(hid);
+  }
 }
 
 // ── Pro state ──
@@ -2069,25 +2161,124 @@ function toggleTheme(){
 
 
 function openPartnerSetup(){
-  const p=getPartners();
+  const hid=getHouseholdId();
+  const coupled=!!(hid&&getPartners().p2);
+  if(!isCouplePro()&&!coupled){
+    // Upsell to Couples
+    openPaywall('partner');return;
+  }
+  if(coupled){
+    // Already linked — show status + leave option
+    const p=getPartners();
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <h3>Finance together</h3>
+      <div style="background:linear-gradient(135deg,#ec489912,#6366f112);border:0.5px solid #ec489944;border-radius:14px;padding:16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
+        <i class="ti ti-users" style="font-size:24px;color:#ec4899;flex-shrink:0"></i>
+        <div><div style="font-size:15px;font-weight:600">${p.p1||'You'} & ${p.p2||'Partner'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Budgeting together · Live sync active</div></div>
+      </div>
+      <label class="modal-label">Your display name</label>
+      <input type="text" id="p1-name" value="${p.p1||'You'}" placeholder="Your name" autocomplete="off" style="margin-bottom:12px"/>
+      <label class="modal-label">Partner's display name</label>
+      <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off"/>
+      <div class="modal-btns" style="margin-top:16px">
+        <button class="btn btn-danger" onclick="confirmLeaveHousehold()"><i class="ti ti-unlink" style="font-size:15px;vertical-align:-2px"></i> Unlink</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePartners()">Save names</button>
+      </div>
+    </div></div>`;
+    setTimeout(()=>document.getElementById('p1-name').focus(),100);
+    return;
+  }
+  // Not linked yet — show invite / enter code UI
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Finance together</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Enter names for each person tracking finances. Leave Partner blank if you're budgeting solo.</p>
-    <label class="modal-label">Person 1 (you)</label>
-    <input type="text" id="p1-name" value="${p.p1||'You'}" placeholder="Your name" autocomplete="off"/>
-    <label class="modal-label">Person 2 (partner, optional)</label>
-    <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off"/>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Connect with your partner so you both see and update the same budget in real time.</p>
+    <button onclick="openInviteFlow()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <i class="ti ti-send" style="font-size:18px"></i> Invite my partner
+    </button>
+    <button onclick="openJoinFlow()" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+      <i class="ti ti-key" style="font-size:18px"></i> Enter invite code
+    </button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="closeModal()">Cancel</button>
+  </div></div>`;
+}
+
+function openInviteFlow(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+    <h3>Invite your partner</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Generating your invite code…</p>
+  </div></div>`;
+  createInviteCode().then(result=>{
+    if(!result){
+      document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+        <h3>Invite your partner</h3>
+        <p style="font-size:14px;color:var(--red)">Could not generate code. Make sure you're logged in and try again.</p>
+        <button class="btn btn-ghost" style="width:100%;margin-top:12px" onclick="closeModal()">Close</button>
+      </div></div>`;return;
+    }
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <h3>Share this code</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Have your partner open DistroFi, go to Settings → Finance together, and enter this code.</p>
+      <div onclick="navigator.clipboard?.writeText('${result.invite_code}').then(()=>showToast('Code copied!'))" style="background:linear-gradient(135deg,#7c3aed18,#6366f118);border:1.5px dashed #6366f166;border-radius:16px;padding:24px;text-align:center;cursor:pointer;margin-bottom:20px">
+        <div style="font-size:40px;font-weight:900;letter-spacing:8px;color:var(--accent);font-variant-numeric:tabular-nums">${result.invite_code}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:.06em">Tap to copy</div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Code expires after use. Once your partner joins, the budget syncs automatically.</p>
+      <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Done</button>
+    </div></div>`;
+  });
+}
+
+function openJoinFlow(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Enter invite code</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Ask your partner for their 6-character code and enter it below.</p>
+    <input type="text" id="invite-code-input" maxlength="6" placeholder="ABC123" autocomplete="off"
+      style="width:100%;padding:18px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:28px;font-weight:700;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;text-transform:uppercase;margin-bottom:6px"
+      oninput="this.value=this.value.toUpperCase()"/>
+    <div id="join-error" style="font-size:12px;color:var(--red);min-height:16px;margin-bottom:12px;text-align:center"></div>
+    <button onclick="submitJoinCode()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">Join budget</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancel</button>
+  </div></div>`;
+  setTimeout(()=>document.getElementById('invite-code-input')?.focus(),100);
+}
+
+async function submitJoinCode(){
+  const code=(document.getElementById('invite-code-input')?.value||'').trim();
+  if(code.length!==6){document.getElementById('join-error').textContent='Please enter the full 6-character code.';return;}
+  const btn=document.querySelector('#modal-root button');
+  const errEl=document.getElementById('join-error');
+  errEl.textContent='Linking accounts…';
+  const result=await acceptInviteCode(code);
+  if(!result.ok){errEl.textContent=result.msg;return;}
+  // Success — ask for partner names
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+    <h3>You're connected!</h3>
+    <div style="text-align:center;margin-bottom:20px"><i class="ti ti-users" style="font-size:48px;color:var(--accent)"></i></div>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.5;text-align:center">Your budget is now shared. Add display names so you know who's who.</p>
+    <label class="modal-label">Your name</label>
+    <input type="text" id="p1-name" value="${getPartners().p1||'You'}" autocomplete="off"/>
+    <label class="modal-label">Partner's name</label>
+    <input type="text" id="p2-name" value="" placeholder="Partner's name" autocomplete="off"/>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="savePartners()">Let's go</button>
+  </div></div>`;
+  setTimeout(()=>document.getElementById('p2-name')?.focus(),100);
+}
+
+function confirmLeaveHousehold(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+    <h3>Unlink partner?</h3>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">You'll keep your budget history, but changes will no longer sync to your partner's account.</p>
     <div class="modal-btns">
-      ${p.p2?`<button class="btn btn-danger" onclick="removePartner()"><i class="ti ti-user-minus" style="font-size:16px;vertical-align:-2px"></i> Remove</button>`:''}
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="savePartners()">Save</button>
+      <button class="btn btn-ghost" onclick="openPartnerSetup()">Cancel</button>
+      <button class="btn btn-danger" onclick="leaveHousehold().then(()=>closeModal())">Unlink</button>
     </div>
   </div></div>`;
-  setTimeout(()=>document.getElementById('p1-name').focus(),100);
 }
+
 function savePartners(){
-  const p1=document.getElementById('p1-name').value.trim()||'You';
-  const p2=document.getElementById('p2-name').value.trim();
+  const p1=document.getElementById('p1-name')?.value.trim()||'You';
+  const p2=document.getElementById('p2-name')?.value.trim()||'';
   STATE.partners={p1,p2};
   saveState();closeModal();render();
 }
@@ -2177,7 +2368,7 @@ function openSettingsModal(){
         </div>
       </div>
       <div onclick="openPartnerSetup()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
-        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getPartners().p2?p1Name()+' & '+p2Name():'Solo — tap to add partner'}</div></div></div>
+        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getHouseholdId()&&getPartners().p2?'<span style="color:var(--green)">⬤</span> '+p1Name()+' & '+p2Name()+' · Live sync':getPartners().p2?p1Name()+' & '+p2Name():'Tap to connect with partner'}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
       <div onclick="openCurrencyPicker();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
@@ -3169,6 +3360,7 @@ async function submitAuth(){
         setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,user_id:data.user.id,pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
         if(profile?.pro_tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:profile.pro_tier,since:new Date().toISOString()}));}
         else{localStorage.removeItem(PRO_KEY);}
+        await initHousehold(data.user.id);
       }
     } else {
       // Offline: validate against cached PIN
@@ -3218,8 +3410,9 @@ async function checkAuthGate(){
         // Restore from Supabase session
         const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',session.user.id).maybeSingle();
         if(cloudState?.state_json){STATE=cloudState.state_json;C=STATE.current;try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}}
-        const {data:profile}=await sb.from('profiles').select('display_name,username').eq('id',session.user.id).maybeSingle();
-        setAuth({loggedIn:true,name:profile?.display_name||'User',username:profile?.username||'',method:'supabase',since:new Date().toISOString()});
+        const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier').eq('id',session.user.id).maybeSingle();
+        setAuth({loggedIn:true,name:profile?.display_name||'User',username:profile?.username||'',pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
+        await initHousehold(session.user.id);
         render();
       }
       ov.style.display='none';
