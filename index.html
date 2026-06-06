@@ -5075,4 +5075,10 @@ function confirmNewCycle(leftoverAction){
       C.buckets[k].budget=r.baseBudget+r.unused;
       C.buckets[k].baseBudget=r.baseBudget;
       C.buckets[k].rollover=true;
-      C.buckets[k].rolloverAdded
+      C.buckets[k].rolloverAdded=r.unused;
+    }
+  });
+  saveStat=r.unused;
+    }
+  });
+  saveStat
