@@ -5078,7 +5078,10 @@ function confirmNewCycle(leftoverAction){
       C.buckets[k].rolloverAdded=r.unused;
     }
   });
-  saveStat=r.unused;
-    }
-  });
-  saveStat
+  saveState();closeModal();render();
+}
+checkAuthGate();
+if(isLoggedIn())render();
+</script>
+</body>
+</html>
