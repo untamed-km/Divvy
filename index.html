@@ -137,6 +137,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 .fab.hidden{opacity:0;pointer-events:none}
 .fab i{font-size:24px}
 .onboard-overlay{position:fixed;inset:0;background:var(--app-bg);z-index:600;display:flex;flex-direction:column;overflow-y:auto;padding:32px 24px 40px;max-width:480px;margin:0 auto}
+.tutorial-overlay{position:fixed;inset:0;background:var(--app-bg);z-index:601;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding:0}
+.tutorial-slide{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px 24px;text-align:center}
+.tutorial-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background .2s}
+.tutorial-dot.active{background:var(--accent)}
 .onboard-option{display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:10px;text-align:left;width:100%;font-family:inherit;color:var(--text)}
 .onboard-option.selected{border-color:var(--accent);background:#6366f114}
 .onboard-option i{font-size:20px;color:var(--muted);flex-shrink:0;width:24px;text-align:center}
@@ -179,6 +183,8 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 <body>
 <div id="app">
   <div id="onboard-overlay" style="display:none" class="onboard-overlay"></div>
+  <div id="tutorial-overlay" style="display:none" class="tutorial-overlay"></div>
+  <div id="setup-overlay" style="display:none" class="tutorial-overlay"></div>
   <!-- ── LOGIN / AUTH OVERLAY ── -->
   <div id="auth-overlay" style="display:none;position:absolute;inset:0;z-index:500;background:var(--app-bg);overflow-y:auto;flex-direction:column">
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;max-width:400px;margin:0 auto;width:100%">
@@ -194,28 +200,22 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 
       <!-- Signup fields -->
       <div id="auth-name-wrap" style="display:none">
-        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Username</label>
-        <input type="text" id="auth-username" placeholder="e.g. kirk123" autocomplete="username"/>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:14px">Letters, numbers &amp; underscores only. Used to log in on new devices.</div>
-        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Display name</label>
-        <input type="text" id="auth-name" placeholder="Your name" autocomplete="name"/>
-        <div style="margin-bottom:14px"></div>
-        <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Recovery email</label>
-        <input type="email" id="auth-recovery-email" placeholder="your@email.com" autocomplete="email" inputmode="email"/>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:6px">Used only to recover your username. Never shown publicly.</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
+        <input type="text" id="auth-username" placeholder="e.g. kirk123" autocomplete="username" style="margin-bottom:12px"/>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">DISPLAY NAME</div>
+        <input type="text" id="auth-name" placeholder="What should we call you?" autocomplete="name" style="margin-bottom:12px"/>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">EMAIL <span style="color:var(--red)">*</span></div>
+        <input type="email" id="auth-email" placeholder="you@email.com" autocomplete="email" inputmode="email" style="margin-bottom:4px"/>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Used for account recovery and future bank integrations. Never shared.</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">PHONE <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input type="tel" id="auth-phone" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" style="margin-bottom:4px"/>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Required for SMS verification when bank features launch.</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">LEGAL NAME <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input type="text" id="auth-legal-name" placeholder="First and last name" autocomplete="name" style="margin-bottom:4px"/>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Required for identity verification when bank connections are added.</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">RECOVERY EMAIL <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(if different)</span></div>
+        <input type="email" id="auth-recovery-email" placeholder="backup@email.com" autocomplete="email" inputmode="email" style="margin-bottom:12px"/>
       </div>
-
-      <!-- Login username field -->
-      <div id="auth-username-login-wrap">
-        <div style="width:100%;display:flex;align-items:center;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;padding:0 14px;gap:8px;margin-bottom:12px;transition:border-color .15s" onclick="document.getElementById('auth-username-login').focus()" id="auth-username-login-box">
-          <span style="font-size:17px;font-weight:600;color:var(--muted);flex-shrink:0;user-select:none">@</span>
-          <input type="text" id="auth-username-login" placeholder="username" autocomplete="username"
-            style="flex:1;background:none;border:none;color:var(--text);font-size:16px;padding:14px 0;outline:none;font-family:inherit;width:100%"
-            onfocus="document.getElementById('auth-username-login-box').style.borderColor='var(--accent)'"
-            onblur="document.getElementById('auth-username-login-box').style.borderColor='var(--border)'"/>
-        </div>
-      </div>
-
       <!-- 4-box PIN input -->
       <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">PIN</label>
       <div style="display:flex;justify-content:center;gap:10px;margin-bottom:6px">
@@ -230,6 +230,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-tos-wrap" style="display:none;margin:16px 0 4px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
           <input type="checkbox" id="auth-tos-check" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--accent)"/>
+          <div id="auth-trust-statement" style="display:none;background:#6366f10e;border:0.5px solid #6366f130;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px">
+            <i class="ti ti-lock" style="font-size:15px;color:var(--accent);flex-shrink:0;margin-top:1px"></i>
+            <span style="font-size:11px;color:var(--muted);line-height:1.5">Your financial data is encrypted and never sold. We use bank-level security to keep your information private and confidential.</span>
+          </div>
           <span style="font-size:12px;color:var(--muted);line-height:1.6">I agree to the <span onclick="openToS()" style="color:var(--accent);font-weight:600;cursor:pointer">Terms of Service</span> and <span onclick="openPrivacy()" style="color:var(--accent);font-weight:600;cursor:pointer">Privacy Policy</span></span>
         </label>
       </div>
@@ -2341,7 +2345,219 @@ function submitOnboarding(){
   closeOnboarding();
 }
 function skipOnboarding(){localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();}
-function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';}
+function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';showTutorial();}
+
+// ── Quick Setup ──────────────────────────────────────────────────────
+const SETUP_KEY='distrofi_setup_done';
+let _setupStep=1;
+const QUICK_BILL_CHIPS=['Rent / Mortgage','Car payment','Internet','Phone','Netflix','Spotify','Gym','Electricity','Insurance'];
+
+function showSetup(){
+  const done=localStorage.getItem(SETUP_KEY);
+  if(done){render();return;}
+  _setupStep=1;
+  renderSetupStep();
+  document.getElementById('setup-overlay').style.display='flex';
+}
+
+function renderSetupStep(){
+  const ov=document.getElementById('setup-overlay');if(!ov)return;
+  if(_setupStep===1){
+    const freq=getFreq();
+    ov.innerHTML=`
+      <div style="padding:env(safe-area-inset-top) 20px 0;display:flex;justify-content:flex-end">
+        <button onclick="closeSetup()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;padding:12px 4px">Skip setup</button>
+      </div>
+      <div class="tutorial-slide" style="justify-content:flex-start;padding-top:24px">
+        <div style="width:64px;height:64px;border-radius:20px;background:#22c55e18;border:1.5px solid #22c55e44;display:flex;align-items:center;justify-content:center;margin-bottom:24px;flex-shrink:0">
+          <i class="ti ti-cash" style="font-size:32px;color:var(--green)"></i>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px">What's your take-home pay?</h2>
+        <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:28px">After tax, per paycheck. You can always update this later.</p>
+        <div style="width:100%;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Amount per paycheck</div>
+          <div style="display:flex;align-items:center;background:var(--card2);border:1.5px solid var(--accent);border-radius:14px;padding:0 16px;margin-bottom:16px">
+            <span style="font-size:24px;font-weight:700;color:var(--muted);margin-right:4px">${getCurrencyDef().symbol}</span>
+            <input type="number" id="setup-income" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
+              style="flex:1;background:none;border:none;color:var(--text);font-size:28px;font-weight:700;font-family:inherit;outline:none;padding:16px 0;font-variant-numeric:tabular-nums"/>
+          </div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">How often do you get paid?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            ${FREQ_OPTIONS.map(o=>`<button onclick="selectSetupFreq('${o.id}')" id="sfreq-${o.id}"
+              style="padding:12px 8px;background:${freq===o.id?'#6366f114':'var(--card2)'};border:1.5px solid ${freq===o.id?'var(--accent)':'var(--border)'};border-radius:12px;color:${freq===o.id?'var(--accent)':'var(--text)'};font-size:13px;font-weight:${freq===o.id?'600':'400'};cursor:pointer;font-family:inherit;transition:all .15s">
+              ${o.label}
+            </button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 24px calc(28px + env(safe-area-inset-bottom))">
+        <button onclick="submitSetupStep1()" style="width:100%;padding:16px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer">
+          Next — Add bills
+        </button>
+      </div>`;
+    setTimeout(()=>document.getElementById('setup-income')?.focus(),100);
+  } else {
+    // Step 2 — bills
+    ov.innerHTML=`
+      <div style="padding:env(safe-area-inset-top) 20px 0;display:flex;justify-content:space-between;align-items:center">
+        <button onclick="_setupStep=1;renderSetupStep()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;padding:12px 4px"><i class="ti ti-arrow-left" style="font-size:16px;vertical-align:-2px"></i> Back</button>
+        <button onclick="closeSetup()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;padding:12px 4px">Skip</button>
+      </div>
+      <div class="tutorial-slide" style="justify-content:flex-start;padding-top:24px">
+        <div style="width:64px;height:64px;border-radius:20px;background:#f59e0b18;border:1.5px solid #f59e0b44;display:flex;align-items:center;justify-content:center;margin-bottom:24px;flex-shrink:0">
+          <i class="ti ti-receipt-2" style="font-size:32px;color:var(--amber)"></i>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px">Any regular bills?</h2>
+        <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Tap to add — or type your own. You can add more later from the Bills tab.</p>
+        <div style="width:100%">
+          <div id="setup-bills-list" style="margin-bottom:12px"></div>
+          <input type="text" id="setup-bill-name" placeholder="Bill name (e.g. Rent)" autocomplete="off"
+            style="width:100%;padding:12px 14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box"/>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;padding:0 12px;flex:1">
+              <span style="color:var(--muted);font-size:15px;margin-right:4px">${getCurrencyDef().symbol}</span>
+              <input type="number" id="setup-bill-amt" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
+                style="flex:1;background:none;border:none;color:var(--text);font-size:15px;font-family:inherit;outline:none;padding:12px 0;font-variant-numeric:tabular-nums"/>
+            </div>
+            <button onclick="addSetupBill()" style="padding:12px 18px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:15px;cursor:pointer;font-family:inherit;font-weight:600;flex-shrink:0">Add</button>
+          </div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Common bills</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${QUICK_BILL_CHIPS.map(c=>`<button onclick="quickSetupBill('${c}')" style="padding:7px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:99px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">${c}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 24px calc(28px + env(safe-area-inset-bottom))">
+        <button onclick="closeSetup()" style="width:100%;padding:16px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer">
+          Done — Take me to my budget
+        </button>
+      </div>`;
+    renderSetupBillsList();
+  }
+}
+
+let _setupBills=[];
+
+function renderSetupBillsList(){
+  const el=document.getElementById('setup-bills-list');if(!el)return;
+  if(!_setupBills.length){el.innerHTML='';return;}
+  el.innerHTML=_setupBills.map((b,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:500">${b.name}</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:14px;font-variant-numeric:tabular-nums;color:var(--muted)">${fmt(b.amount)}</span>
+        <button onclick="_setupBills.splice(${i},1);renderSetupBillsList()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:2px"><i class="ti ti-x" style="font-size:15px"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function addSetupBill(){
+  const name=(document.getElementById('setup-bill-name')?.value||'').trim();
+  const amt=parseFloat(document.getElementById('setup-bill-amt')?.value)||0;
+  if(!name){showToast('Enter a bill name');return;}
+  _setupBills.push({name,amount:amt,recurring:true,paid:false,sortOrder:_setupBills.length*1000});
+  document.getElementById('setup-bill-name').value='';
+  document.getElementById('setup-bill-amt').value='';
+  renderSetupBillsList();
+  document.getElementById('setup-bill-name')?.focus();
+}
+
+function quickSetupBill(name){
+  _setupBills.push({name,amount:0,recurring:true,paid:false,sortOrder:_setupBills.length*1000});
+  renderSetupBillsList();
+}
+
+function selectSetupFreq(id){
+  setFreq(id);
+  FREQ_OPTIONS.forEach(o=>{
+    const btn=document.getElementById('sfreq-'+o.id);if(!btn)return;
+    btn.style.background=o.id===id?'#6366f114':'var(--card2)';
+    btn.style.borderColor=o.id===id?'var(--accent)':'var(--border)';
+    btn.style.color=o.id===id?'var(--accent)':'var(--text)';
+    btn.style.fontWeight=o.id===id?'600':'400';
+  });
+}
+
+function submitSetupStep1(){
+  const amt=parseFloat(document.getElementById('setup-income')?.value)||0;
+  if(amt>0){
+    if(!C.income)C.income=[];
+    if(!C.income.length)C.income.push({label:'Primary job',amount:amt,recurring:true});
+    else{C.income[0].amount=amt;}
+    saveState();
+  }
+  _setupStep=2;
+  _setupBills=[];
+  renderSetupStep();
+}
+
+function closeSetup(){
+  // Apply any bills from step 2
+  if(_setupBills.length){
+    C.bills=[...C.bills,..._setupBills];
+    saveState();
+  }
+  localStorage.setItem(SETUP_KEY,'done');
+  document.getElementById('setup-overlay').style.display='none';
+  render();
+  if(_setupBills.length||C.income?.length){
+    showToast("Budget set up — you're ready to go! 🎉",3000);
+  }
+}
+
+// ── Tutorial ─────────────────────────────────────────────────────────
+const TUTORIAL_KEY='distrofi_tutorial_done';
+let _tutSlide=0;
+const TUTORIAL_SLIDES=[
+  {icon:'ti-refresh',color:'var(--accent)',title:'Know where you stand after every paycheck',body:'Most budgeting apps reset at the end of the month. DistroFi resets when you get paid — so you always know exactly what\'s left before your next paycheck arrives.'},
+  {icon:'ti-cash',color:'var(--green)',title:'Start with your income',body:'Head to the Summary tab and tap Income to enter your take-home pay. Add multiple sources — salary, side hustle, partner income — and tag who earns what.'},
+  {icon:'ti-receipt-2',color:'var(--amber)',title:'Set up your bills',body:'Go to the Bills tab and add your recurring expenses — rent, subscriptions, utilities. Mark them paid as you go. DistroFi carries unpaid bills into the next cycle automatically.'},
+  {icon:'ti-wallet',color:'var(--blue)',title:'Create spending buckets',body:'The Spend tab lets you set a budget for each category — Groceries, Dining, Entertainment. Log expenses as you spend and watch your buckets fill up in real time.'},
+  {icon:'ti-pig-money',color:'#2dd4bf',title:'Track savings & investments',body:'The Invest tab tracks your savings goals, brokerage investments, and 401k contributions across every pay period. Watch your net worth grow over time in the Summary tab.'},
+  {icon:'ti-rocket',color:'var(--accent)',title:"You're all set!",body:"That's everything you need to know. Start by adding your income for this pay period. You can always revisit any screen by tapping the nav bar at the bottom."},
+];
+
+function showTutorial(){
+  const done=localStorage.getItem(TUTORIAL_KEY);
+  if(done)return; // already seen
+  _tutSlide=0;
+  renderTutorialSlide();
+  document.getElementById('tutorial-overlay').style.display='flex';
+}
+
+function renderTutorialSlide(){
+  const ov=document.getElementById('tutorial-overlay');if(!ov)return;
+  const s=TUTORIAL_SLIDES[_tutSlide];
+  const isLast=_tutSlide===TUTORIAL_SLIDES.length-1;
+  const dots=TUTORIAL_SLIDES.map((_,i)=>`<div class="tutorial-dot${i===_tutSlide?' active':''}"></div>`).join('');
+  ov.innerHTML=`
+    <div style="padding:env(safe-area-inset-top) 20px 0;display:flex;justify-content:flex-end">
+      <button onclick="closeTutorial()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;padding:12px 4px">Skip</button>
+    </div>
+    <div class="tutorial-slide">
+      <div style="width:80px;height:80px;border-radius:24px;background:${s.color}18;border:1.5px solid ${s.color}44;display:flex;align-items:center;justify-content:center;margin-bottom:28px">
+        <i class="ti ${s.icon}" style="font-size:38px;color:${s.color}"></i>
+      </div>
+      <h2 style="font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:14px;line-height:1.2">${s.title}</h2>
+      <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:300px">${s.body}</p>
+    </div>
+    <div style="padding:0 24px calc(32px + env(safe-area-inset-bottom))">
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:24px">${dots}</div>
+      <button onclick="${isLast?'closeTutorial()':'nextTutorialSlide()'}" style="width:100%;padding:16px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:10px">
+        ${isLast?"Let's go →":'Next'}
+      </button>
+      ${_tutSlide>0?`<button onclick="prevTutorialSlide()" style="width:100%;padding:12px;background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit">Back</button>`:''}
+    </div>`;
+}
+
+function nextTutorialSlide(){if(_tutSlide<TUTORIAL_SLIDES.length-1){_tutSlide++;renderTutorialSlide();}}
+function prevTutorialSlide(){if(_tutSlide>0){_tutSlide--;renderTutorialSlide();}}
+function closeTutorial(){
+  localStorage.setItem(TUTORIAL_KEY,'done');
+  const ov=document.getElementById('tutorial-overlay');
+  if(ov)ov.style.display='none';
+  showSetup();
+}
 function openSettingsModal(){
   const light=isLight();
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -2398,7 +2614,7 @@ function openSettingsModal(){
       <div onclick="closeModal();openProSettings();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px">
           <i class="ti ti-crown" style="font-size:20px;color:#f59e0b"></i>
-          <div><div style="font-size:15px;font-weight:500">${isPro()?(isCouplePro()?'Couples — Active':'Pro Solo — Active'):'Upgrade to Pro'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isPro()?(isCouplePro()?'Shared features unlocked · $5.99/mo':'AI, trends & more unlocked · $2.99/mo'):'Solo $2.99 · Couples $5.99 · Free trial'}</div></div>
+          <div><div style="font-size:15px;font-weight:500">${isPro()?(isCouplePro()?'Couples — Active':'Pro Solo — Active'):'Upgrade to Pro'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isPro()?(isCouplePro()?'Shared features unlocked · $4.99/mo':'AI, trends & more unlocked · $2.99/mo'):'Solo $2.99 · Couples $4.99 · Free trial'}</div></div>
         </div>
         ${isPro()?`<span style="font-size:11px;background:linear-gradient(135deg,${isCouplePro()?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});color:#fff;padding:3px 10px;border-radius:99px;font-weight:700">${isCouplePro()?'COUPLES':'PRO'}</span>`:'<i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>'}
       </div>
@@ -2488,6 +2704,16 @@ function openCurrencyPicker(){
 }
 function selectCurrency(code){STATE.currency=code;saveState();closeModal();render();}
 
+function confirmCancelPlan(tierLabel){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+    <h3>Cancel ${tierLabel}?</h3>
+    <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">You'll lose access to all Pro features immediately. Your budget data is safe and stays on your account.</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="openProSettings()">Keep plan</button>
+      <button class="btn btn-danger" onclick="deactivatePro();closeModal();">Yes, cancel</button>
+    </div>
+  </div></div>`;
+}
 function openAccountModal(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Account</h3>
@@ -2674,7 +2900,7 @@ function openPaywall(feature){
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid ${isCouplesFeature?'#ec4899':'var(--border)'};border-radius:12px;padding:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899">Couples</div>
-          <div style="font-size:13px;font-weight:700;color:#ec4899">$5.99<span style="font-size:10px;font-weight:400;color:var(--muted)">/mo</span></div>
+          <div style="font-size:13px;font-weight:700;color:#ec4899">$4.99<span style="font-size:10px;font-weight:400;color:var(--muted)">/mo</span></div>
         </div>
         ${couplesItems.map(f=>`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0"><i class="ti ti-heart" style="font-size:12px;color:#ec4899;flex-shrink:0;margin-top:2px"></i><span style="font-size:11px;line-height:1.4">${f}</span></div>`).join('')}
       </div>
@@ -2690,7 +2916,7 @@ function openPaywall(feature){
       Start free trial — Pro Solo
     </button>
     <button onclick="startTrial('couples')" style="width:100%;padding:12px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">
-      Couples plan — $5.99/mo
+      Couples plan — $4.99/mo
     </button>`}
     <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px">7-day free trial · Cancel anytime</div>
     <button onclick="closeModal()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Maybe later</button>
@@ -2716,7 +2942,7 @@ function openProSettings(){
   const couples=isCouplePro();
   const tier=couples?'couples':'solo';
   const tierLabel=couples?'DistroFi Couples':'Pro Solo';
-  const tierPrice=couples?'$5.99/mo':'$2.99/mo';
+  const tierPrice=couples?'$4.99/mo':'$2.99/mo';
   const tierColor=couples?'#ec4899,#f43f5e':'#7c3aed,#6366f1';
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3 style="margin-bottom:16px">${pro?tierLabel+' — Active':'Upgrade'}</h3>
@@ -2729,11 +2955,11 @@ function openProSettings(){
       </div>
     </div>
     ${!couples?`<button onclick="closeModal();startTrial('couples')" style="width:100%;padding:12px;background:linear-gradient(135deg,#ec4899,#f43f5e);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:12px">
-      Upgrade to Couples — $5.99/mo
+      Upgrade to Couples — $4.99/mo
     </button>`:''}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
-      <button class="btn btn-danger" onclick="if(confirm('Cancel ${tierLabel}? You will lose access to premium features.'))deactivatePro();closeModal();">Cancel plan</button>
+      <button class="btn btn-danger" onclick="confirmCancelPlan('${tierLabel}')">Cancel plan</button>
     </div>`:`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:linear-gradient(135deg,#7c3aed12,#6366f112);border:1.5px solid var(--accent);border-radius:12px;padding:12px">
@@ -2743,7 +2969,7 @@ function openProSettings(){
       </div>
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid #ec4899;border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899;margin-bottom:6px">Couples</div>
-        <div style="font-size:16px;font-weight:700;color:#ec4899;margin-bottom:8px">$5.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
+        <div style="font-size:16px;font-weight:700;color:#ec4899;margin-bottom:8px">$4.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
         ${['Everything in Solo','Partner sync','Shared goals','Combined NW','Per-person reports'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">♥ ${f}</div>`).join('')}
       </div>
     </div>
@@ -3159,6 +3385,7 @@ function toggleAuthMode(){
   authMode=authMode==='login'?'signup':'login';
   clearAuthError();
   const nameWrap=document.getElementById('auth-name-wrap');
+  const trustStatement=document.getElementById('auth-trust-statement');
   const submitBtn=document.getElementById('auth-submit-btn');
   const toggleText=document.getElementById('auth-toggle-text');
   const toggleLink=document.getElementById('auth-toggle-link');
@@ -3170,6 +3397,7 @@ function toggleAuthMode(){
   if(authMode==='signup'){
     nameWrap.style.display='block';
     if(loginUsernameWrap)loginUsernameWrap.style.display='none';
+    if(trustStatement)trustStatement.style.display='flex';
     if(tosWrap)tosWrap.style.display='block';
     if(forgotWrap)forgotWrap.style.display='none';
     submitBtn.textContent='Create account';
@@ -3179,6 +3407,7 @@ function toggleAuthMode(){
   }else{
     nameWrap.style.display='none';
     if(loginUsernameWrap)loginUsernameWrap.style.display='block';
+    if(trustStatement)trustStatement.style.display='none';
     if(tosWrap)tosWrap.style.display='none';
     if(forgotWrap)forgotWrap.style.display='block';
     submitBtn.textContent='Log in';
@@ -3292,7 +3521,20 @@ function openPrivacy(){
       <h3 style="margin:0">Privacy Policy</h3>
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
-    <p style="font-size:14px;color:var(--muted);line-height:1.7">Privacy Policy coming soon. For questions about your data, contact us through the feedback form in the app.</p>
+    <div style="font-size:13px;color:var(--muted);line-height:1.8;max-height:60vh;overflow-y:auto">
+      <p style="margin-bottom:12px"><strong style="color:var(--text)">Last updated: June 2025</strong></p>
+      <p style="margin-bottom:12px">DistroFi ("we", "our", or "us") is operated by Mayer Ventures LLC. This Privacy Policy explains how we collect, use, and protect your information when you use the DistroFi app.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Information we collect</strong></p>
+      <p style="margin-bottom:12px">We collect information you provide directly: username, display name, email address, phone number (optional), and financial data you enter (income, bills, spending, savings). We do not collect Social Security numbers, bank credentials, or government IDs.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">How we use your information</strong></p>
+      <p style="margin-bottom:12px">Your financial data is used solely to power your budget. We use your email for account recovery and important service notifications. We never sell your personal data to third parties.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Data storage & security</strong></p>
+      <p style="margin-bottom:12px">Your data is stored securely using Supabase with row-level security. Data is encrypted in transit and at rest. Only you can access your account data.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Data retention</strong></p>
+      <p style="margin-bottom:12px">You may delete your account at any time via Settings. Upon deletion, all personal data is permanently removed within 30 days.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Contact</strong></p>
+      <p>For privacy questions, contact us through the feedback form in the app or email support@distrofi.org.</p>
+    </div>
     <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
   </div></div>`;
 }
@@ -3311,12 +3553,16 @@ async function submitAuth(){
     if(username.length<3){showAuthError('Username must be at least 3 characters.');setAuthLoading(false);return;}
     if(!/^[a-z0-9_]+$/.test(username)){showAuthError('Username can only contain letters, numbers, and underscores.');setAuthLoading(false);return;}
     if(!displayName){showAuthError('Please enter your display name.');setAuthLoading(false);return;}
+    const emailVal=(document.getElementById('auth-email')?.value||'').trim().toLowerCase();
+    const phoneVal=(document.getElementById('auth-phone')?.value||'').trim();
+    const legalNameVal=(document.getElementById('auth-legal-name')?.value||'').trim();
     const recoveryEmailVal=(document.getElementById('auth-recovery-email')?.value||'').trim();
+    if(!emailVal||!emailVal.includes('@')){showAuthError('Please enter a valid email address.');setAuthLoading(false);return;}
     if(!recoveryEmailVal||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmailVal)){showAuthError('Please enter a valid recovery email address.');setAuthLoading(false);return;}
     const tosCheck=document.getElementById('auth-tos-check');
     if(tosCheck&&!tosCheck.checked){showAuthError('Please agree to the Terms of Service to continue.');setAuthLoading(false);return;}
 
-    const email=syntheticEmail(username);
+    const email=emailVal&&emailVal.includes('@')?emailVal:syntheticEmail(username);
     const password=derivePassword(username,pin);
 
     // Check username availability
@@ -3329,7 +3575,7 @@ async function submitAuth(){
       // Save profile
       if(data.user){
         const recoveryEmail=(document.getElementById('auth-recovery-email')?.value||'').trim().toLowerCase()||null;
-        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,recovery_email:recoveryEmail});
+        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal,phone:phoneVal||null,legal_name:legalNameVal||null,recovery_email:recoveryEmail||null});
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
@@ -3809,7 +4055,7 @@ function renderNextBillBanner(){
       else if(diff<=3){bg='#f59e0b12';border='#f59e0b33';icon='ti-clock';label=`Due in ${diff}d`;textCol='var(--amber)';}
       else{bg='#6366f112';border='#6366f133';icon='ti-calendar';label=`Due ${b.dueDay}${ordinal(b.dueDay)}`;textCol='var(--accent)';}
     } else {bg='#6366f112';border='#6366f133';icon='ti-calendar-event';label='Up next';textCol='var(--accent)';}
-    return `<div onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:50%;background:${border};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${icon}" style="font-size:18px;color:${textCol}"></i></div><div style="flex:1;min-width:0"><div style="font-size:11px;color:${textCol};text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:2px">${label}</div><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</div></div><span style="font-size:14px;font-weight:500;color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums">${b.amount?fmt(b.amount):'TBD'}</span></div>`;
+    return `<div onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="background:${bg};border:0.5px solid ${border};border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:50%;background:${border};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${icon}" style="font-size:18px;color:${textCol}"></i></div><div style="flex:1;min-width:0"><div style="font-size:11px;color:${textCol};text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:2px">${label}</div><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.name}</div></div><span style="font-size:14px;font-weight:500;color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums">${b.amount?fmt(b.amount):'–'}</span></div>`;
   };
   const show=[...withDates,...noDates].slice(0,3);
   const remaining=allUnpaid-show.length;
@@ -3831,7 +4077,7 @@ function renderBills(){
     return (a.sortOrder||0)-(b.sortOrder||0);
   });
   _billDragList=sorted;
-  if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px"><i class="ti ti-checklist" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No bills yet — tap + to add one</div>';return;}
+  if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px"><i class="ti ti-checklist" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No bills yet — tap \"Add bill\" below to get started</div>';return;}
   sorted.forEach((b,sortedIdx)=>{
     const i=b._i;
     const wrap=document.createElement('div');wrap.className='bill-card-wrap';wrap.dataset.sortedIdx=sortedIdx;wrap.dataset.billIdx=i;
@@ -4144,7 +4390,7 @@ function renderSnapshot(){
   const inv=allTimeInvestments();
   document.getElementById('alltime-invest').textContent=fmt(inv.grand);
   const names=Object.keys(inv.totals).filter(k=>inv.totals[k]>0);
-  document.getElementById('alltime-invest-sub').textContent=names.length?names.map(n=>`${n} ${fmt(inv.totals[n])}`).join(' · '):'no investments logged yet';
+  document.getElementById('alltime-invest-sub').textContent=names.length?names.map(n=>`${n} ${fmt(inv.totals[n])}`).join(' · '):'No investments logged yet';
   const ts=document.getElementById('trends-sub');
   if(ts){
     const n=[...STATE.history,C].length;
@@ -4199,7 +4445,7 @@ function openCycleDetail(idx){
 }
 function renderHistory(){
   const list=document.getElementById('history-list');list.innerHTML='';
-  if(!STATE.history.length){list.innerHTML='<div class="history-empty">Past cycles will appear here once you start a new period.</div>';return;}
+  if(!STATE.history.length){list.innerHTML='<div class="history-empty"><i class="ti ti-clock" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>Past cycles will appear here once you start a new period.</div>';return;}
   const histToShow=isPro()?STATE.history:STATE.history.slice(-2);
   if(!isPro()&&STATE.history.length>2){
     list.innerHTML=`<div onclick="openPaywall('history')" style="background:linear-gradient(135deg,#7c3aed18,#6366f118);border:0.5px solid #6366f133;border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer">
@@ -4223,13 +4469,43 @@ function renderHistory(){
 }
 
 function startNewCycle(){
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
-    <h3>Start new pay period?</h3>
-    <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Recurring bills carry forward (unpaid). One-time bills are removed. This period will be saved to history.</p>
-    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle()">Start new period</button></div>
-  </div></div>`;
+  const rem=remaining();
+  if(rem>0.01){
+    // Show leftover prompt
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="width:64px;height:64px;border-radius:20px;background:#22c55e18;border:1.5px solid #22c55e44;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+          <i class="ti ti-cash" style="font-size:32px;color:var(--green)"></i>
+        </div>
+        <h3 style="margin:0 0 6px">You have ${fmt(rem)} left over</h3>
+        <p style="font-size:13px;color:var(--muted);line-height:1.5;margin:0">What would you like to do with it before starting a new period?</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+        <button onclick="confirmNewCycle('savings')" style="width:100%;padding:14px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:38px;height:38px;border-radius:10px;background:#22c55e18;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-pig-money" style="font-size:20px;color:var(--green)"></i></div>
+          <div><div style="font-weight:600;margin-bottom:2px">Move to savings</div><div style="font-size:12px;color:var(--muted)">Add ${fmt(rem)} as an extra savings entry</div></div>
+        </button>
+        <button onclick="confirmNewCycle('buffer')" style="width:100%;padding:14px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:38px;height:38px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-arrows-right" style="font-size:20px;color:var(--accent)"></i></div>
+          <div><div style="font-weight:600;margin-bottom:2px">Roll into next period</div><div style="font-size:12px;color:var(--muted)">Add ${fmt(rem)} as bonus income next cycle</div></div>
+        </button>
+        <button onclick="confirmNewCycle('leave')" style="width:100%;padding:14px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--muted)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--card2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-x" style="font-size:20px;color:var(--muted)"></i></div>
+          <div><div style="font-weight:600;margin-bottom:2px">Leave it</div><div style="font-size:12px;color:var(--muted)">Archive with this period, start fresh</div></div>
+        </button>
+      </div>
+      <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancel</button>
+    </div></div>`;
+  } else {
+    // No leftover — simple confirmation
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+      <h3>Start new pay period?</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Recurring bills carry forward (unpaid). One-time bills are removed. This period will be saved to history.</p>
+      <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle('leave')">Start new period</button></div>
+    </div></div>`;
+  }
 }
-function confirmNewCycle(){
+function confirmNewCycle(leftoverAction){
   const rolloverMap={};
   Object.keys(C.buckets).forEach(k=>{
     const b=C.buckets[k];
@@ -4243,8 +4519,19 @@ function confirmNewCycle(){
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
   const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
   const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
+  const leftoverAmt=remaining(); // capture before resetting
   STATE.current=newCycleData();C=STATE.current;
   if(recurringIncome.length) C.income=recurringIncome;
+  // Apply leftover action
+  if(leftoverAmt>0.01){
+    if(leftoverAction==='savings'){
+      if(!C.savings.extra)C.savings.extra=[];
+      C.savings.extra.push({amount:leftoverAmt,label:'Carried over from last period',date:new Date().toISOString().slice(0,10)});
+    } else if(leftoverAction==='buffer'){
+      C.income.push({label:'Carried over from last period',amount:leftoverAmt,recurring:false});
+    }
+    // 'leave' — do nothing
+  }
   if(recurringBills.length) C.bills=recurringBills;
   if(recurringInvs.length) C.investments=recurringInvs;
   if(recurring401k) C.k401=recurring401k;
