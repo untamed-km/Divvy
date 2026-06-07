@@ -328,7 +328,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div class="top-bar"><h2>Bills</h2></div>
     <div id="bills-summary"></div>
     <div id="bills-list"></div>
-    <button class="add-row-btn" onclick="openBillModal()"><i class="ti ti-plus"></i> Add bill</button>
+    <div style="display:flex;gap:8px;padding:0 16px 16px"><button class="add-row-btn" style="flex:1;margin:0" onclick="openBillModal(undefined,'bill')"><i class="ti ti-plus"></i> Add bill</button><button class="add-row-btn" style="flex:1;margin:0;background:#6366f110;border-color:#6366f140;color:#a5b4fc" onclick="openBillModal(undefined,'subscription')"><i class="ti ti-repeat"></i> Add subscription</button></div>
   </div>
   <div id="screen-spend" class="screen">
     <div class="top-bar">
@@ -418,7 +418,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <button id="debt-tab-plan" onclick="switchDebtTab('plan')" style="flex:1;padding:7px 0;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--muted)">Planner</button>
     </div>
     <div id="debt-list-view">
-      <div id="debt-summary-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 16px 12px"></div>
+      <div id="debt-summary-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 16px 12px"></div>
       <div id="debt-cards" style="padding:0 16px"></div>
     </div>
     <div id="debt-plan-view" style="display:none;padding:0 16px">
@@ -1012,8 +1012,20 @@ function billInPeriod(b){
   if(dueInEndMonth>=start&&dueInEndMonth<=end) return true;
   return false;
 }
-function totalBills(){return C.bills.reduce((a,b)=>a+(billInPeriod(b)?b.amount||0:0),0);}
-function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amount||0),0);}
+function totalBills(){
+  return C.bills.reduce((a,b)=>{
+    if(b.category==='subscription'){
+      return a+(b.frequency==='annual'?(b.amount||0)/12:(b.amount||0));
+    }
+    return a+(billInPeriod(b)?b.amount||0:0);
+  },0);
+}
+function paidBillsAmt(){
+  return C.bills.filter(b=>b.paid).reduce((a,b)=>{
+    if(b.category==='subscription'&&b.frequency==='annual') return a+(b.amount||0)/12;
+    return a+(b.amount||0);
+  },0);
+}
 function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
@@ -1343,17 +1355,16 @@ function openBillHistory(billName){
     <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Close</button>
   </div></div>`;
 }
-function openBillModal(idx){
+function openBillModal(idx,defaultCategory){
   const isEdit=idx!==undefined,bill=isEdit?C.bills[idx]:{name:'',amount:0,paid:false,dueDay:null};
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>${isEdit?'Edit bill':'Add bill'}</h3>
-    <span class="modal-label">Bill name</span>
+    <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'><h3 style='margin:0'>${isEdit?(bill.category==='subscription'?'Edit subscription':'Edit bill'):(defaultCategory==='subscription'?'Add subscription':'Add bill')}</h3><button onclick='closeModal()' style='background:none;border:none;color:var(--muted);cursor:pointer;padding:4px'><i class='ti ti-x' style='font-size:20px'></i></button></div><div style='display:flex;gap:8px;margin-bottom:14px'><button id='cat-bill-btn' onclick="setBillCategory('bill')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Bill</button><button id='cat-sub-btn' onclick="setBillCategory('subscription')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Subscription</button></div><div id='freq-row' style='display:none;margin-bottom:14px'><div style='font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px'>Billing frequency</div><div style='display:flex;gap:8px'><button id='freq-monthly-btn' onclick="setBillFreq('monthly')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Monthly</button><button id='freq-annual-btn' onclick="setBillFreq('annual')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Annual</button></div><div id='freq-hint' style='font-size:11px;color:var(--muted);margin-top:6px;display:none'></div></div><span class="modal-label">Bill name</span>
     <input type="text" id="bill-name-input" placeholder="e.g. Rent, Netflix" value="${bill.name}" autocomplete="off"/>
     <span class="modal-label">Amount</span>
-    <input type="number" id="bill-amount-input" placeholder="0.00 (leave blank if unknown)" value="${bill.amount||''}" inputmode="decimal" step="0.01" min="0"/>
+    <input type="number" id="bill-amount-input" placeholder="0.00 (leave blank if unknown)" value="${bill.amount||''}" inputmode="decimal" step="0.01" min="0" oninput="if(_billFreq==='annual'){const h=document.getElementById('freq-hint');if(h&&this.value){h.textContent='≈ $'+(parseFloat(this.value)/12).toFixed(2)+'/mo toward your budget';h.style.display='block';}else if(h)h.style.display='none';}"/>
     <span class="modal-label">Due date (day of month)</span>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px" id="day-picker"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:0.5px solid var(--border);margin-bottom:14px">
+    <div id="recurring-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:0.5px solid var(--border);margin-bottom:14px">
       <div>
         <div style="font-size:14px;font-weight:500">Recurring each cycle</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Carries forward when you start a new pay period</div>
@@ -1378,7 +1389,16 @@ function openBillModal(idx){
     </div>
   </div></div>`;
   renderDayPicker(bill.dueDay);
-  setTimeout(()=>{initRecurring(bill.recurring!==false);initPriority(bill.priority==='high');document.getElementById('bill-name-input').focus();},100);
+  setTimeout(()=>{
+    initRecurring(bill.recurring!==false);
+    initPriority(bill.priority==='high');
+    document.getElementById('bill-name-input').focus();
+    const initCat=isEdit?(bill.category||'bill'):(defaultCategory||'bill');
+    const initFreq=isEdit?(bill.frequency||'monthly'):'monthly';
+    _billCategory=initCat;_billFreq=initFreq;
+    setBillCategory(initCat);
+    setBillFreq(initFreq);
+  },100);
 }
 let _selectedDay=null;
 function renderDayPicker(current){
@@ -1413,12 +1433,47 @@ function initRecurring(val){
   if(knob)knob.style.transform=_recurringBill?'translateX(18px)':'translateX(0)';
 }
 function toggleRecurring(){initRecurring(!_recurringBill);}
+let _billCategory='bill',_billFreq='monthly';
+function setBillCategory(cat){
+  _billCategory=cat;
+  const bb=document.getElementById('cat-bill-btn'),sb=document.getElementById('cat-sub-btn');
+  const on='#6366f115',onBorder='#6366f150',onColor='#a5b4fc';
+  const off='transparent',offBorder='var(--border)',offColor='var(--muted)';
+  if(bb){bb.style.background=cat==='bill'?on:off;bb.style.borderColor=cat==='bill'?onBorder:offBorder;bb.style.color=cat==='bill'?onColor:offColor;}
+  if(sb){sb.style.background=cat==='subscription'?on:off;sb.style.borderColor=cat==='subscription'?onBorder:offBorder;sb.style.color=cat==='subscription'?onColor:offColor;}
+  const freqRow=document.getElementById('freq-row');
+  if(freqRow)freqRow.style.display=cat==='subscription'?'block':'none';
+  const recRow=document.getElementById('recurring-row');
+  if(recRow)recRow.style.display=cat==='subscription'?'none':'flex';
+}
+function setBillFreq(freq){
+  _billFreq=freq;
+  const mb=document.getElementById('freq-monthly-btn'),ab=document.getElementById('freq-annual-btn');
+  const on='#6366f115',onBorder='#6366f150',onColor='#a5b4fc';
+  const off='transparent',offBorder='var(--border)',offColor='var(--muted)';
+  if(mb){mb.style.background=freq==='monthly'?on:off;mb.style.borderColor=freq==='monthly'?onBorder:offBorder;mb.style.color=freq==='monthly'?onColor:offColor;}
+  if(ab){ab.style.background=freq==='annual'?on:off;ab.style.borderColor=freq==='annual'?onBorder:offBorder;ab.style.color=freq==='annual'?onColor:offColor;}
+  const hint=document.getElementById('freq-hint');
+  const amtEl=document.getElementById('bill-amount-input');
+  const amt=amtEl?parseFloat(amtEl.value)||0:0;
+  if(hint&&freq==='annual'&&amt>0){hint.textContent='≈ $'+(amt/12).toFixed(2)+'/mo toward your budget';hint.style.display='block';}
+  else if(hint){hint.style.display='none';}
+}
 function saveBill(idx){
   const name=document.getElementById('bill-name-input').value.trim();
   const amount=parseFloat(document.getElementById('bill-amount-input').value)||0;
   if(!name)return;
-  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now()});
-  else{C.bills[idx].name=name;C.bills[idx].amount=amount;C.bills[idx].dueDay=_selectedDay;C.bills[idx].recurring=_recurringBill;C.bills[idx].priority=_priorityHigh?'high':null;}
+  const cat=_billCategory||'bill';
+  const freq=_billFreq||'monthly';
+  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:cat==='subscription'?true:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now(),category:cat,frequency:freq});
+  else{
+    const cat=_billCategory||'bill';
+    const freq=_billFreq||'monthly';
+    C.bills[idx].name=name;C.bills[idx].amount=amount;C.bills[idx].dueDay=_selectedDay;
+    C.bills[idx].recurring=cat==='subscription'?true:_recurringBill;
+    C.bills[idx].priority=_priorityHigh?'high':null;
+    C.bills[idx].category=cat;C.bills[idx].frequency=freq;
+  }
   saveState();closeModal();render();
 }
 function deleteBill(idx){C.bills.splice(idx,1);saveState();closeModal();render();}
@@ -4466,6 +4521,14 @@ function renderDebt(){
   if(_debtTab==='plan')renderDebtPlanner();
 }
 
+function singleDebtPayoffMonths(balance,apr,minPayment){
+  if(!balance||balance<=0)return 0;
+  const rate=(apr||0)/1200;
+  if(rate===0)return minPayment>0?Math.ceil(balance/minPayment):null;
+  if(minPayment<=balance*rate)return null;
+  return Math.ceil(-Math.log(1-(balance*rate/minPayment))/Math.log(1+rate));
+}
+
 function renderDebtList(){
   initDebts();
   const debts=C.debts||[];
@@ -4477,6 +4540,11 @@ function renderDebtList(){
   const paidDebts=debts.filter(d=>d.balance<=0);
   const totalOwed=activeDebts.reduce((a,d)=>a+(d.balance||0),0);
   const result=calcDebtPayoff(activeDebts,C.debtExtra||0,C.debtStrategy||'avalanche');
+  const totalMinPmts=activeDebts.reduce((a,d)=>a+(d.minPayment||0),0);
+  const income=totalIncome()||0;
+  const dtiPct=income>0?Math.round((totalMinPmts/income)*100):null;
+  const dtiColor=dtiPct===null?'var(--muted)':dtiPct<20?'#22c55e':dtiPct<=35?'#f59e0b':'#ef4444';
+  const dtiLabel=dtiPct===null?'—':dtiPct+'%';
 
   if(summEl){
     summEl.innerHTML=`
@@ -4487,6 +4555,11 @@ function renderDebtList(){
       <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
         <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Debt-free est.</div>
         <div style="font-size:16px;font-weight:700;color:#a5b4fc">${activeDebts.length?payoffDateStr(result.months):paidDebts.length?'All paid off!':'—'}</div>
+      </div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">DTI ratio</div>
+        <div style="font-size:18px;font-weight:700;color:${dtiColor}">${dtiLabel}</div>
+        <div style="font-size:10px;color:var(--muted)">${dtiPct===null?'—':dtiPct<20?'Healthy':dtiPct<=35?'Moderate':'High'}</div>
       </div>`;
   }
 
@@ -4507,13 +4580,26 @@ function renderDebtList(){
     const utilPct=(d.type==='credit_card'&&d.creditLimit>0)?Math.round((d.balance/d.creditLimit)*100):null;
     const utilColor=utilPct===null?null:utilPct>=50?'#ef4444':utilPct>=30?'#f59e0b':'#22c55e';
     const utilBg=utilPct===null?null:utilPct>=50?'#ef444418':utilPct>=30?'#f59e0b18':'#22c55e18';
+    const payoffMonths=isPaid?null:singleDebtPayoffMonths(d.balance,d.apr,d.minPayment);
+    const payoffStr=isPaid?null:payoffMonths===null?'Increase min payment':payoffMonths===0?'Almost done!':payoffDateStr(payoffMonths);
+    const nudgeAmt=(utilPct!==null&&utilPct>=30&&!isPaid)?Math.ceil(d.balance-(d.creditLimit*0.30)):null;
+    const nudgeStr=nudgeAmt>0?'Pay $'+nudgeAmt.toLocaleString()+' more to drop below 30% utilization':null;
+    const hasCyclePayment=(d.payments||[]).some(p=>!p.isInterest&&p.date>=(C.startDate||''));
+    const dueBadge=!isPaid&&(d.minPayment||0)>0&&!hasCyclePayment;
+    const _pmts=d.payments||[];
+    const totalInterestCharged=_pmts.filter(p=>p.isInterest).reduce((a,p)=>a+p.amount,0);
+    const totalPrincipalPaid=_pmts.filter(p=>!p.isInterest).reduce((a,p)=>a+p.amount,0);
     const lastPmt=d.payments&&d.payments.length?d.payments[d.payments.length-1]:null;
     const lastPmtStr=lastPmt?'Last: $'+lastPmt.amount.toLocaleString()+' · '+new Date(lastPmt.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
-    const histHtml=d.payments&&d.payments.length?`<div id="debt-hist-${i}" style="display:none;border-top:0.5px solid var(--border);margin-top:10px;padding-top:10px">
+    const histHtml=_pmts.length?`<div id="debt-hist-${i}" style="display:none;border-top:0.5px solid var(--border);margin-top:10px;padding-top:10px">
       <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Payment history</div>
-      ${[...d.payments].reverse().map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      ${totalInterestCharged>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#ef444410;border-radius:8px;padding:6px 10px;margin-bottom:8px">
+        <div style="font-size:11px;color:#f87171">Interest: <strong>$${totalInterestCharged.toFixed(2)}</strong></div>
+        <div style="font-size:11px;color:#4ade80">Principal: <strong>$${totalPrincipalPaid.toLocaleString()}</strong></div>
+      </div>`:''}
+      ${[..._pmts].reverse().map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <div>
-          <div style="font-size:13px;color:var(--text)">$${p.amount.toLocaleString()}</div>
+          <div style="font-size:13px;color:${p.isInterest?'#f87171':'var(--text)'}">${p.isInterest?'':'+'}$${p.amount.toLocaleString()}</div>
           ${p.note?`<div style="font-size:11px;color:var(--muted)">${p.note}</div>`:''}
         </div>
         <div style="font-size:11px;color:var(--muted)">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
@@ -4526,7 +4612,7 @@ function renderDebtList(){
             <i class="ti ${isPaid?'ti-circle-check':debtTypeIcon(d.type)}" style="font-size:16px;color:${isPaid?'#4ade80':'#a5b4fc'}"></i>
           </div>
           <div>
-            <div style="font-size:14px;font-weight:600;color:var(--text)">${d.name}${isPaid?' <span style="font-size:10px;font-weight:700;background:#22c55e18;color:#4ade80;padding:2px 6px;border-radius:5px;vertical-align:middle">Paid off</span>':''}</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${d.name}${isPaid?' <span style="font-size:10px;font-weight:700;background:#22c55e18;color:#4ade80;padding:2px 6px;border-radius:5px;vertical-align:middle">Paid off</span>':''}${dueBadge?' <span style="font-size:10px;font-weight:700;background:#f59e0b18;color:#fbbf24;padding:2px 6px;border-radius:5px;vertical-align:middle">Due</span>':''}</div>
             <div style="font-size:11px;color:var(--muted)">${debtTypeLabel(d.type)}${isPaid?'':' · '+d.apr+'% APR · Min $'+(d.minPayment||0).toLocaleString()+'/mo'}</div>
           </div>
         </div>
@@ -4542,13 +4628,21 @@ function renderDebtList(){
         <div style="font-size:13px;font-weight:600;color:var(--text)">${isPaid?'Paid off!':'$'+(d.balance||0).toLocaleString()+' left'}</div>
         <div style="font-size:11px;color:var(--muted)">${pct}% paid</div>
       </div>
-      ${!isPaid&&utilPct!==null?`<div style="display:flex;align-items:center;justify-content:space-between;background:${utilBg};border-radius:7px;padding:5px 8px;margin-bottom:${!d.payments||!d.payments.length?0:6}px">
+      ${!isPaid&&payoffStr?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:${utilPct!==null?4:!d.payments||!d.payments.length?0:6}px">
+        <i class="ti ti-calendar-due" style="font-size:12px;color:var(--muted)"></i>
+        <span style="font-size:12px;color:var(--muted)">Payoff est. <strong style="color:var(--text)">${payoffStr}</strong></span>
+      </div>`:''}
+      ${!isPaid&&utilPct!==null?`<div style="display:flex;align-items:center;justify-content:space-between;background:${utilBg};border-radius:7px;padding:5px 8px;margin-bottom:${nudgeStr?4:!d.payments||!d.payments.length?0:6}px">
         <div style="display:flex;align-items:center;gap:5px">
           <i class="ti ti-chart-pie" style="font-size:12px;color:${utilColor}"></i>
           <span style="font-size:12px;font-weight:600;color:${utilColor}">${utilPct}% utilized</span>
           <span style="font-size:11px;color:var(--muted)">of $${(d.creditLimit||0).toLocaleString()} limit</span>
         </div>
         <span style="font-size:10px;font-weight:700;color:${utilColor}">${utilPct<30?'Good':utilPct<50?'Fair':'High'}</span>
+      </div>`:''}
+      ${nudgeStr?`<div style="display:flex;align-items:center;gap:6px;background:#f59e0b12;border:1px solid #f59e0b30;border-radius:8px;padding:6px 8px;margin-bottom:${!d.payments||!d.payments.length?0:6}px">
+        <i class="ti ti-bulb" style="font-size:13px;color:#f59e0b;flex-shrink:0"></i>
+        <span style="font-size:11px;color:#fbbf24">${nudgeStr}</span>
       </div>`:''}
       ${lastPmtStr&&!isPaid?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${lastPmtStr}</div>`:''}
       ${!isPaid?`<div style="display:flex;gap:8px;margin-top:8px">
@@ -4618,7 +4712,7 @@ function savePayment(idx){
   const note=(document.getElementById('pmt-note')?.value||'').trim();
   const errEl=document.getElementById('pmt-error');
   if(!amount||amount<=0){if(errEl){errEl.textContent='Please enter a valid payment amount.';errEl.style.display='block';}return;}
-  if(amount>d.balance+1){if(errEl){errEl.textContent='Payment exceeds remaining balance.';errEl.style.display='block';}return;}
+  if(amount>d.balance){if(errEl){errEl.textContent='Payment exceeds remaining balance of $'+d.balance.toLocaleString()+'.';errEl.style.display='block';}return;}
   if(!d.payments)d.payments=[];
   d.payments.push({amount,date,note:note||null});
   const newBalance=Math.max(0,d.balance-amount);
@@ -4677,6 +4771,25 @@ function renderDebtPlanner(){
       :`<div style="font-size:12px;color:var(--muted)">Drag the slider to see how extra payments help.</div>`}
     </div>
 
+    ${debts.filter(d=>d.balance>0).length?`
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Lump sum what-if</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Debt</div>
+        <select id="lump-debt-sel" onchange="updateLumpSim()" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;font-family:inherit">
+          ${debts.filter(d=>d.balance>0).map(d=>`<option value="${debts.indexOf(d)}">${d.name}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">One-time payment</div>
+        <input type="number" id="lump-amount" placeholder="500" inputmode="decimal" oninput="updateLumpSim()" style="margin-bottom:0;font-size:16px;font-weight:600"/>
+      </div>
+    </div>
+    <div style="background:#818cf815;border:1px solid #818cf830;border-radius:12px;padding:10px 12px;margin-bottom:14px;min-height:40px" id="debt-lump-result">
+      <div style="font-size:12px;color:var(--muted)">Enter a debt and amount to see impact.</div>
+    </div>
+    `:''}
+
     ${orderDebts.length?`
     <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Payoff order</div>
     ${orderDebts.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -4692,6 +4805,33 @@ function setDebtStrategy(s){
   C.debtStrategy=s;
   saveState();
   renderDebtPlanner();
+}
+
+function updateLumpSim(){
+  const selEl=document.getElementById('lump-debt-sel');
+  const debtIdx=selEl?parseInt(selEl.value):-1;
+  const lump=parseFloat(document.getElementById('lump-amount')?.value||0);
+  const resEl=document.getElementById('debt-lump-result');
+  if(!resEl)return;
+  if(!lump||lump<=0||debtIdx<0){
+    resEl.innerHTML='<div style="font-size:12px;color:var(--muted)">Enter a debt and amount to see impact.</div>';
+    return;
+  }
+  initDebts();
+  const debts=C.debts||[];
+  const strategy=C.debtStrategy||'avalanche';
+  const extra=C.debtExtra||0;
+  const current=calcDebtPayoff(debts,extra,strategy);
+  const modified=JSON.parse(JSON.stringify(debts));
+  if(modified[debtIdx])modified[debtIdx].balance=Math.max(0,modified[debtIdx].balance-lump);
+  const sim=calcDebtPayoff(modified,extra,strategy);
+  const savedMonths=Math.max(0,current.months-sim.months);
+  const savedInterest=Math.max(0,Math.round(current.interest-sim.interest));
+  if(savedMonths>0||savedInterest>0){
+    resEl.innerHTML=`<div style="font-size:12px;color:#a5b4fc;margin-bottom:3px">Debt-free <strong>${savedMonths} month${savedMonths!==1?'s':''} sooner</strong></div><div style="font-size:15px;font-weight:700;color:#818cf8">Save $${savedInterest.toLocaleString()} in interest</div>`;
+  }else{
+    resEl.innerHTML='<div style="font-size:12px;color:var(--muted)">No significant change — try a larger amount.</div>';
+  }
 }
 
 function updateDebtExtra(val){
@@ -4961,7 +5101,30 @@ function render401K(){
     </div>`;
   }).join('');
 }
-function render(){renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
+function accrueMonthlyInterest(){
+  initDebts();
+  const today=new Date().toISOString().split('T')[0];
+  const accrued=[];
+  (C.debts||[]).forEach(d=>{
+    if(d.balance<=0||!d.apr||d.apr<=0)return;
+    if(!d.lastAccrualDate){d.lastAccrualDate=today;return;}
+    const daysDiff=(new Date(today)-new Date(d.lastAccrualDate))/(864e5);
+    if(daysDiff<28)return;
+    const interest=Math.round((d.balance*(d.apr/1200))*100)/100;
+    d.balance=Math.round((d.balance+interest)*100)/100;
+    d.lastAccrualDate=today;
+    if(!d.payments)d.payments=[];
+    d.payments.push({amount:interest,date:today,note:'Interest charged',isInterest:true});
+    accrued.push({name:d.name,amount:interest});
+  });
+  if(accrued.length){
+    saveState();
+    const msg='Interest added: '+accrued.map(a=>a.name+' +$'+a.amount.toFixed(2)).join(', ');
+    setTimeout(()=>showToast('📈 '+msg),600);
+  }
+}
+
+function render(){accrueMonthlyInterest();renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
 
 function renderHome(){
   const badge=document.getElementById('pro-badge');
@@ -5209,31 +5372,34 @@ function addBillSwipe(card,billIdx){
 }
 function ordinal(n){const s=['th','st','nd','rd'];const v=n%100;return s[(v-20)%10]||s[v]||s[0];}
 function renderBills(){
+  // Migrate: ensure all bills have a category
+  C.bills.forEach(b=>{if(!b.category)b.category='bill';});
+
   renderNextBillBanner();
   const list=document.getElementById('bills-list');list.innerHTML='';
   // Ensure all bills have a sortOrder
   C.bills.forEach((b,i)=>{if(!b.sortOrder)b.sortOrder=i*1000+1000;});
-  // Sort: paid→priority→manual sortOrder
-  const sorted=[...C.bills.map((b,i)=>({...b,_i:i}))].sort((a,b)=>{
-    if(a.paid!==b.paid) return a.paid?1:-1;
-    const ap=a.priority==='high'?0:1, bp=b.priority==='high'?0:1;
-    if(ap!==bp) return ap-bp;
-    return (a.sortOrder||0)-(b.sortOrder||0);
-  });
-  _billDragList=sorted;
-  if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px"><i class="ti ti-checklist" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No bills yet — tap \"Add bill\" below to get started</div>';return;}
-  sorted.forEach((b,sortedIdx)=>{
+  function sortGroup(arr){
+    return arr.sort((a,b)=>{
+      if(a.paid!==b.paid) return a.paid?1:-1;
+      const ap=a.priority==='high'?0:1, bp=b.priority==='high'?0:1;
+      if(ap!==bp) return ap-bp;
+      return (a.sortOrder||0)-(b.sortOrder||0);
+    });
+  }
+  function makeBillCard(b,sortedIdx,sectionList,allSorted){
     const i=b._i;
     const wrap=document.createElement('div');wrap.className='bill-card-wrap';wrap.dataset.sortedIdx=sortedIdx;wrap.dataset.billIdx=i;
     const bg=document.createElement('div');bg.className='bill-swipe-bg '+(b.paid?'unpay':'pay');
     bg.innerHTML=b.paid?'<i class="ti ti-rotate-clockwise" style="font-size:20px;color:#fff"></i>':'<i class="ti ti-check" style="font-size:20px;color:#fff"></i>';
     const d=document.createElement('div');d.className='bill-card';
-    // Drag handle — only for unpaid bills
     const dragHandle=b.paid?'':' <span class="bill-drag-handle" style="cursor:grab;padding:6px 4px 6px 8px;color:var(--border);touch-action:none" title="Drag to reorder"><i class="ti ti-grip-vertical" style="font-size:16px"></i></span>';
+    const freqBadge=b.category==='subscription'?`<span style="font-size:10px;font-weight:700;background:#6366f115;color:#a5b4fc;padding:2px 5px;border-radius:5px;margin-left:4px">${b.frequency==='annual'?'Annual':'Monthly'}</span>`:'';
+    const annualHint=b.category==='subscription'&&b.frequency==='annual'&&b.amount?`<span style="font-size:11px;color:var(--muted)"> ≈ $${(b.amount/12).toFixed(2)}/mo</span>`:'';
     d.innerHTML=`${b.priority==='high'&&!b.paid?'<div class="bill-priority-bar"></div>':''}<div class="bill-toggle ${b.paid?'paid':''}" onclick="toggleBill(${i})"><i class="ti ti-check"></i></div>
-      <div class="bill-info" onclick="openBillHistory('${b.name.replace(/'/g,"\'")}')" style="cursor:pointer">
-        <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${b.name}${dueBadge(b)}${b.recurring!==false?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
-        <div class="bill-amount" style="display:flex;align-items:center;gap:6px">${b.amount?fmt(b.amount):'Amount TBD'}${STATE.history.length?'<i class="ti ti-history" style="font-size:11px;color:var(--muted);opacity:.5"></i>':''}</div>
+      <div class="bill-info" onclick="openBillHistory('${b.name.replace(/'/g,"'")}')" style="cursor:pointer">
+        <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${b.name}${dueBadge(b)}${b.category==='subscription'?'':''}${b.recurring!==false&&b.category!=='subscription'?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${freqBadge}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
+        <div class="bill-amount" style="display:flex;align-items:center;gap:6px">${b.amount?fmt(b.amount):'Amount TBD'}${annualHint}${STATE.history.length?'<i class="ti ti-history" style="font-size:11px;color:var(--muted);opacity:.5"></i>':''}</div>
       </div>
       ${dragHandle}<button class="icon-btn" onclick="openBillModal(${i})"><i class="ti ti-edit"></i></button>`;
     addBillSwipe(d,i);
@@ -5241,8 +5407,26 @@ function renderBills(){
       const handle=d.querySelector('.bill-drag-handle');
       if(handle){handle.addEventListener('touchstart',e=>startBillDrag(e,sortedIdx,wrap),{passive:true});}
     }
-    wrap.appendChild(bg);wrap.appendChild(d);list.appendChild(wrap);
-  });
+    wrap.appendChild(bg);wrap.appendChild(d);sectionList.appendChild(wrap);
+  }
+  function renderSection(header,items,emptyMsg,addCat){
+    const sec=document.createElement('div');
+    const total=items.filter(b=>!b.paid).reduce((a,b)=>b.category==='subscription'&&b.frequency==='annual'?(a+(b.amount||0)/12):(a+(b.amount||0)),0);
+    sec.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px">`
+      +`<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${header}</div>`
+      +`<div style="font-size:12px;font-weight:600;color:var(--text)">${total>0?'$'+total.toFixed(2)+'/mo':''}</div>`
+      +'</div>';
+    const subList=document.createElement('div');
+    if(!items.length){subList.innerHTML=`<div style="text-align:center;padding:20px 0 8px;color:var(--muted);font-size:13px">${emptyMsg}</div>`;}
+    else{items.forEach((b,si)=>makeBillCard(b,si,subList,items));}
+    sec.appendChild(subList);
+    list.appendChild(sec);
+  }
+  const billItems=sortGroup([...C.bills.map((b,i)=>({...b,_i:i})).filter(b=>b.category!=='subscription')]);
+  const subItems=sortGroup([...C.bills.map((b,i)=>({...b,_i:i})).filter(b=>b.category==='subscription')]);
+  _billDragList=[...billItems,...subItems];
+  renderSection('Bills',billItems,'No bills yet','bill');
+  renderSection('Subscriptions',subItems,'No subscriptions yet','subscription');
 }
 
 function startBillDrag(e,sortedIdx,el){
