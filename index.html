@@ -136,8 +136,8 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 .fab:active{transform:scale(.93)}
 .fab.hidden{opacity:0;pointer-events:none}
 .fab i{font-size:24px}
-.onboard-overlay{position:fixed;inset:0;background:var(--app-bg);z-index:600;display:flex;flex-direction:column;overflow-y:auto;padding:32px 24px 40px;max-width:480px;margin:0 auto}
-.tutorial-overlay{position:fixed;inset:0;background:var(--app-bg);z-index:601;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding:0}
+.onboard-overlay{position:fixed;inset:0;background:rgba(15,17,23,0.93);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:600;display:flex;flex-direction:column;overflow-y:auto;padding:32px 24px 40px;max-width:480px;margin:0 auto}
+.tutorial-overlay{position:fixed;inset:0;background:rgba(15,17,23,0.93);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:601;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding:0}
 .tutorial-slide{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px 24px;text-align:center}
 .tutorial-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background .2s}
 .tutorial-dot.active{background:var(--accent)}
@@ -201,22 +201,12 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <!-- Signup fields -->
       <div id="auth-name-wrap" style="display:none">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
-        <input type="text" id="auth-username" placeholder="Username" autocomplete="username" style="margin-bottom:12px"/>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">DISPLAY NAME</div>
-        <input type="text" id="auth-name" placeholder="What should we call you?" autocomplete="name" style="margin-bottom:12px"/>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">EMAIL <span style="color:var(--red)">*</span></div>
+        <input type="text" id="auth-username" placeholder="Choose a username" autocomplete="username" style="margin-bottom:12px"/>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">EMAIL</div>
         <input type="email" id="auth-email" placeholder="you@email.com" autocomplete="email" inputmode="email" style="margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Used for account recovery and future bank integrations. Never shared.</div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">PHONE <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></div>
-        <input type="tel" id="auth-phone" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" style="margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Required for SMS verification when bank features launch.</div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">LEGAL NAME <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></div>
-        <input type="text" id="auth-legal-name" placeholder="First and last name" autocomplete="name" style="margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">Required for identity verification when bank connections are added.</div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">RECOVERY EMAIL <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(if different)</span></div>
-        <input type="email" id="auth-recovery-email" placeholder="backup@email.com" autocomplete="email" inputmode="email" style="margin-bottom:12px"/>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">We'll use this email to help you recover your account.</div>
       </div>
-      <!-- Login username field -->
+      <!-- Login username field -->      <!-- Login username field -->
       <div id="auth-username-login-wrap" style="margin-bottom:18px">
         <div style="background:#2dd4bf08;border:1.5px solid #2dd4bf55;border-radius:16px;padding:16px 16px 14px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#2dd4bf80;margin-bottom:2px">Username</div>
@@ -224,15 +214,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
           <div style="height:1.5px;background:linear-gradient(90deg,#2dd4bf40,transparent);margin-top:10px"></div>
         </div>
       </div>
-      <!-- 4-box PIN input -->
-      <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">PIN</label>
-      <div style="display:flex;justify-content:center;gap:10px;margin-bottom:6px">
-        <input type="password" inputmode="numeric" maxlength="1" id="pin-0" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,0)" onkeydown="pinBoxKeydown(event,0)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        <input type="password" inputmode="numeric" maxlength="1" id="pin-1" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,1)" onkeydown="pinBoxKeydown(event,1)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        <input type="password" inputmode="numeric" maxlength="1" id="pin-2" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,2)" onkeydown="pinBoxKeydown(event,2)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        <input type="password" inputmode="numeric" maxlength="1" id="pin-3" style="width:54px;height:62px;border-radius:14px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font-size:26px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color .15s" oninput="pinBoxInput(this,3)" onkeydown="pinBoxKeydown(event,3)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-      </div>
-      <input type="hidden" id="auth-pin"/>
+      <!-- Password input (login & signup) -->
+      <label id="auth-pwd-label" style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">Password</label>
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:6px;font-size:16px;letter-spacing:.08em"/>
+      <div id="auth-pwd-hint" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">Minimum 8 characters</div>
 
       <!-- ToS checkbox — signup only -->
       <div id="auth-tos-wrap" style="display:none;margin:16px 0 4px">
@@ -255,7 +240,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-forgot-wrap" style="text-align:center;margin-bottom:6px">
         <span onclick="openForgotUsername()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Forgot your username?</span>
         <span style="font-size:12px;color:var(--muted);margin:0 6px">&middot;</span>
-        <span onclick="openForgotPin()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Forgot PIN?</span>
+        <span onclick="openForgotPin()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Forgot password?</span>
       </div>
 
       <button onclick="guestAuth()" style="width:100%;padding:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">
@@ -2648,7 +2633,7 @@ const TUTORIAL_KEY='distrofi_tutorial_done';
 let _tutSlide=0;
 const TUTORIAL_SLIDES=[
   {icon:'ti-refresh',color:'var(--accent)',title:'Know where you stand after every paycheck',body:'Most budgeting apps reset at the end of the month. DistroFi resets when you get paid — so you always know exactly what\'s left before your next paycheck arrives.'},
-  {icon:'ti-cash',color:'var(--green)',title:'Start with your income',body:'Head to the Summary tab and tap Income to enter your take-home pay. Add multiple sources — salary, side hustle, partner income — and tag who earns what.'},
+  {icon:'ti-cash',color:'var(--green)',title:'Start with your income',body:'Head to the Home tab and tap Income to enter your take-home pay. Add multiple sources — salary, side hustle, partner income — and tag who earns what.'},
   {icon:'ti-receipt-2',color:'var(--amber)',title:'Set up your bills',body:'Go to the Bills tab and add your recurring expenses — rent, subscriptions, utilities. Mark them paid as you go. DistroFi carries unpaid bills into the next cycle automatically.'},
   {icon:'ti-wallet',color:'var(--blue)',title:'Create spending buckets',body:'The Spend tab lets you set a budget for each category — Groceries, Dining, Entertainment. Log expenses as you spend and watch your buckets fill up in real time.'},
   {icon:'ti-pig-money',color:'#2dd4bf',title:'Track savings & investments',body:'The Invest tab tracks your savings goals, brokerage investments, and 401k contributions across every pay period. Watch your net worth grow over time in the Summary tab.'},
@@ -4073,7 +4058,10 @@ function toggleAuthMode(){
   const loginUsernameWrap=document.getElementById('auth-username-login-wrap');
   const tosWrap=document.getElementById('auth-tos-wrap');
   const forgotWrap=document.getElementById('auth-forgot-wrap');
-  clearPinBoxes();
+  const pwdEl=document.getElementById('auth-password');
+  if(pwdEl)pwdEl.value='';
+  const pwdHint=document.getElementById('auth-pwd-hint');
+  const pwdLabel=document.getElementById('auth-pwd-label');
   if(authMode==='signup'){
     nameWrap.style.display='block';
     if(loginUsernameWrap)loginUsernameWrap.style.display='none';
@@ -4083,6 +4071,9 @@ function toggleAuthMode(){
     submitBtn.textContent='Create account';
     toggleText.textContent='Already have an account? ';
     toggleLink.textContent='Log in';
+    if(pwdEl)pwdEl.placeholder='Create a password';
+    if(pwdHint)pwdHint.style.display='block';
+    if(pwdLabel)pwdLabel.textContent='Password';
     setTimeout(()=>document.getElementById('auth-username')?.focus(),100);
   }else{
     nameWrap.style.display='none';
@@ -4093,6 +4084,9 @@ function toggleAuthMode(){
     submitBtn.textContent='Log in';
     toggleText.textContent="Don't have an account? ";
     toggleLink.textContent='Sign up';
+    if(pwdEl)pwdEl.placeholder='Password';
+    if(pwdHint)pwdHint.style.display='none';
+    if(pwdLabel)pwdLabel.textContent='Password';
     setTimeout(()=>document.getElementById('auth-username-login')?.focus(),100);
   }
 }
@@ -4163,12 +4157,11 @@ async function submitForgotUsername(){
 
 function openForgotPin(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Reset your PIN</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Enter your username and the email you used at signup. We'll send a reset link to that address.</p>
+    <h3>Reset your password</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Enter your username. We'll send a password reset link to the email associated with your account.</p>
     <div id="fpin-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
     <div id="fpin-success" style="display:none;background:#22c55e18;border:0.5px solid #22c55e44;color:var(--green);font-size:14px;padding:14px;border-radius:12px;margin-bottom:12px;text-align:center;line-height:1.6"></div>
-    <input type="text" id="fpin-username" placeholder="Your username" autocomplete="username" inputmode="text" style="margin-bottom:10px"/>
-    <input type="email" id="fpin-email" placeholder="Email used at signup" inputmode="email" autocomplete="email" style="margin-bottom:12px"/>
+    <input type="text" id="fpin-username" placeholder="Your username" autocomplete="username" inputmode="text" style="margin-bottom:12px"/>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" id="fpin-btn" onclick="submitForgotPin()">Send reset link</button>
@@ -4183,29 +4176,19 @@ async function submitForgotPin(){
   const okEl=document.getElementById('fpin-success');
   const btn=document.getElementById('fpin-btn');
   if(!username){if(errEl){errEl.textContent='Please enter your username.';errEl.style.display='block';}return;}
-  if(!email||!email.includes('@')){if(errEl){errEl.textContent='Please enter a valid email address.';errEl.style.display='block';}return;}
   if(errEl)errEl.style.display='none';
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
   const sb=getSB();
   if(sb){
-    const {data:profile,error}=await sb.from('profiles').select('id,email,recovery_email').eq('username',username).maybeSingle();
-    if(error||!profile){
-      if(errEl){errEl.textContent='No account found with that username.';errEl.style.display='block';}
-      if(btn){btn.disabled=false;btn.textContent='Send reset link';}
-      return;
-    }
-    const emailMatch=profile.email?.toLowerCase()===email||profile.recovery_email?.toLowerCase()===email;
-    if(!emailMatch){
-      if(errEl){errEl.textContent='Email doesn\'t match what\'s on file for that account.';errEl.style.display='block';}
-      if(btn){btn.disabled=false;btn.textContent='Send reset link';}
-      return;
-    }
-    const {error:resetErr}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://distrofi.org'});
+    // Look up real email from profile first; fall back to synthetic
+    const {data:profile}=await sb.from('profiles').select('email').eq('username',username).maybeSingle();
+    const resetEmail=(profile?.email&&profile.email.includes('@'))?profile.email:syntheticEmail(username);
+    const {error:resetErr}=await sb.auth.resetPasswordForEmail(resetEmail,{redirectTo:'https://distrofi.org'});
     if(resetErr){
       if(errEl){errEl.textContent='Something went wrong. Please try again.';errEl.style.display='block';}
       if(btn){btn.disabled=false;btn.textContent='Send reset link';}
     }else{
-      if(okEl){okEl.textContent='Reset link sent! Check your email and click the link to set a new PIN.';okEl.style.display='block';}
+      if(okEl){okEl.textContent='Reset link sent to your email. Click the link to set a new password.';okEl.style.display='block';}
       const ui=document.getElementById('fpin-username');if(ui)ui.style.display='none';
       const ei=document.getElementById('fpin-email');if(ei)ei.style.display='none';
       if(btn)btn.style.display='none';
@@ -4224,21 +4207,17 @@ function openPinReset(username){
       <div style="width:44px;height:44px;border-radius:14px;background:#2dd4bf18;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">
         <i class="ti ti-lock-open" style="font-size:22px;color:#2dd4bf"></i>
       </div>
-      <h3 style="margin:0 0 4px">Set new PIN</h3>
+      <h3 style="margin:0 0 4px">Set new password</h3>
       ${un?`<div style="font-size:12px;color:var(--muted)">@${un}</div>`:''}
     </div>
     <div id="pres-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
-    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;text-align:center">New PIN</div>
-    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">
-      ${[0,1,2,3].map(i=>`<input id="pres-new-${i}" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:56px;text-align:center;font-size:22px;font-weight:700;border-radius:12px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);outline:none" oninput="presBoxNav('new',${i})" onkeydown="if(event.key==='Backspace'&&!this.value&&${i}>0)document.getElementById('pres-new-'+(${i}-1)).focus()"/>`).join('')}
-    </div>
-    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;text-align:center">Confirm PIN</div>
-    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px">
-      ${[0,1,2,3].map(i=>`<input id="pres-conf-${i}" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:56px;text-align:center;font-size:22px;font-weight:700;border-radius:12px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);outline:none" oninput="presBoxNav('conf',${i})" onkeydown="if(event.key==='Backspace'&&!this.value&&${i}>0)document.getElementById('pres-conf-'+(${i}-1)).focus()"/>`).join('')}
-    </div>
-    <button class="btn btn-primary" style="width:100%;padding:14px" id="pres-btn" onclick="submitPinReset('${un}')">Save new PIN</button>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">New password</div>
+    <input type="password" id="pres-new-pwd" placeholder="Min 8 characters" autocomplete="new-password" style="margin-bottom:12px"/>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">Confirm password</div>
+    <input type="password" id="pres-conf-pwd" placeholder="Re-enter password" autocomplete="new-password" style="margin-bottom:20px"/>
+    <button class="btn btn-primary" style="width:100%;padding:14px" id="pres-btn" onclick="submitPinReset('${un}')">Update password</button>
   </div></div>`;
-  setTimeout(()=>document.getElementById('pres-new-0')?.focus(),100);
+  setTimeout(()=>document.getElementById('pres-new-pwd')?.focus(),100);
 }
 
 function presBoxNav(group,idx){
@@ -4249,29 +4228,27 @@ function presBoxNav(group,idx){
 async function submitPinReset(usernameArg){
   const errEl=document.getElementById('pres-error');
   const btn=document.getElementById('pres-btn');
-  const newPin=[0,1,2,3].map(i=>document.getElementById('pres-new-'+i)?.value||'').join('');
-  const confPin=[0,1,2,3].map(i=>document.getElementById('pres-conf-'+i)?.value||'').join('');
-  if(newPin.length<4||!/^\d{4}$/.test(newPin)){if(errEl){errEl.textContent='Please enter a 4-digit PIN.';errEl.style.display='block';}return;}
-  if(newPin!==confPin){if(errEl){errEl.textContent='PINs don\'t match — try again.';errEl.style.display='block';}return;}
+  const newPwd=(document.getElementById('pres-new-pwd')?.value||'').trim();
+  const confPwd=(document.getElementById('pres-conf-pwd')?.value||'').trim();
+  if(newPwd.length<8){if(errEl){errEl.textContent='Password must be at least 8 characters.';errEl.style.display='block';}return;}
+  if(newPwd!==confPwd){if(errEl){errEl.textContent='Passwords don\'t match — try again.';errEl.style.display='block';}return;}
   if(errEl)errEl.style.display='none';
-  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  if(btn){btn.disabled=true;btn.textContent='Updating…';}
   const sb=getSB();
   if(sb){
-    let un=usernameArg||'';
-    if(!un){const {data:ud}=await sb.auth.getUser();un=ud?.user?.user_metadata?.username||'';}
-    const {error}=await sb.auth.updateUser({password:derivePassword(un,newPin)});
+    const {error}=await sb.auth.updateUser({password:newPwd});
     if(error){
-      if(errEl){errEl.textContent='Could not save PIN. Please try again.';errEl.style.display='block';}
-      if(btn){btn.disabled=false;btn.textContent='Save new PIN';}
+      if(errEl){errEl.textContent='Could not update password. Please try again.';errEl.style.display='block';}
+      if(btn){btn.disabled=false;btn.textContent='Update password';}
     }else{
       await sb.auth.signOut();
       document.getElementById('modal-root').innerHTML='';
       const errBox=document.getElementById('auth-error');
-      if(errBox){errBox.style.background='#22c55e18';errBox.style.borderColor='#22c55e44';errBox.style.color='var(--green)';errBox.textContent='PIN updated! Log in with your new PIN.';errBox.style.display='block';}
+      if(errBox){errBox.style.background='#22c55e18';errBox.style.borderColor='#22c55e44';errBox.style.color='var(--green)';errBox.textContent='Password updated! Log in with your new password.';errBox.style.display='block';}
     }
   }else{
     if(errEl){errEl.textContent='You appear to be offline.';errEl.style.display='block';}
-    if(btn){btn.disabled=false;btn.textContent='Save new PIN';}
+    if(btn){btn.disabled=false;btn.textContent='Update password';}
   }
 }
 
@@ -4335,29 +4312,25 @@ function openPrivacy(){
 
 async function submitAuth(){
   clearAuthError();
-  const pin=(document.getElementById('auth-pin').value||'').replace(/\D/g,'');
-  if(pin.length!==4){showAuthError('Please enter your 4-digit PIN.');return;}
+  const pwd=(document.getElementById('auth-password')?.value||'').trim();
+  if(!pwd){showAuthError('Please enter your password.');return;}
   const sb=getSB();
   setAuthLoading(true);
 
   if(authMode==='signup'){
     const username=(document.getElementById('auth-username')?.value||'').trim().toLowerCase().replace(/\s+/g,'');
-    const displayName=document.getElementById('auth-name')?.value.trim()||username;
+    const displayName=username;
     if(!username){showAuthError('Please choose a username.');setAuthLoading(false);return;}
     if(username.length<3){showAuthError('Username must be at least 3 characters.');setAuthLoading(false);return;}
     if(!/^[a-z0-9_]+$/.test(username)){showAuthError('Username can only contain letters, numbers, and underscores.');setAuthLoading(false);return;}
-    if(!displayName){showAuthError('Please enter your display name.');setAuthLoading(false);return;}
+    if(pwd.length<8){showAuthError('Password must be at least 8 characters.');setAuthLoading(false);return;}
     const emailVal=(document.getElementById('auth-email')?.value||'').trim().toLowerCase();
-    const phoneVal=(document.getElementById('auth-phone')?.value||'').trim();
-    const legalNameVal=(document.getElementById('auth-legal-name')?.value||'').trim();
-    const recoveryEmailVal=(document.getElementById('auth-recovery-email')?.value||'').trim();
     if(!emailVal||!emailVal.includes('@')){showAuthError('Please enter a valid email address.');setAuthLoading(false);return;}
-    if(!recoveryEmailVal||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmailVal)){showAuthError('Please enter a valid recovery email address.');setAuthLoading(false);return;}
     const tosCheck=document.getElementById('auth-tos-check');
     if(tosCheck&&!tosCheck.checked){showAuthError('Please agree to the Terms of Service to continue.');setAuthLoading(false);return;}
 
-    const email=emailVal&&emailVal.includes('@')?emailVal:syntheticEmail(username);
-    const password=derivePassword(username,pin);
+    const email=syntheticEmail(username);
+    const password=pwd; // raw password — no derivation
 
     // Check username availability
     if(sb){
@@ -4368,13 +4341,12 @@ async function submitAuth(){
       if(error){showAuthError(error.message);setAuthLoading(false);return;}
       // Save profile
       if(data.user){
-        const recoveryEmail=(document.getElementById('auth-recovery-email')?.value||'').trim().toLowerCase()||null;
-        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal,phone:phoneVal||null,legal_name:legalNameVal||null,recovery_email:recoveryEmail||null});
+        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal});
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
       // Offline fallback
-      setAuth({loggedIn:true,name:displayName,username,pin,method:'local',since:new Date().toISOString()});
+      setAuth({loggedIn:true,name:displayName,username,pwd,method:'local',since:new Date().toISOString()});
     }
     if(!STATE.partners||!STATE.partners.p1||STATE.partners.p1==='You'){if(!STATE.partners)STATE.partners={};STATE.partners.p1=displayName;saveState();}
 
@@ -4386,9 +4358,15 @@ async function submitAuth(){
 
     if(sb){
       const email=syntheticEmail(usernameVal);
-      const password=derivePassword(usernameVal,pin);
-      const {data,error}=await sb.auth.signInWithPassword({email,password});
-      if(error){showAuthError('Incorrect username or PIN.');setAuthLoading(false);return;}
+      // Try raw password; fall back to legacy derived form and migrate silently
+      let {data,error}=await sb.auth.signInWithPassword({email,password:pwd});
+      if(error){
+        const derived=derivePassword(usernameVal,pwd);
+        const {data:data2,error:error2}=await sb.auth.signInWithPassword({email,password:derived});
+        if(error2){showAuthError('Incorrect username or password.');setAuthLoading(false);return;}
+        data=data2;
+        getSB()?.auth.updateUser({password:pwd}); // migrate to raw password
+      }
       // Pull cloud state
       if(data.user){
         const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',data.user.id).maybeSingle();
@@ -4405,8 +4383,10 @@ async function submitAuth(){
     } else {
       // Offline: validate against cached PIN
       const saved=getAuth();
-      if(!saved?.pin){showAuthError('No account found. Please sign up first.');setAuthLoading(false);return;}
-      if(saved.pin!==pin){showAuthError('Incorrect PIN. Try again.');setAuthLoading(false);return;}
+      if(!saved?.pin&&!saved?.pwd){showAuthError('No account found. Please sign up first.');setAuthLoading(false);return;}
+      // Accept raw password match (v93+) or raw PIN match (legacy)
+      const storedPwd=saved.pwd||saved.pin||null;
+      if(!storedPwd||pwd!==storedPwd){showAuthError('Incorrect password. Try again.');setAuthLoading(false);return;}
       setAuth({...saved,loggedIn:true});
     }
   }
@@ -5186,7 +5166,7 @@ function renderHome(){
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Your spending exceeds your income this period</div>
         </div>
       </div>`;
-    } else if(rem<warnThreshold&&rem>=0){
+    } else if(rem<warnThreshold&&rem>=0&&totalInc>0){
       const pct=Math.round((rem/totalInc)*100);
       bw.innerHTML=`<div style="background:#f59e0b12;border:0.5px solid #f59e0b44;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
         <i class="ti ti-alert-triangle" style="font-size:22px;color:var(--amber);flex-shrink:0"></i>
@@ -5239,7 +5219,7 @@ function renderHome(){
   }
   const hb=document.getElementById('home-buckets');hb.innerHTML='';
   Object.keys(C.buckets).forEach(k=>{
-    const b=C.buckets[k],sp=bucketSpent(k),pct=Math.min(sp/b.budget,1),col=bucketColor(sp/b.budget);
+    const b=C.buckets[k],sp=bucketSpent(k),pct=b.budget>0?Math.min(sp/b.budget,1):0,col=b.budget>0?bucketColor(sp/b.budget):bucketColor(0);
     const rem=Math.max(0,b.budget-sp);
     const over=sp>b.budget;
     const pctDisplay=Math.round(pct*100);
@@ -5876,7 +5856,19 @@ function confirmNewCycle(leftoverAction){
   });
   saveState();closeModal();render();
 }
+// Handle Supabase password recovery callback (link from email)
+function initAuthListener(){
+  const sb=getSB();
+  if(!sb)return;
+  sb.auth.onAuthStateChange(async (event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      const un=session?.user?.user_metadata?.username||'';
+      setTimeout(()=>openPinReset(un),300);
+    }
+  });
+}
 checkAuthGate();
+initAuthListener();
 if(isLoggedIn())render();
 </script>
 </body>
