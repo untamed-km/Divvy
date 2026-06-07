@@ -201,7 +201,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <!-- Signup fields -->
       <div id="auth-name-wrap" style="display:none">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
-        <input type="text" id="auth-username" placeholder="e.g. kirk123" autocomplete="username" style="margin-bottom:12px"/>
+        <input type="text" id="auth-username" placeholder="Username" autocomplete="username" style="margin-bottom:12px"/>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">DISPLAY NAME</div>
         <input type="text" id="auth-name" placeholder="What should we call you?" autocomplete="name" style="margin-bottom:12px"/>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">EMAIL <span style="color:var(--red)">*</span></div>
@@ -220,7 +220,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-username-login-wrap" style="margin-bottom:18px">
         <div style="background:#2dd4bf08;border:1.5px solid #2dd4bf55;border-radius:16px;padding:16px 16px 14px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#2dd4bf80;margin-bottom:2px">Username</div>
-          <input type="text" id="auth-username-login" placeholder="e.g. kirk123" autocomplete="username" inputmode="text" style="background:transparent;border:none;outline:none;font-size:26px;font-weight:600;color:var(--text);width:100%;padding:0;font-family:inherit;caret-color:#2dd4bf;letter-spacing:-.5px"/>
+          <input type="text" id="auth-username-login" placeholder="" autocomplete="username" inputmode="text" style="background:transparent;border:none;outline:none;font-size:26px;font-weight:600;color:var(--text);width:100%;padding:0;font-family:inherit;caret-color:#2dd4bf;letter-spacing:-.5px"/>
           <div style="height:1.5px;background:linear-gradient(90deg,#2dd4bf40,transparent);margin-top:10px"></div>
         </div>
       </div>
@@ -296,11 +296,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <h2 id="cycle-title" style="font-size:15px;font-weight:500;color:var(--muted)"></h2>
     </div>
     <!-- Hero remaining card -->
-    <div onclick="openSpendingChart()" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
+    <div onclick="showScreen('snapshot',null)" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--accent)">Remaining</span>
         <div style="display:flex;align-items:center;gap:6px">
-          <i class="ti ti-chart-pie-2" style="font-size:14px;color:var(--accent);opacity:.8"></i>
+          <i class="ti ti-layout-dashboard" style="font-size:14px;color:var(--accent);opacity:.8"></i>
           <i class="ti ti-chevron-right" style="font-size:14px;color:var(--accent);opacity:.6"></i>
         </div>
       </div>
@@ -313,7 +313,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div class="stat-card"><div class="label">Bills left</div><div class="value amber" id="home-bills-left">$0</div><div id="delta-bills" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
     </div>
     <div class="summary-row">
-      <div class="stat-card"><div class="label">Spent</div><div class="value" id="home-spent">$0</div><div id="delta-spent" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
+      <div class="stat-card" onclick="openSpendingChart()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Spent<i class="ti ti-chart-bar" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-spent">$0</div><div id="delta-spent" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
       <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved" style="font-size:20px">$0</div></div>
     </div>
     <div id="balance-warning"></div>
@@ -406,6 +406,23 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <div style="font-size:12px;color:var(--muted);margin-top:2px" id="banner-401k-sub">Tap to manage</div>
       </div>
       <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted);flex-shrink:0"></i>
+    </div>
+  </div>
+  <div id="screen-debt" class="screen">
+    <div class="top-bar" style="display:flex;justify-content:space-between;align-items:center">
+      <h2>Debt</h2>
+      <button onclick="openDebtModal(null)" style="background:#6366f115;border:1px solid #6366f140;color:#a5b4fc;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit"><i class="ti ti-plus" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Add debt</button>
+    </div>
+    <div style="display:flex;gap:0;margin:0 16px 14px;background:var(--card2);border-radius:10px;padding:3px">
+      <button id="debt-tab-list" onclick="switchDebtTab('list')" style="flex:1;padding:7px 0;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--accent);color:#fff">My debts</button>
+      <button id="debt-tab-plan" onclick="switchDebtTab('plan')" style="flex:1;padding:7px 0;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--muted)">Planner</button>
+    </div>
+    <div id="debt-list-view">
+      <div id="debt-summary-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 16px 12px"></div>
+      <div id="debt-cards" style="padding:0 16px"></div>
+    </div>
+    <div id="debt-plan-view" style="display:none;padding:0 16px">
+      <div id="debt-planner-content"></div>
     </div>
   </div>
   <div id="screen-snapshot" class="screen">
@@ -704,7 +721,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <button class="nav-btn" onclick="showScreen('bills',this)"><i class="ti ti-checklist"></i>Bills</button>
     <button class="nav-btn" onclick="showScreen('spend',this)"><i class="ti ti-wallet"></i>Spend</button>
     <button class="nav-btn" onclick="showScreen('invest',this)"><i class="ti ti-trending-up"></i>Invest</button>
-    <button class="nav-btn" onclick="showScreen('snapshot',this)"><i class="ti ti-chart-pie"></i>Summary</button>
+    <button class="nav-btn" onclick="showScreen('debt',this)"><i class="ti ti-credit-card-off"></i>Debt</button>
   </nav>
 </div>
 <script>
@@ -1000,7 +1017,7 @@ function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amou
 function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
-function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings();}
+function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings()-(C.debtPayments||0);}
 function allTimeSavings(){return[...STATE.history,C].reduce((s,cyc)=>s+((cyc.savings?.perPaycheck||0))+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0)),0);}
 function currentExtraSavings(){return(C.savings.extra||[]).reduce((s,e)=>s+(e.amount||0),0);}
 function allTime401K(){const all=[...STATE.history,C];const me=all.reduce((s,cyc)=>s+(cyc.k401?.me||0),0);const emp=all.reduce((s,cyc)=>s+(cyc.k401?.emp||0),0);return{me,emp,total:me+emp,periods:all.length};}
@@ -2665,7 +2682,7 @@ function openSettingsModal(){
         <i class="ti ti-refresh" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">New pay period</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Archive current cycle and start fresh</div></div>
       </div>
-      <div onclick="showScreen('history',document.querySelectorAll('.nav-btn')[4]);closeModal();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="showScreen('history',null);closeModal();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-clock" style="font-size:20px;color:var(--blue)"></i>
         <div><div style="font-size:15px;font-weight:500">Pay period history</div><div style="font-size:12px;color:var(--muted);margin-top:2px">View all past cycles</div></div>
       </div>
@@ -4366,6 +4383,438 @@ async function logOut(){
   if(ov)ov.style.display='flex';
 }
 
+
+// ══════════════════════════════════════════
+//  DEBT & DEBT PLANNING
+// ══════════════════════════════════════════
+let _debtTab='list';
+
+function switchDebtTab(tab){
+  _debtTab=tab;
+  const lv=document.getElementById('debt-list-view');
+  const pv=document.getElementById('debt-plan-view');
+  const tl=document.getElementById('debt-tab-list');
+  const tp=document.getElementById('debt-tab-plan');
+  if(lv)lv.style.display=tab==='list'?'block':'none';
+  if(pv)pv.style.display=tab==='plan'?'block':'none';
+  if(tl){tl.style.background=tab==='list'?'var(--accent)':' transparent';tl.style.color=tab==='list'?'#fff':'var(--muted)';}
+  if(tp){tp.style.background=tab==='plan'?'var(--accent)':' transparent';tp.style.color=tab==='plan'?'#fff':'var(--muted)';}
+  if(tab==='plan')renderDebtPlanner();
+}
+
+function initDebts(){
+  if(!C.debts)C.debts=[];
+  if(!C.debtStrategy)C.debtStrategy='avalanche';
+  if(C.debtExtra===undefined)C.debtExtra=0;
+}
+
+function debtAprBadge(apr){
+  if(apr>=15)return{label:'High',bg:'#ef444418',color:'#f87171'};
+  if(apr>=8)return{label:'Med',bg:'#f59e0b18',color:'#fbbf24'};
+  return{label:'Low',bg:'#22c55e18',color:'#4ade80'};
+}
+
+function debtTypeIcon(type){
+  const map={credit_card:'ti-credit-card',student:'ti-school',auto:'ti-car',personal:'ti-cash',mortgage:'ti-building'};
+  return map[type]||'ti-coin';
+}
+
+function debtTypeLabel(type){
+  const map={credit_card:'Credit card',student:'Student loan',auto:'Auto loan',personal:'Personal loan',mortgage:'Mortgage'};
+  return map[type]||type;
+}
+
+function calcDebtPayoff(debts,extra,strategy){
+  const active=debts.filter(d=>d.balance>0);
+  if(!active.length)return{months:0,interest:0,order:[]};
+  let d=active.map(x=>({id:x.id,name:x.name,apr:x.apr||0,bal:x.balance,min:x.minPayment||0}));
+  const order=[...d].sort((a,b)=>strategy==='avalanche'?b.apr-a.apr:a.bal-b.bal).map(x=>x.id);
+  if(strategy==='avalanche')d.sort((a,b)=>b.apr-a.apr);
+  else d.sort((a,b)=>a.bal-b.bal);
+  let months=0,totalInterest=0;
+  const MAX=600;
+  while(d.some(x=>x.bal>0.01)&&months<MAX){
+    months++;
+    const firstIdx=d.findIndex(x=>x.bal>0.01);
+    let freed=extra;
+    for(let i=0;i<d.length;i++){
+      if(d[i].bal<=0.01)continue;
+      const rate=d[i].apr/100/12;
+      const interest=d[i].bal*rate;
+      totalInterest+=interest;
+      let payment=d[i].min+(i===firstIdx?freed:0);
+      payment=Math.min(payment,d[i].bal+interest);
+      const principal=payment-interest;
+      d[i].bal=Math.max(0,d[i].bal-principal);
+      if(d[i].bal<0.01){freed+=d[i].min;d[i].bal=0;}
+    }
+  }
+  return{months,interest:Math.round(totalInterest),order};
+}
+
+function payoffDateStr(months){
+  if(months<=0)return'Paid off!';
+  if(months>=600)return'50+ yrs';
+  const dt=new Date();dt.setMonth(dt.getMonth()+months);
+  return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+}
+
+function renderDebt(){
+  initDebts();
+  if(!document.getElementById('screen-debt'))return;
+  renderDebtList();
+  if(_debtTab==='plan')renderDebtPlanner();
+}
+
+function renderDebtList(){
+  initDebts();
+  const debts=C.debts||[];
+  const summEl=document.getElementById('debt-summary-row');
+  const cardsEl=document.getElementById('debt-cards');
+  if(!summEl||!cardsEl)return;
+
+  const activeDebts=debts.filter(d=>d.balance>0);
+  const paidDebts=debts.filter(d=>d.balance<=0);
+  const totalOwed=activeDebts.reduce((a,d)=>a+(d.balance||0),0);
+  const result=calcDebtPayoff(activeDebts,C.debtExtra||0,C.debtStrategy||'avalanche');
+
+  if(summEl){
+    summEl.innerHTML=`
+      <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Total owed</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text)">$${totalOwed.toLocaleString()}</div>
+      </div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Debt-free est.</div>
+        <div style="font-size:16px;font-weight:700;color:#a5b4fc">${activeDebts.length?payoffDateStr(result.months):paidDebts.length?'All paid off!':'—'}</div>
+      </div>`;
+  }
+
+  if(!debts.length){
+    cardsEl.innerHTML=`<div style="text-align:center;padding:40px 0">
+      <i class="ti ti-mood-happy" style="font-size:36px;color:var(--muted);display:block;margin-bottom:10px"></i>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">No debts tracked</div>
+      <div style="font-size:13px;color:var(--muted)">Tap Add debt to get started.</div>
+    </div>`;
+    return;
+  }
+
+  function debtCard(d,i,isPaid){
+    const badge=debtAprBadge(d.apr||0);
+    const orig=d.originalBalance||d.balance||1;
+    const pct=isPaid?100:Math.min(99,Math.max(0,Math.round((1-(d.balance/orig))*100)));
+    const barColor=isPaid?'#22c55e':d.apr>=15?'#ef4444':d.apr>=8?'#f59e0b':'#22c55e';
+    const utilPct=(d.type==='credit_card'&&d.creditLimit>0)?Math.round((d.balance/d.creditLimit)*100):null;
+    const utilColor=utilPct===null?null:utilPct>=50?'#ef4444':utilPct>=30?'#f59e0b':'#22c55e';
+    const utilBg=utilPct===null?null:utilPct>=50?'#ef444418':utilPct>=30?'#f59e0b18':'#22c55e18';
+    const lastPmt=d.payments&&d.payments.length?d.payments[d.payments.length-1]:null;
+    const lastPmtStr=lastPmt?'Last: $'+lastPmt.amount.toLocaleString()+' · '+new Date(lastPmt.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    const histHtml=d.payments&&d.payments.length?`<div id="debt-hist-${i}" style="display:none;border-top:0.5px solid var(--border);margin-top:10px;padding-top:10px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Payment history</div>
+      ${[...d.payments].reverse().map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;color:var(--text)">$${p.amount.toLocaleString()}</div>
+          ${p.note?`<div style="font-size:11px;color:var(--muted)">${p.note}</div>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--muted)">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      </div>`).join('')}
+    </div>`:'';
+    return `<div style="background:${isPaid?'var(--card2)':'var(--card)'};border:1px solid ${isPaid?'#22c55e30':'var(--border)'};border-radius:14px;padding:14px;margin-bottom:10px;opacity:${isPaid?0.85:1}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;border-radius:9px;background:${isPaid?'#22c55e18':'#6366f115'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="ti ${isPaid?'ti-circle-check':debtTypeIcon(d.type)}" style="font-size:16px;color:${isPaid?'#4ade80':'#a5b4fc'}"></i>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${d.name}${isPaid?' <span style="font-size:10px;font-weight:700;background:#22c55e18;color:#4ade80;padding:2px 6px;border-radius:5px;vertical-align:middle">Paid off</span>':''}</div>
+            <div style="font-size:11px;color:var(--muted)">${debtTypeLabel(d.type)}${isPaid?'':' · '+d.apr+'% APR · Min $'+(d.minPayment||0).toLocaleString()+'/mo'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          ${!isPaid?`<div style="font-size:10px;font-weight:700;background:${badge.bg};color:${badge.color};padding:3px 7px;border-radius:6px">${badge.label}</div>`:''}
+          <button onclick="openDebtModal(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:2px;font-size:16px"><i class="ti ti-edit"></i></button>
+        </div>
+      </div>
+      <div style="background:var(--card2);border-radius:6px;height:6px;width:100%;margin-bottom:6px">
+        <div style="height:6px;border-radius:6px;width:${pct}%;background:${barColor}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${!isPaid&&utilPct!==null?4:isPaid||!d.payments||!d.payments.length?0:6}px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${isPaid?'Paid off!':'$'+(d.balance||0).toLocaleString()+' left'}</div>
+        <div style="font-size:11px;color:var(--muted)">${pct}% paid</div>
+      </div>
+      ${!isPaid&&utilPct!==null?`<div style="display:flex;align-items:center;justify-content:space-between;background:${utilBg};border-radius:7px;padding:5px 8px;margin-bottom:${!d.payments||!d.payments.length?0:6}px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <i class="ti ti-chart-pie" style="font-size:12px;color:${utilColor}"></i>
+          <span style="font-size:12px;font-weight:600;color:${utilColor}">${utilPct}% utilized</span>
+          <span style="font-size:11px;color:var(--muted)">of $${(d.creditLimit||0).toLocaleString()} limit</span>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${utilColor}">${utilPct<30?'Good':utilPct<50?'Fair':'High'}</span>
+      </div>`:''}
+      ${lastPmtStr&&!isPaid?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${lastPmtStr}</div>`:''}
+      ${!isPaid?`<div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="openPaymentModal(${i})" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid #6366f140;background:#6366f110;color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"><i class="ti ti-cash" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Make payment</button>
+        ${d.payments&&d.payments.length?`<button onclick="toggleDebtHistory(${i})" style="padding:8px 12px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" id="debt-hist-btn-${i}"><i class="ti ti-history" style="font-size:13px;vertical-align:-2px"></i></button>`:''}
+      </div>`:''}
+      ${histHtml}
+    </div>`;
+  }
+
+  let html=activeDebts.map((d,i)=>debtCard(d,debts.indexOf(d),false)).join('');
+  if(paidDebts.length){
+    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px">Paid off</div>`;
+    html+=paidDebts.map(d=>debtCard(d,debts.indexOf(d),true)).join('');
+  }
+  cardsEl.innerHTML=html;
+}
+
+function toggleDebtHistory(i){
+  const el=document.getElementById('debt-hist-'+i);
+  const btn=document.getElementById('debt-hist-btn-'+i);
+  if(!el)return;
+  const open=el.style.display==='block';
+  el.style.display=open?'none':'block';
+  if(btn)btn.querySelector('i').style.color=open?'var(--muted)':'#a5b4fc';
+}
+
+function openPaymentModal(idx){
+  initDebts();
+  const d=C.debts[idx];
+  if(!d)return;
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 style="margin:0">Make a payment</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${d.name} · $${(d.balance||0).toLocaleString()} remaining</div>
+    <div id="pmt-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Amount paid</div>
+    <input type="number" id="pmt-amount" placeholder="${d.minPayment||0}" inputmode="decimal" style="margin-bottom:12px;font-size:22px;font-weight:600"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Date</div>
+        <input type="date" id="pmt-date" value="${today}"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Note (optional)</div>
+        <input type="text" id="pmt-note" placeholder="e.g. Extra payment"/>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Min payment: <strong style="color:var(--text)">$${(d.minPayment||0).toLocaleString()}/mo</strong></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayment(${idx})">Log payment</button>
+    </div>
+  </div></div>`;
+  setTimeout(()=>document.getElementById('pmt-amount')?.focus(),100);
+}
+
+function savePayment(idx){
+  initDebts();
+  const d=C.debts[idx];
+  if(!d)return;
+  const amount=parseFloat(document.getElementById('pmt-amount')?.value||0);
+  const date=document.getElementById('pmt-date')?.value||new Date().toISOString().split('T')[0];
+  const note=(document.getElementById('pmt-note')?.value||'').trim();
+  const errEl=document.getElementById('pmt-error');
+  if(!amount||amount<=0){if(errEl){errEl.textContent='Please enter a valid payment amount.';errEl.style.display='block';}return;}
+  if(amount>d.balance+1){if(errEl){errEl.textContent='Payment exceeds remaining balance.';errEl.style.display='block';}return;}
+  if(!d.payments)d.payments=[];
+  d.payments.push({amount,date,note:note||null});
+  const newBalance=Math.max(0,d.balance-amount);
+  const paidOff=newBalance===0;
+  d.balance=newBalance;
+  C.debtPayments=(C.debtPayments||0)+amount;
+  saveState();
+  closeModal();
+  renderDebt();
+  if(paidOff){
+    setTimeout(()=>showToast('🎉 '+d.name+' is paid off!'),300);
+  }
+}
+
+function renderDebtPlanner(){
+  initDebts();
+  const el=document.getElementById('debt-planner-content');
+  if(!el)return;
+  const debts=C.debts||[];
+  const strategy=C.debtStrategy||'avalanche';
+  const extra=C.debtExtra||0;
+  const base=calcDebtPayoff(debts,0,strategy);
+  const withExtra=calcDebtPayoff(debts,extra,strategy);
+  const savedMonths=Math.max(0,base.months-withExtra.months);
+  const savedInterest=Math.max(0,base.interest-withExtra.interest);
+
+  const orderDebts=[...debts].sort((a,b)=>strategy==='avalanche'?b.apr-a.apr:a.balance-b.balance);
+
+  el.innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Strategy</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button onclick="setDebtStrategy('avalanche')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid ${strategy==='avalanche'?'#6366f140':'var(--border)'};background:${strategy==='avalanche'?'#6366f115':'transparent'};font-size:12px;font-weight:700;color:${strategy==='avalanche'?'#a5b4fc':'var(--muted)'};cursor:pointer;font-family:inherit">Avalanche</button>
+      <button onclick="setDebtStrategy('snowball')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid ${strategy==='snowball'?'#6366f140':'var(--border)'};background:${strategy==='snowball'?'#6366f115':'transparent'};font-size:12px;font-weight:700;color:${strategy==='snowball'?'#a5b4fc':'var(--muted)'};cursor:pointer;font-family:inherit">Snowball</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${strategy==='avalanche'?'Highest APR first — minimizes total interest paid.':'Smallest balance first — quick wins build momentum.'}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Debt-free</div>
+        <div style="font-size:16px;font-weight:700;color:#a5b4fc" id="debt-payoff-date">${debts.length?payoffDateStr(withExtra.months):'—'}</div>
+      </div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Total interest</div>
+        <div style="font-size:16px;font-weight:700;color:#f87171" id="debt-total-interest">${debts.length?'$'+withExtra.interest.toLocaleString():'—'}</div>
+      </div>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Extra payment / month</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:13px;color:var(--muted)">+$</span>
+      <input type="range" min="0" max="500" step="25" value="${extra}" oninput="updateDebtExtra(this.value)" style="flex:1"/>
+      <span style="font-size:14px;font-weight:700;color:var(--text);min-width:44px" id="debt-extra-val">$${extra}</span>
+    </div>
+    <div style="background:#6366f115;border:1px solid #6366f130;border-radius:12px;padding:10px 12px;margin-bottom:14px;min-height:44px" id="debt-sim-result">
+      ${extra>0&&savedMonths>0?`<div style="font-size:12px;color:#a5b4fc;margin-bottom:3px">Debt-free <strong>${savedMonths} month${savedMonths!==1?'s':''} sooner</strong></div><div style="font-size:15px;font-weight:700;color:#818cf8">Save $${savedInterest.toLocaleString()} in interest</div>`
+      :`<div style="font-size:12px;color:var(--muted)">Drag the slider to see how extra payments help.</div>`}
+    </div>
+
+    ${orderDebts.length?`
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Payoff order</div>
+    ${orderDebts.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'#6366f1':'var(--card2)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${i===0?'#fff':'var(--muted)'};flex-shrink:0">${i+1}</div>
+      <div style="flex:1;font-size:13px;color:var(--text)">${d.name}</div>
+      <div style="font-size:11px;color:var(--muted)">${strategy==='avalanche'?d.apr+'% APR':'$'+d.balance.toLocaleString()}</div>
+    </div>`).join('')}`:'<div style="text-align:center;padding:20px 0;font-size:13px;color:var(--muted)">Add debts to see your payoff order.</div>'}
+  `;
+}
+
+function setDebtStrategy(s){
+  initDebts();
+  C.debtStrategy=s;
+  saveState();
+  renderDebtPlanner();
+}
+
+function updateDebtExtra(val){
+  initDebts();
+  C.debtExtra=parseInt(val)||0;
+  saveState();
+  const valEl=document.getElementById('debt-extra-val');
+  if(valEl)valEl.textContent='$'+C.debtExtra;
+  const strategy=C.debtStrategy||'avalanche';
+  const debts=C.debts||[];
+  const base=calcDebtPayoff(debts,0,strategy);
+  const withExtra=calcDebtPayoff(debts,C.debtExtra,strategy);
+  const savedMonths=Math.max(0,base.months-withExtra.months);
+  const savedInterest=Math.max(0,base.interest-withExtra.interest);
+  const simEl=document.getElementById('debt-sim-result');
+  if(!simEl)return;
+  if(C.debtExtra>0&&savedMonths>0){
+    simEl.innerHTML=`<div style="font-size:12px;color:#a5b4fc;margin-bottom:3px">Debt-free <strong>${savedMonths} month${savedMonths!==1?'s':''} sooner</strong></div><div style="font-size:15px;font-weight:700;color:#818cf8">Save $${savedInterest.toLocaleString()} in interest</div>`;
+  }else{
+    simEl.innerHTML='<div style="font-size:12px;color:var(--muted)">Drag the slider to see how extra payments help.</div>';
+  }
+  const dateEl=document.getElementById('debt-payoff-date');
+  const intEl=document.getElementById('debt-total-interest');
+  if(dateEl)dateEl.textContent=debts.length?payoffDateStr(withExtra.months):'—';
+  if(intEl)intEl.textContent=debts.length?'$'+withExtra.interest.toLocaleString():'—';
+}
+
+function openDebtModal(idx){
+  initDebts();
+  const isEdit=idx!==null&&idx!==undefined;
+  const d=isEdit?C.debts[idx]:{name:'',type:'credit_card',balance:'',originalBalance:'',apr:'',minPayment:'',creditLimit:''};
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">${isEdit?'Edit debt':'Add a debt'}</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button>
+    </div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Type</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px" id="debt-type-grid">
+      ${[{v:'credit_card',icon:'ti-credit-card',label:'Credit card'},{v:'student',icon:'ti-school',label:'Student loan'},{v:'auto',icon:'ti-car',label:'Auto loan'},{v:'personal',icon:'ti-cash',label:'Personal loan'},{v:'mortgage',icon:'ti-building',label:'Mortgage'},{v:'other',icon:'ti-coin',label:'Other'}].map(t=>`<div onclick="selectDebtType(this,'${t.v}')" data-type="${t.v}" style="background:${d.type===t.v?'#6366f115':'var(--card2)'};border:1px solid ${d.type===t.v?'#6366f150':'var(--border)'};border-radius:9px;padding:8px;font-size:12px;font-weight:600;color:${d.type===t.v?'#a5b4fc':'var(--muted)'};text-align:center;cursor:pointer"><i class="ti ${t.icon}" style="font-size:14px;display:block;margin:0 auto 3px"></i>${t.label}</div>`).join('')}
+    </div>
+    <input type="hidden" id="debt-selected-type" value="${d.type||'credit_card'}"/>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Nickname</div>
+    <input type="text" id="debt-name" placeholder="e.g. Chase Sapphire" value="${d.name||''}" style="margin-bottom:12px"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Balance</div>
+        <input type="number" id="debt-balance" placeholder="4820" value="${d.balance||''}" inputmode="decimal"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">APR %</div>
+        <input type="number" id="debt-apr" placeholder="22.4" value="${d.apr||''}" inputmode="decimal"/>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Min payment</div>
+        <input type="number" id="debt-min" placeholder="85" value="${d.minPayment||''}" inputmode="decimal"/>
+      </div>
+      <div id="debt-limit-wrap">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Credit limit</div>
+        <input type="number" id="debt-limit" placeholder="8000" value="${d.creditLimit||''}" inputmode="decimal"/>
+      </div>
+    </div>
+    <div id="debt-modal-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
+    <div class="modal-btns">
+      ${isEdit?`<button class="btn btn-ghost" style="color:var(--red)" onclick="deleteDebt(${idx})"><i class="ti ti-trash" style="font-size:15px;vertical-align:-2px;margin-right:4px"></i>Delete</button>`:`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>`}
+      <button class="btn btn-primary" onclick="saveDebt(${isEdit?idx:'null'})">Save</button>
+    </div>
+  </div></div>`;
+  // Hide credit limit for non-card types
+  const limitWrap=document.getElementById('debt-limit-wrap');
+  if(limitWrap&&d.type!=='credit_card')limitWrap.style.display='none';
+}
+
+function selectDebtType(el,type){
+  document.querySelectorAll('#debt-type-grid [data-type]').forEach(c=>{
+    const sel=c.dataset.type===type;
+    c.style.background=sel?'#6366f115':'var(--card2)';
+    c.style.borderColor=sel?'#6366f150':'var(--border)';
+    c.style.color=sel?'#a5b4fc':'var(--muted)';
+  });
+  const hiddenType=document.getElementById('debt-selected-type');
+  if(hiddenType)hiddenType.value=type;
+  const limitWrap=document.getElementById('debt-limit-wrap');
+  if(limitWrap)limitWrap.style.display=type==='credit_card'?'block':'none';
+}
+
+function saveDebt(idx){
+  initDebts();
+  const name=(document.getElementById('debt-name')?.value||'').trim();
+  const balance=parseFloat(document.getElementById('debt-balance')?.value||0);
+  const apr=parseFloat(document.getElementById('debt-apr')?.value||0);
+  const min=parseFloat(document.getElementById('debt-min')?.value||0);
+  const limit=parseFloat(document.getElementById('debt-limit')?.value||0)||null;
+  const selectedType=document.getElementById('debt-selected-type')?.value||'credit_card';
+  const errEl=document.getElementById('debt-modal-error');
+  if(!name){if(errEl){errEl.textContent='Please enter a name.';errEl.style.display='block';}return;}
+  if(!balance||balance<=0){if(errEl){errEl.textContent='Please enter a valid balance.';errEl.style.display='block';}return;}
+  const isEdit=idx!==null&&idx!==undefined&&idx!=='null';
+  const existing=isEdit?C.debts[idx]:{};
+  const debt={
+    id:existing.id||'debt_'+Date.now(),
+    name,type:selectedType,
+    balance,
+    originalBalance:isEdit?(existing.originalBalance||existing.balance||balance):balance,
+    apr,minPayment:min,creditLimit:limit
+  };
+  if(isEdit)C.debts[idx]=debt;
+  else C.debts.push(debt);
+  saveState();
+  closeModal();
+  renderDebt();
+}
+
+function deleteDebt(idx){
+  initDebts();
+  if(!confirm('Delete this debt?'))return;
+  C.debts.splice(idx,1);
+  saveState();
+  closeModal();
+  renderDebt();
+}
+
 async function checkAuthGate(){
   const ov=document.getElementById('auth-overlay');
   if(!ov)return;
@@ -4512,7 +4961,7 @@ function render401K(){
     </div>`;
   }).join('');
 }
-function render(){renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();}
+function render(){renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
 
 function renderHome(){
   const badge=document.getElementById('pro-badge');
@@ -5214,8 +5663,10 @@ function confirmNewCycle(leftoverAction){
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
   const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
   const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
+  const carryDebts=JSON.parse(JSON.stringify(C.debts||[]));
   const leftoverAmt=remaining(); // capture before resetting
   STATE.current=newCycleData();C=STATE.current;
+  if(carryDebts.length)C.debts=carryDebts;
   if(recurringIncome.length) C.income=recurringIncome;
   // Apply leftover action
   if(leftoverAmt>0.01){
