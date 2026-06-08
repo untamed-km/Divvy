@@ -207,16 +207,13 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">We'll use this email to help you recover your account.</div>
       </div>
       <!-- Login username field -->      <!-- Login username field -->
-      <div id="auth-username-login-wrap" style="margin-bottom:18px">
-        <div style="background:#2dd4bf08;border:1.5px solid #2dd4bf55;border-radius:16px;padding:16px 16px 14px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#2dd4bf80;margin-bottom:2px">Username</div>
-          <input type="text" id="auth-username-login" placeholder="" autocomplete="username" inputmode="text" style="background:transparent;border:none;outline:none;font-size:26px;font-weight:600;color:var(--text);width:100%;padding:0;font-family:inherit;caret-color:#2dd4bf;letter-spacing:-.5px"/>
-          <div style="height:1.5px;background:linear-gradient(90deg,#2dd4bf40,transparent);margin-top:10px"></div>
-        </div>
+      <div id="auth-username-login-wrap">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
+        <input type="text" id="auth-username-login" placeholder="Your username" autocomplete="username" inputmode="text" style="margin-bottom:12px"/>
       </div>
       <!-- Password input (login & signup) -->
-      <label id="auth-pwd-label" style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">Password</label>
-      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:6px;font-size:16px;letter-spacing:.08em"/>
+      <div id="auth-pwd-label" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">PASSWORD</div>
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:6px"/>
       <div id="auth-pwd-hint" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px">Minimum 8 characters</div>
 
       <!-- ToS checkbox — signup only -->
@@ -4342,6 +4339,8 @@ async function submitAuth(){
       // Save profile
       if(data.user){
         await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal});
+        // Update Supabase auth email to real email so password reset works
+        sb.auth.updateUser({email:emailVal});
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
@@ -4414,6 +4413,22 @@ async function logOut(){
   closeModal();
   const dot=document.getElementById('sync-dot');
   if(dot)dot.style.display='none';
+  // Reset auth UI back to login mode
+  authMode='login';
+  const forgotWrap=document.getElementById('auth-forgot-wrap');
+  if(forgotWrap)forgotWrap.style.display='block';
+  const nameWrap=document.getElementById('auth-name-wrap');
+  if(nameWrap)nameWrap.style.display='none';
+  const tosWrap=document.getElementById('auth-tos-wrap');
+  if(tosWrap)tosWrap.style.display='none';
+  const trustEl=document.getElementById('auth-trust-statement');
+  if(trustEl)trustEl.style.display='none';
+  const submitBtn=document.getElementById('auth-submit-btn');
+  if(submitBtn)submitBtn.textContent='Log in';
+  const toggleLink=document.getElementById('auth-toggle-link');
+  if(toggleLink)toggleLink.textContent='Sign up';
+  const toggleText=document.getElementById('auth-toggle-text');
+  if(toggleText)toggleText.textContent="Don't have an account? ";
   const ov=document.getElementById('auth-overlay');
   if(ov)ov.style.display='flex';
 }
@@ -5867,9 +5882,10 @@ function initAuthListener(){
     }
   });
 }
-checkAuthGate();
-initAuthListener();
-if(isLoggedIn())render();
+checkAuthGate().then(()=>{
+  initAuthListener();
+  if(isLoggedIn())render();
+});
 </script>
 </body>
 </html>
