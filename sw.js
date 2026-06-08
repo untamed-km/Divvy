@@ -1,81 +1,66 @@
-// DistroFi Service Worker — v6
-// Network-first for HTML (always fresh), cache-first for static assets
+// DistroFi Service Worker — v7
+// Network-first for all navigation; static assets cached after first load.
+// On every SW update, ALL old caches are wiped so stale HTML never survives.
 
-const CACHE_NAME = 'distrofi-v5';
-const STATIC_ASSETS = [
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-180.png',
-  '/icons/favicon.ico',
-  'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css'
-];
+const CACHE_NAME = 'distrofi-v6';
 
-// Install: cache only static assets (not index.html)
+// Install: skip waiting immediately — take over as fast as possible
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.warn('SW: some assets could not be cached', err);
-      });
-    })
-  );
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: delete EVERY cache (including current), then claim all tabs.
+// This forces a clean network fetch after every SW update.
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch strategy:
-//   - Navigation requests (HTML pages) → network-first, fall back to cache
-//   - Everything else → cache-first, fall back to network
+//   navigation (HTML) → always network-first
+//   static assets    → cache-first, populate on miss
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
 
   const url = new URL(event.request.url);
 
-  // Network-only for API calls
-  if (url.hostname === 'api.anthropic.com' || url.hostname === 'formspree.io') return;
-  if (url.hostname.includes('supabase.co')) return;
+  // Skip caching for API / auth / analytics calls
+  if (
+    url.hostname.includes('supabase.co') ||
+    url.hostname === 'api.anthropic.com' ||
+    url.hostname === 'formspree.io' ||
+    url.hostname.includes('vercel-insights') ||
+    url.pathname.startsWith('/_vercel')
+  ) return;
 
-  // Network-first for HTML navigation
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+  // Navigation requests (index.html) → network-first
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).then(response => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => {
-        // Offline fallback
-        return caches.match('/index.html') || caches.match('/');
-      })
+      fetch(event.request)
+        .then(res => {
+          if (res && res.status === 200) {
+            caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Cache-first for static assets
+  // Static assets → cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return response;
+      return fetch(event.request).then(res => {
+        if (res && res.status === 200 && res.type !== 'opaque') {
+          caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()));
+        }
+        return res;
       });
     }).catch(() => caches.match('/index.html'))
   );
