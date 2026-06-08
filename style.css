@@ -71,7 +71,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 .snapshot-row{display:flex;justify-content:space-between;padding:12px 16px;font-size:15px;border-bottom:0.5px solid var(--border)}
 .snapshot-row:last-child{border-bottom:none}
 .snapshot-row.total{font-weight:600;font-size:16px;padding-top:16px}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;z-index:200}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;z-index:600}
 .modal{background:#1a1d27;border-radius:20px 20px 0 0;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));width:100%;border-top:0.5px solid var(--border);max-height:88vh;overflow-y:auto}
 .modal h3{font-size:17px;font-weight:600;margin-bottom:18px}
 .modal input{width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:12px;outline:none}
