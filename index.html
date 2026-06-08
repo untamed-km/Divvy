@@ -4326,7 +4326,7 @@ async function submitAuth(){
     const tosCheck=document.getElementById('auth-tos-check');
     if(tosCheck&&!tosCheck.checked){showAuthError('Please agree to the Terms of Service to continue.');setAuthLoading(false);return;}
 
-    const email=syntheticEmail(username);
+    const email=emailVal; // use real email as Supabase auth email directly
     const password=pwd; // raw password — no derivation
 
     // Check username availability
@@ -4339,8 +4339,6 @@ async function submitAuth(){
       // Save profile
       if(data.user){
         await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal});
-        // Update Supabase auth email to real email so password reset works
-        sb.auth.updateUser({email:emailVal});
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
@@ -4356,12 +4354,20 @@ async function submitAuth(){
     if(!usernameVal){showAuthError('Please enter your username.');setAuthLoading(false);return;}
 
     if(sb){
-      const email=syntheticEmail(usernameVal);
-      // Try raw password; fall back to legacy derived form and migrate silently
-      let {data,error}=await sb.auth.signInWithPassword({email,password:pwd});
+      // Look up real email by username (v98+ accounts use real email in auth)
+      const {data:prof}=await sb.from('profiles').select('email').eq('username',usernameVal).maybeSingle();
+      const realEmail=prof?.email&&prof.email.includes('@')?prof.email:null;
+      const synthEmail=syntheticEmail(usernameVal);
+      // 1. Try real email + raw password
+      let {data,error}=await sb.auth.signInWithPassword({email:realEmail||synthEmail,password:pwd});
+      // 2. If failed and we used real email, try synthetic (unconfirmed v97 or old account)
+      if(error&&realEmail){
+        ({data,error}=await sb.auth.signInWithPassword({email:synthEmail,password:pwd}));
+      }
+      // 3. If still failed, try legacy derived password and migrate
       if(error){
         const derived=derivePassword(usernameVal,pwd);
-        const {data:data2,error:error2}=await sb.auth.signInWithPassword({email,password:derived});
+        const {data:data2,error:error2}=await sb.auth.signInWithPassword({email:synthEmail,password:derived});
         if(error2){showAuthError('Incorrect username or password.');setAuthLoading(false);return;}
         data=data2;
         getSB()?.auth.updateUser({password:pwd}); // migrate to raw password
