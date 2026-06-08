@@ -1,10 +1,18 @@
-// Divvy Service Worker — v1
+// DistroFi Service Worker — v2
 // Cache-first strategy: app loads instantly after first visit, works offline
 
-const CACHE_NAME = 'divvy-v2';
+const CACHE_NAME = 'distrofi-v1';
 const ASSETS = [
   '/',
   '/index.html',
+  '/style.css',
+  '/state.js',
+  '/screens.js',
+  '/members.js',
+  '/auth.js',
+  '/render.js',
+  '/assets/logo.png',
+  '/assets/account.png',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

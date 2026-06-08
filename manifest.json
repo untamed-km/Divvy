@@ -1,13 +1,13 @@
 {
-  "name": "Divvy — Budget Together",
-  "short_name": "Divvy",
-  "description": "Paycheck-to-paycheck budgeting made simple",
+  "name": "DistroFi — Finance Together",
+  "short_name": "DistroFi",
+  "description": "Paycheck-to-paycheck budgeting for individuals and couples",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f1117",
-  "theme_color": "#6366f1",
+  "theme_color": "#1b2e4c",
   "icons": [
     {
       "src": "/icons/icon-192.png",
