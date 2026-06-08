@@ -3628,6 +3628,13 @@ async function submitAuth(){
     const email=emailVal; // use real email as Supabase auth email directly
     const password=pwd; // raw password — no derivation
 
+    // Validate invite code
+    const inviteCodeRaw=(document.getElementById('auth-invite-code')?.value||'').trim().toUpperCase();
+    if(!inviteCodeRaw){showAuthError('Please enter your invite code.');setAuthLoading(false);return;}
+    if(sb){
+      const {data:codeRow,error:codeErr}=await sb.from('beta_codes').select('code,used').eq('code',inviteCodeRaw).maybeSingle();
+      if(codeErr||!codeRow||codeRow.used){showAuthError('Invalid invite code.');setAuthLoading(false);return;}
+    }
     // Check username availability
     if(sb){
       const {data:existing}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
@@ -3638,6 +3645,8 @@ async function submitAuth(){
       // Save profile
       if(data.user){
         await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal});
+        // Mark invite code as used
+        await sb.from('beta_codes').update({used:true,used_by:data.user.id,used_at:new Date().toISOString()}).eq('code',inviteCodeRaw);
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
