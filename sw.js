@@ -1,7 +1,7 @@
-// DistroFi Service Worker — v3
+// DistroFi Service Worker — v4
 // Cache-first strategy: app loads instantly after first visit, works offline
 
-const CACHE_NAME = 'distrofi-v2';
+const CACHE_NAME = 'distrofi-v3';
 const ASSETS = [
   '/',
   '/index.html',

@@ -2599,7 +2599,7 @@ function openSettingsModal(){
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-currency-dollar" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Currency</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="currency-setting-sub">${getCurrencyDef().label}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
-      <div onclick="openFreqPicker();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="closeModal();setTimeout(openFreqPicker,50);" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-calendar-repeat" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Pay frequency</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${freqLabel()}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
