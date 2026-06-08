@@ -3581,14 +3581,22 @@ function openPrivacy(){
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
     <div style="font-size:13px;color:var(--muted);line-height:1.8;max-height:60vh;overflow-y:auto">
-      <p style="margin-bottom:12px"><strong style="color:var(--text)">Last updated: June 2025</strong></p>
+      <p style="margin-bottom:12px"><strong style="color:var(--text)">Last updated: June 2026</strong></p>
       <p style="margin-bottom:12px">DistroFi ("we", "our", or "us") is operated by Mayer Ventures LLC. This Privacy Policy explains how we collect, use, and protect your information when you use the DistroFi app.</p>
       <p style="margin-bottom:8px"><strong style="color:var(--text)">Information we collect</strong></p>
-      <p style="margin-bottom:12px">We collect information you provide directly: username, display name, email address, phone number (optional), and financial data you enter (income, bills, spending, savings). We do not collect Social Security numbers, bank credentials, or government IDs.</p>
+      <p style="margin-bottom:12px">We collect information you provide directly: username, display name, email address, and financial data you enter (income, bills, spending, savings, debts). We do not collect Social Security numbers, bank credentials, or government IDs.</p>
       <p style="margin-bottom:8px"><strong style="color:var(--text)">How we use your information</strong></p>
       <p style="margin-bottom:12px">Your financial data is used solely to power your budget. We use your email for account recovery and important service notifications. We never sell your personal data to third parties.</p>
       <p style="margin-bottom:8px"><strong style="color:var(--text)">Data storage & security</strong></p>
       <p style="margin-bottom:12px">Your data is stored securely using Supabase with row-level security. Data is encrypted in transit and at rest. Only you can access your account data.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Local storage & cookies</strong></p>
+      <p style="margin-bottom:12px">The app uses your browser's localStorage to cache your budget data for offline use. No tracking cookies are used. We do not use advertising cookies or share browsing data with advertisers.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Third-party services</strong></p>
+      <p style="margin-bottom:12px">We use the following services to operate DistroFi: Supabase (authentication and data storage), Vercel (hosting and delivery), Finnhub (stock market data), and CoinGecko (cryptocurrency prices). Each service has its own privacy policy. We do not share your personal or financial data with these providers beyond what is required to operate the app.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Your rights (GDPR / CCPA)</strong></p>
+      <p style="margin-bottom:12px">You have the right to access, correct, or delete your personal data at any time. To export your data, use the Export option in Settings. To delete your account and all associated data, use the Delete Account option in Settings. Requests are processed within 30 days. Residents of the EU and California may also contact us directly to exercise additional rights under GDPR or CCPA.</p>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Children's privacy</strong></p>
+      <p style="margin-bottom:12px">DistroFi is not intended for users under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will delete it promptly.</p>
       <p style="margin-bottom:8px"><strong style="color:var(--text)">Data retention</strong></p>
       <p style="margin-bottom:12px">You may delete your account at any time via Settings. Upon deletion, all personal data is permanently removed within 30 days.</p>
       <p style="margin-bottom:8px"><strong style="color:var(--text)">Contact</strong></p>
