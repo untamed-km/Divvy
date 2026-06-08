@@ -5169,17 +5169,19 @@ function confirmNewCycle(leftoverAction){
   saveState();closeModal();render();
 }
 // Handle Supabase password recovery callback (link from email)
+let _recoveryMode=false;
 function initAuthListener(){
   const sb=getSB();
   if(!sb)return;
   sb.auth.onAuthStateChange(async (event,session)=>{
     if(event==='PASSWORD_RECOVERY'){
+      _recoveryMode=true;
       const un=session?.user?.user_metadata?.username||'';
       setTimeout(()=>openPinReset(un),300);
     }
   });
 }
+initAuthListener();
 checkAuthGate().then(()=>{
-  initAuthListener();
-  if(isLoggedIn())render();
+  if(!_recoveryMode&&isLoggedIn())render();
 });
