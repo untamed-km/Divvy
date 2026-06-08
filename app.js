@@ -3446,10 +3446,11 @@ async function submitForgotUsername(){
 function openForgotPin(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Reset your password</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Enter your username. We'll send a password reset link to the email associated with your account.</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Enter your username and email. We'll send a password reset link to that address.</p>
     <div id="fpin-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
     <div id="fpin-success" style="display:none;background:#22c55e18;border:0.5px solid #22c55e44;color:var(--green);font-size:14px;padding:14px;border-radius:12px;margin-bottom:12px;text-align:center;line-height:1.6"></div>
     <input type="text" id="fpin-username" placeholder="Your username" autocomplete="username" inputmode="text" style="margin-bottom:12px"/>
+    <input type="email" id="fpin-email" placeholder="Your email address" autocomplete="email" inputmode="email" style="margin-bottom:12px"/>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" id="fpin-btn" onclick="submitForgotPin()">Send reset link</button>
@@ -3464,13 +3465,12 @@ async function submitForgotPin(){
   const okEl=document.getElementById('fpin-success');
   const btn=document.getElementById('fpin-btn');
   if(!username){if(errEl){errEl.textContent='Please enter your username.';errEl.style.display='block';}return;}
+  if(!email||!email.includes('@')){if(errEl){errEl.textContent='Please enter your email address.';errEl.style.display='block';}return;}
   if(errEl)errEl.style.display='none';
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
   const sb=getSB();
   if(sb){
-    // Look up real email from profile first; fall back to synthetic
-    const {data:profile}=await sb.from('profiles').select('email').eq('username',username).maybeSingle();
-    const resetEmail=(profile?.email&&profile.email.includes('@'))?profile.email:syntheticEmail(username);
+    const resetEmail=email;
     const {error:resetErr}=await sb.auth.resetPasswordForEmail(resetEmail,{redirectTo:'https://distrofi.org'});
     if(resetErr){
       if(errEl){errEl.textContent='Something went wrong. Please try again.';errEl.style.display='block';}
