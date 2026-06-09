@@ -4378,6 +4378,15 @@ function guestAuth(){
 async function enterApp(){
   const ov=document.getElementById('auth-overlay');
   if(ov)ov.style.display='none';
+  // Always land on home tab after login
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const homeScreen=document.getElementById('screen-home');
+  if(homeScreen)homeScreen.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const homeBtn=document.querySelector('.nav-btn');
+  if(homeBtn)homeBtn.classList.add('active');
+  const fab=document.getElementById('fab-btn');
+  if(fab)fab.classList.remove('hidden');
   render();
   setSyncStatus('synced');
   if(!localStorage.getItem(ONBOARD_KEY)){setTimeout(showOnboarding,400);}
@@ -5726,6 +5735,11 @@ function renderInvest(){
     });
   }
 }
+// ── Startup ──────────────────────────────────────────────────────────────
+(async function init(){
+  await checkAuthGate();
+  if(isLoggedIn()){render();}
+})();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 </script>
 </body>
