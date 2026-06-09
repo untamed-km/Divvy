@@ -211,10 +211,12 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 
       <!-- Signup fields -->
       <div id="auth-name-wrap" style="display:none">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">DISPLAY NAME</div>
+        <input type="text" id="auth-name" placeholder="Your name (e.g. Alex)" autocomplete="name" style="margin-bottom:12px"/>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
         <input type="text" id="auth-username" placeholder="Choose a username" autocomplete="username" style="margin-bottom:12px"/>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">EMAIL</div>
-        <input type="email" id="auth-email" placeholder="you@email.com" autocomplete="email" inputmode="email" style="margin-bottom:4px"/>
+        <input type="email" id="auth-recovery-email" placeholder="you@email.com" autocomplete="email" inputmode="email" style="margin-bottom:4px"/>
         <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">We'll use this email to help you recover your account.</div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">INVITE CODE</div>
         <input type="text" id="auth-invite-code" placeholder="Enter your invite code" autocomplete="off" autocapitalize="characters" style="margin-bottom:4px"/>
@@ -4460,7 +4462,7 @@ function openPinReset(username){
 
 function presBoxNav(group,idx){
   if(idx<3){document.getElementById('pres-'+group+'-'+(idx+1)).focus();}
-  else if(group==='new'){document.getElementById('pres-conf-0').focus();}
+  else if(group==='new'){document.getElementById('pres-conf-pwd')?.focus();}
 }
 
 async function submitPinReset(usernameArg){
