@@ -3953,7 +3953,8 @@ function renderMarketplace(){
       running+=((cyc.savings?.perPaycheck||0)+(cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0));
       running+=((cyc.k401?.me||0)+(cyc.k401?.emp||0));
       running+=(cyc.investments||[]).reduce((s,i)=>s+(i.amount||0),0);
-      return running;
+      const cycleDebt=(cyc.debts||[]).filter(d=>!d.paid).reduce((a,d)=>a+(d.balance||0),0);
+      return running-cycleDebt;
     });
     const trendMax=Math.max(...trendPts,1);
     const trendMin=Math.min(...trendPts,0);
@@ -5569,8 +5570,8 @@ function renderBills(){
     bg.innerHTML=b.paid?'<i class="ti ti-rotate-clockwise" style="font-size:20px;color:#fff"></i>':'<i class="ti ti-check" style="font-size:20px;color:#fff"></i>';
     const d=document.createElement('div');d.className='bill-card';
     const dragHandle=b.paid?'':' <span class="bill-drag-handle" style="cursor:grab;padding:6px 4px 6px 8px;color:var(--border);touch-action:none" title="Drag to reorder"><i class="ti ti-grip-vertical" style="font-size:16px"></i></span>';
-    const freqBadge=b.category==='subscription'?`<span style="font-size:10px;font-weight:700;background:#6366f115;color:#a5b4fc;padding:2px 5px;border-radius:5px;margin-left:4px">${b.frequency==='annual'?'Annual':'Monthly'}</span>`:'';
-    const annualHint=b.category==='subscription'&&b.frequency==='annual'&&b.amount?`<span style="font-size:11px;color:var(--muted)"> ≈ $${(b.amount/12).toFixed(2)}/mo</span>`:'';
+    const freqBadge=b.frequency==='annual'?`<span style="font-size:10px;font-weight:700;background:#f59e0b15;color:#fbbf24;padding:2px 5px;border-radius:5px;margin-left:4px">Annual</span>`:(b.category==='subscription'?`<span style="font-size:10px;font-weight:700;background:#6366f115;color:#a5b4fc;padding:2px 5px;border-radius:5px;margin-left:4px">Monthly</span>`:'');
+    const annualHint=b.frequency==='annual'&&b.amount?`<span style="font-size:11px;color:var(--muted)"> ≈ $${(b.amount/12).toFixed(2)}/mo</span>`:'';
     d.innerHTML=`${b.priority==='high'&&!b.paid?'<div class="bill-priority-bar"></div>':''}<div class="bill-toggle ${b.paid?'paid':''}" onclick="toggleBill(${i})"><i class="ti ti-check"></i></div>
       <div class="bill-info" onclick="openBillHistory('${b.name.replace(/'/g,"'")}')" style="cursor:pointer">
         <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${b.name}${dueBadge(b)}${b.category==='subscription'?'':''}${b.recurring!==false&&b.category!=='subscription'?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${freqBadge}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
