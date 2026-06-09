@@ -179,7 +179,8 @@ footer{text-align:center;font-size:12px;color:var(--muted);
     <p class="state-sub">Log in with your DistroFi admin account to continue.</p>
     <div id="login-form">
       <div id="login-error"></div>
-      <input type="email" id="lw-email" placeholder="Email address" autocomplete="email"/>
+      <input type="text" id="lw-username" placeholder="Username" autocomplete="username"
+             autocapitalize="none" spellcheck="false"/>
       <input type="password" id="lw-pwd" placeholder="Password" autocomplete="current-password"
              onkeydown="if(event.key==='Enter')doLogin()"/>
       <button id="login-submit" onclick="doLogin()">Log in</button>
@@ -317,28 +318,40 @@ async function checkAdminAndLoad(user) {
 }
 
 async function doLogin() {
-  const email = document.getElementById('lw-email').value.trim();
-  const pwd   = document.getElementById('lw-pwd').value;
-  const errEl = document.getElementById('login-error');
-  const btn   = document.getElementById('login-submit');
+  const username = document.getElementById('lw-username').value.trim().toLowerCase();
+  const pwd      = document.getElementById('lw-pwd').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-submit');
   errEl.style.display = 'none';
-  if (!email || !pwd) { errEl.textContent = 'Enter email and password.'; errEl.style.display = 'block'; return; }
+  if (!username || !pwd) { errEl.textContent = 'Enter your username and password.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Logging in…';
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  // Look up real email by username (same approach as main app)
+  const { data: prof } = await sb.from('profiles').select('email').eq('username', username).maybeSingle();
+  const realEmail = prof?.email && prof.email.includes('@') ? prof.email : null;
+  // Fallback: synthetic email format used by older accounts
+  const synthEmail = username.replace(/[^a-z0-9]/g, '') + '@distrofi.app';
+
+  let authData = null;
+  // Try real email first, then synthetic
+  for (const email of [realEmail, synthEmail].filter(Boolean)) {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+    if (!error && data?.user) { authData = data; break; }
+  }
+
   btn.disabled = false; btn.textContent = 'Log in';
-  if (error || !data?.user) {
-    errEl.textContent = 'Incorrect email or password.'; errEl.style.display = 'block'; return;
+  if (!authData?.user) {
+    errEl.textContent = 'Incorrect username or password.'; errEl.style.display = 'block'; return;
   }
   showState('loading');
-  await checkAdminAndLoad(data.user);
+  await checkAdminAndLoad(authData.user);
 }
 
 async function doLogout() {
   await sb.auth.signOut();
   showState('login');
   document.getElementById('main-header').style.display = 'none';
-  document.getElementById('lw-email').value = '';
+  document.getElementById('lw-username').value = '';
   document.getElementById('lw-pwd').value = '';
 }
 
