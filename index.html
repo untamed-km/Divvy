@@ -5323,7 +5323,7 @@ function renderHome(){
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Your spending exceeds your income this period</div>
         </div>
       </div>
-      <div onclick="showScreen('plan',document.querySelectorAll('.nav-btn')[3])" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+      <div onclick="(function(){showScreen('invest',document.querySelectorAll('.nav-btn')[3]);setTimeout(()=>{const wc=document.getElementById('whatif-card');if(wc){wc.scrollIntoView({behavior:'smooth',block:'center'});wc.style.transition='box-shadow .2s,border-color .2s';wc.style.borderColor='var(--accent)';wc.style.boxShadow='0 0 0 2px #6366f140';setTimeout(()=>{wc.style.borderColor='';wc.style.boxShadow='';},1800);}},150);})()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
         <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
@@ -5340,7 +5340,7 @@ function renderHome(){
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Only ${pct}% of income remains this period</div>
         </div>
       </div>
-      <div onclick="showScreen('plan',document.querySelectorAll('.nav-btn')[3])" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+      <div onclick="(function(){showScreen('invest',document.querySelectorAll('.nav-btn')[3]);setTimeout(()=>{const wc=document.getElementById('whatif-card');if(wc){wc.scrollIntoView({behavior:'smooth',block:'center'});wc.style.transition='box-shadow .2s,border-color .2s';wc.style.borderColor='var(--accent)';wc.style.boxShadow='0 0 0 2px #6366f140';setTimeout(()=>{wc.style.borderColor='';wc.style.boxShadow='';},1800);}},150);})()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
         <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
