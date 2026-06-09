@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DistroFi Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--card:#1a1d27;--card2:#21253a;--border:#2a2e42;
+  --text:#e2e8f0;--muted:#8892a4;--green:#22c55e;--amber:#f59e0b;
+  --red:#ef4444;--blue:#3b82f6;--teal:#2dd4bf;--purple:#a855f7;
+  --accent:#2dd4bf; /* teal for admin — distinct from main app indigo */
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px}
+
+/* ── Layout ── */
+#shell{max-width:900px;margin:0 auto;padding:24px 20px 48px}
+header{display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:20px;border-bottom:0.5px solid var(--border);margin-bottom:28px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-badge{width:36px;height:36px;border-radius:10px;background:#2dd4bf20;
+  border:0.5px solid #2dd4bf44;display:flex;align-items:center;justify-content:center}
+.logo-badge i{font-size:20px;color:var(--teal)}
+.logo h1{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.logo span{font-size:12px;color:var(--muted)}
+.header-right{display:flex;align-items:center;gap:12px}
+#admin-badge{font-size:11px;font-weight:600;color:var(--teal);
+  background:#2dd4bf18;border:0.5px solid #2dd4bf44;
+  padding:4px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:.06em}
+#logout-btn{background:none;border:0.5px solid var(--border);color:var(--muted);
+  font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;gap:6px;transition:border-color .15s,color .15s}
+#logout-btn:hover{border-color:var(--muted);color:var(--text)}
+
+/* ── States ── */
+#loading-state,#access-denied,#login-wall{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:60vh;gap:16px;text-align:center}
+#loading-state .spin{width:36px;height:36px;border:2.5px solid var(--border);
+  border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#access-denied .icon{font-size:48px;color:var(--red);margin-bottom:4px}
+#login-wall .icon{font-size:48px;color:var(--muted);margin-bottom:4px}
+.state-title{font-size:20px;font-weight:600}
+.state-sub{font-size:14px;color:var(--muted);line-height:1.6;max-width:320px}
+#login-form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px;margin-top:8px}
+#login-form input{background:var(--card);border:0.5px solid var(--border);color:var(--text);
+  font-size:14px;padding:12px 14px;border-radius:10px;font-family:inherit;outline:none;width:100%}
+#login-form input:focus{border-color:var(--teal)}
+#login-submit{background:var(--teal);color:#0f1117;font-weight:700;font-size:14px;
+  border:none;padding:13px;border-radius:10px;cursor:pointer;font-family:inherit;width:100%;
+  transition:opacity .15s}
+#login-submit:hover{opacity:.88}
+#login-submit:disabled{opacity:.5;cursor:not-allowed}
+#login-error{font-size:13px;color:var(--red);background:#ef444418;
+  border:0.5px solid #ef444444;padding:10px 12px;border-radius:8px;display:none;text-align:center}
+
+/* ── Dashboard ── */
+#dashboard{display:none}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted);margin-bottom:12px}
+
+/* Stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:28px}
+.stat-card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:16px 18px}
+.stat-card .s-label{font-size:11px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stat-card .s-label i{font-size:14px}
+.stat-card .s-value{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.stat-card .s-sub{font-size:12px;color:var(--muted);margin-top:5px}
+.stat-card.highlight{border-color:#2dd4bf44;background:#2dd4bf06}
+.stat-card.highlight .s-value{color:var(--teal)}
+.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.teal{color:var(--teal)}
+
+/* Tier cards */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+.tier-card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:16px 18px}
+.tier-card .t-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tier-pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  padding:3px 8px;border-radius:5px}
+.tier-pill.free{background:#8892a420;color:var(--muted)}
+.tier-pill.pro{background:#6366f120;color:#818cf8}
+.tier-pill.couples{background:#a855f720;color:#c084fc}
+.tier-card .t-count{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.tier-card .t-bar-track{height:5px;background:var(--border);border-radius:99px;
+  overflow:hidden;margin-top:10px}
+.tier-card .t-bar-fill{height:100%;border-radius:99px;transition:width .6s ease}
+.fill-free{background:var(--muted)}
+.fill-pro{background:#818cf8}
+.fill-couples{background:#c084fc}
+
+/* Chart */
+.chart-card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;
+  padding:20px;margin-bottom:28px}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.chart-header h3{font-size:14px;font-weight:600}
+.toggle-pills{display:flex;background:var(--card2);border-radius:8px;padding:3px;gap:2px}
+.toggle-pill{background:none;border:none;color:var(--muted);font-size:12px;font-weight:600;
+  padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .15s}
+.toggle-pill.active{background:var(--card);color:var(--text);
+  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+canvas{max-height:260px}
+
+/* Recent signups table */
+.table-card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;
+  overflow:hidden;margin-bottom:28px}
+.table-card table{width:100%;border-collapse:collapse}
+.table-card th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--muted);padding:12px 16px;border-bottom:0.5px solid var(--border);text-align:left}
+.table-card td{font-size:13px;padding:11px 16px;border-bottom:0.5px solid var(--border);color:var(--text)}
+.table-card tr:last-child td{border-bottom:none}
+.table-card tr:hover td{background:#ffffff06}
+.tier-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  padding:2px 7px;border-radius:5px}
+.tier-tag.free{background:#8892a420;color:var(--muted)}
+.tier-tag.pro{background:#6366f120;color:#818cf8}
+.tier-tag.couples{background:#a855f720;color:#c084fc}
+
+/* Footer */
+footer{text-align:center;font-size:12px;color:var(--muted);
+  padding-top:20px;border-top:0.5px solid var(--border);display:flex;
+  align-items:center;justify-content:center;gap:10px}
+#refresh-btn{background:none;border:0.5px solid var(--border);color:var(--muted);
+  font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;gap:5px;transition:border-color .15s,color .15s}
+#refresh-btn:hover{border-color:var(--teal);color:var(--teal)}
+#refresh-btn i{font-size:13px}
+
+@media(max-width:580px){
+  .tier-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .table-card{overflow-x:auto}
+}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- Header (hidden until authed) -->
+  <header id="main-header" style="display:none">
+    <div class="logo">
+      <div class="logo-badge"><i class="ti ti-chart-bar"></i></div>
+      <div>
+        <h1>DistroFi</h1>
+        <span>Admin Dashboard</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="admin-badge">Admin</span>
+      <button id="logout-btn" onclick="doLogout()">
+        <i class="ti ti-logout" style="font-size:14px"></i> Log out
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div id="loading-state">
+    <div class="spin"></div>
+    <div class="state-title">Checking access…</div>
+  </div>
+
+  <!-- Access denied -->
+  <div id="access-denied" style="display:none">
+    <i class="ti ti-lock icon"></i>
+    <div class="state-title">Access Denied</div>
+    <p class="state-sub">This dashboard is restricted to admin accounts. If you believe this is an error, contact the site owner.</p>
+    <button onclick="doLogout()" style="margin-top:8px;background:none;border:0.5px solid var(--border);color:var(--muted);padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px">Log out</button>
+  </div>
+
+  <!-- Login wall (not authenticated) -->
+  <div id="login-wall" style="display:none">
+    <i class="ti ti-shield-lock icon"></i>
+    <div class="state-title">Admin Access</div>
+    <p class="state-sub">Log in with your DistroFi admin account to continue.</p>
+    <div id="login-form">
+      <div id="login-error"></div>
+      <input type="email" id="lw-email" placeholder="Email address" autocomplete="email"/>
+      <input type="password" id="lw-pwd" placeholder="Password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button id="login-submit" onclick="doLogin()">Log in</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+
+    <!-- Summary stats -->
+    <div class="section-title">Overview</div>
+    <div class="stat-grid">
+      <div class="stat-card highlight">
+        <div class="s-label"><i class="ti ti-users teal"></i>Total Users</div>
+        <div class="s-value" id="s-total">—</div>
+        <div class="s-sub" id="s-total-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-activity green"></i>Active (30d)</div>
+        <div class="s-value green" id="s-active">—</div>
+        <div class="s-sub" id="s-active-sub">logged in last 30 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-user-plus amber"></i>New This Week</div>
+        <div class="s-value amber" id="s-7d">—</div>
+        <div class="s-sub">last 7 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-calendar-month"></i>New This Month</div>
+        <div class="s-value" id="s-30d">—</div>
+        <div class="s-sub">last 30 days</div>
+      </div>
+    </div>
+
+    <!-- Tier breakdown -->
+    <div class="section-title">Plan Tiers</div>
+    <div class="tier-grid">
+      <div class="tier-card">
+        <div class="t-header">
+          <span style="font-size:14px;font-weight:600">Free</span>
+          <span class="tier-pill free">Free</span>
+        </div>
+        <div class="t-count" id="t-free">—</div>
+        <div class="t-bar-track"><div class="t-bar-fill fill-free" id="bar-free" style="width:0%"></div></div>
+      </div>
+      <div class="tier-card">
+        <div class="t-header">
+          <span style="font-size:14px;font-weight:600">Pro Solo</span>
+          <span class="tier-pill pro">Pro</span>
+        </div>
+        <div class="t-count" id="t-pro">—</div>
+        <div class="t-bar-track"><div class="t-bar-fill fill-pro" id="bar-pro" style="width:0%"></div></div>
+      </div>
+      <div class="tier-card">
+        <div class="t-header">
+          <span style="font-size:14px;font-weight:600">Couples Pro</span>
+          <span class="tier-pill couples">Couples</span>
+        </div>
+        <div class="t-count" id="t-couples">—</div>
+        <div class="t-bar-track"><div class="t-bar-fill fill-couples" id="bar-couples" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Signup trend chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Signups Over Time</h3>
+        <div class="toggle-pills">
+          <button class="toggle-pill active" id="pill-weekly" onclick="setTrendPeriod('weekly')">Weekly</button>
+          <button class="toggle-pill" id="pill-monthly" onclick="setTrendPeriod('monthly')">Monthly</button>
+        </div>
+      </div>
+      <canvas id="trend-chart"></canvas>
+    </div>
+
+    <!-- Recent signups table -->
+    <div class="section-title">Recent Signups</div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Display Name</th>
+            <th>Plan</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody id="recent-tbody">
+          <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      <span id="last-refresh">—</span>
+      <button id="refresh-btn" onclick="loadDashboard()">
+        <i class="ti ti-refresh"></i> Refresh
+      </button>
+    </footer>
+
+  </div><!-- /dashboard -->
+</div><!-- /shell -->
+
+<script>
+// ── Supabase config (anon key only — service role key is NEVER used here) ──
+const SUPA_URL = 'https://lvpslwmodbhenxcnaifk.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHNsd21vZGJoZW54Y25haWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Nzk2OTIsImV4cCI6MjA5NjE1NTY5Mn0.Ne-NWRI5Y0ZuLJJAP08cUvitfS3-XYv_g4uyc_PWj0Y';
+
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+
+let trendChart = null;
+let currentPeriod = 'weekly';
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showState('login'); return; }
+  await checkAdminAndLoad(session.user);
+}
+
+async function checkAdminAndLoad(user) {
+  const { data: profile, error } = await sb
+    .from('profiles')
+    .select('username, display_name, is_admin')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error || !profile) { showState('denied'); return; }
+  if (!profile.is_admin) { showState('denied'); return; }
+
+  // Admin confirmed — show dashboard
+  document.getElementById('main-header').style.display = 'flex';
+  showState('dashboard');
+  await loadDashboard();
+}
+
+async function doLogin() {
+  const email = document.getElementById('lw-email').value.trim();
+  const pwd   = document.getElementById('lw-pwd').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-submit');
+  errEl.style.display = 'none';
+  if (!email || !pwd) { errEl.textContent = 'Enter email and password.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Logging in…';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  btn.disabled = false; btn.textContent = 'Log in';
+  if (error || !data?.user) {
+    errEl.textContent = 'Incorrect email or password.'; errEl.style.display = 'block'; return;
+  }
+  showState('loading');
+  await checkAdminAndLoad(data.user);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  showState('login');
+  document.getElementById('main-header').style.display = 'none';
+  document.getElementById('lw-email').value = '';
+  document.getElementById('lw-pwd').value = '';
+}
+
+function showState(state) {
+  document.getElementById('loading-state').style.display  = state === 'loading'   ? 'flex' : 'none';
+  document.getElementById('access-denied').style.display  = state === 'denied'    ? 'flex' : 'none';
+  document.getElementById('login-wall').style.display     = state === 'login'     ? 'flex' : 'none';
+  document.getElementById('dashboard').style.display      = state === 'dashboard' ? 'block': 'none';
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [statsRes, trendRes, recentsRes] = await Promise.all([
+    sb.rpc('get_admin_stats'),
+    sb.rpc('get_signup_trend', { period: currentPeriod }),
+    sb.rpc('get_recent_signups', { lim: 25 }),
+  ]);
+
+  if (statsRes.error)   { console.error('Stats error:', statsRes.error); }
+  if (trendRes.error)   { console.error('Trend error:', trendRes.error); }
+  if (recentsRes.error) { console.error('Recents error:', recentsRes.error); }
+
+  renderStats(statsRes.data || {});
+  renderTrend(trendRes.data || []);
+  renderRecents(recentsRes.data || []);
+
+  document.getElementById('last-refresh').textContent =
+    'Last updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Stat cards ───────────────────────────────────────────────────────────
+function renderStats(d) {
+  const total = d.total_users ?? 0;
+  const active = d.active_30d ?? 0;
+  const actPct = total ? Math.round(active / total * 100) : 0;
+
+  setText('s-total', total.toLocaleString());
+  setText('s-total-sub', d.new_30d + ' joined this month');
+  setText('s-active', active.toLocaleString());
+  setText('s-active-sub', actPct + '% of all users');
+  setText('s-7d', (d.new_7d ?? 0).toLocaleString());
+  setText('s-30d', (d.new_30d ?? 0).toLocaleString());
+
+  // Tier bars
+  const free    = d.tier_free ?? 0;
+  const pro     = d.tier_pro ?? 0;
+  const couples = d.tier_couples ?? 0;
+  const tierTotal = free + pro + couples || 1;
+
+  setText('t-free',    free.toLocaleString());
+  setText('t-pro',     pro.toLocaleString());
+  setText('t-couples', couples.toLocaleString());
+  setWidth('bar-free',    (free    / tierTotal * 100));
+  setWidth('bar-pro',     (pro     / tierTotal * 100));
+  setWidth('bar-couples', (couples / tierTotal * 100));
+}
+
+// ── Trend chart ──────────────────────────────────────────────────────────
+async function setTrendPeriod(period) {
+  currentPeriod = period;
+  document.getElementById('pill-weekly').classList.toggle('active',  period === 'weekly');
+  document.getElementById('pill-monthly').classList.toggle('active', period === 'monthly');
+
+  const { data, error } = await sb.rpc('get_signup_trend', { period });
+  if (!error) renderTrend(data || []);
+}
+
+function renderTrend(rows) {
+  const labels = rows.map(r => r.label);
+  const counts = rows.map(r => r.count);
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+
+  if (trendChart) { trendChart.destroy(); }
+
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Signups',
+        data: counts,
+        backgroundColor: 'rgba(45,212,191,0.25)',
+        borderColor: '#2dd4bf',
+        borderWidth: 1.5,
+        borderRadius: 5,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2a2e42',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#8892a4',
+          padding: 10,
+          callbacks: { label: ctx => ` ${ctx.parsed.y} signup${ctx.parsed.y !== 1 ? 's' : ''}` },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#2a2e42' },
+          ticks: { color: '#8892a4', font: { size: 11 } },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#2a2e42' },
+          ticks: { color: '#8892a4', font: { size: 11 }, precision: 0 },
+        },
+      },
+    },
+  });
+}
+
+// ── Recent signups table ─────────────────────────────────────────────────
+function renderRecents(rows) {
+  const tbody = document.getElementById('recent-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">No signups yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const tier = (r.tier || 'free').toLowerCase();
+    const tagClass = tier === 'couples' ? 'couples' : tier === 'pro' ? 'pro' : 'free';
+    const tagLabel = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
+    const date = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    return `<tr>
+      <td><span style="color:var(--teal)">@</span>${esc(r.username || '—')}</td>
+      <td style="color:var(--muted)">${esc(r.display_name || '—')}</td>
+      <td><span class="tier-tag ${tagClass}">${tagLabel}</span></td>
+      <td style="color:var(--muted)">${date}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Utils ────────────────────────────────────────────────────────────────
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function setWidth(id, pct) { const el = document.getElementById(id); if (el) el.style.width = Math.min(100, pct) + '%'; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Boot ─────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
