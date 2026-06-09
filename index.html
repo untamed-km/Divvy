@@ -1839,8 +1839,10 @@ function renderSnapshot(){
   ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${r.label}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
   document.getElementById('income-total-display').textContent=fmt(income);
   const tbl=document.getElementById('snapshot-table');
+  const debtPmts=C.debtExtraPayments||0;
   const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings,'sub'],['Investments',invested,'sub'],
-    ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub'])];
+    ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub']),
+    ...(debtPmts>0?[['Debt payments',debtPmts,'sub']]:[])];
   tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${l}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
   `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<Math.max(200,income*0.1)?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
   const allCycles=[...STATE.history,C];
@@ -2008,6 +2010,7 @@ function confirmNewCycle(leftoverAction){
       C.buckets[k].rolloverAdded=r.unused;
     }
   });
+  C.debtExtraPayments=0; // reset per-cycle debt payment tracking
   saveState();closeModal();render();
 }
 
@@ -5247,7 +5250,7 @@ function renderHome(){
   re.textContent=fmt(rem);
   re.style.color=rem<0?'var(--red)':rem<200?'var(--amber)':'var(--green)';
   // Hero card border color tracks the balance state
-  const heroCard=re.closest('[onclick="openSpendingChart()"]');
+  const heroCard=document.getElementById('hero-remaining-card');
   if(heroCard) heroCard.style.borderColor=rem<0?'var(--red)':rem<200?'var(--amber)':'var(--accent)';
   const heroSub=document.getElementById('home-remaining-sub');
   if(heroSub){
