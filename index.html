@@ -1369,6 +1369,14 @@ function openBillModal(idx,defaultCategory){
         <div id="priority-knob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s"></div>
       </div>
     </div>
+    <div id="debt-link-row" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Link to debt account <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <select id="debt-link-select" style="width:100%;padding:12px 14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;appearance:none">
+        <option value="">— Not linked —</option>
+        ${(C.debts||[]).map((d,i)=>`<option value="${d.id}" ${isEdit&&bill.linkedDebtId===d.id?'selected':''}>` + (d.name||'Debt') + ' ($' + (d.balance||0).toLocaleString() + ')</option>').join('')}
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4">When this bill is marked paid, a payment is automatically logged on the linked debt.</div>
+    </div>
     <div class="modal-btns">
       ${isEdit?`<button class="btn btn-danger" onclick="deleteBill(${idx})"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>`:''}
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1383,8 +1391,12 @@ function openBillModal(idx,defaultCategory){
     const initCat=isEdit?(bill.category||'bill'):(defaultCategory||'bill');
     const initFreq=isEdit?(bill.frequency||'monthly'):'monthly';
     _billCategory=initCat;_billFreq=initFreq;
+    _linkedDebtId=isEdit?(bill.linkedDebtId||null):null;
     setBillCategory(initCat);
     setBillFreq(initFreq);
+    // Pre-select linked debt if editing
+    const dlSel=document.getElementById('debt-link-select');
+    if(dlSel&&_linkedDebtId)dlSel.value=_linkedDebtId;
   },100);
 }
 let _selectedDay=null;
@@ -1420,7 +1432,7 @@ function initRecurring(val){
   if(knob)knob.style.transform=_recurringBill?'translateX(18px)':'translateX(0)';
 }
 function toggleRecurring(){initRecurring(!_recurringBill);}
-let _billCategory='bill',_billFreq='monthly';
+let _billCategory='bill',_billFreq='monthly',_linkedDebtId=null;
 function setBillCategory(cat){
   _billCategory=cat;
   const bb=document.getElementById('cat-bill-btn'),sb=document.getElementById('cat-sub-btn');
@@ -1432,6 +1444,9 @@ function setBillCategory(cat){
   if(freqRow)freqRow.style.display=cat==='subscription'?'block':'none';
   const recRow=document.getElementById('recurring-row');
   if(recRow)recRow.style.display=cat==='subscription'?'none':'flex';
+  // Show debt link row only for bills and only if debts exist
+  const dlRow=document.getElementById('debt-link-row');
+  if(dlRow)dlRow.style.display=(cat==='bill'&&(C.debts||[]).length>0)?'block':'none';
 }
 function setBillFreq(freq){
   _billFreq=freq;
@@ -1452,7 +1467,9 @@ function saveBill(idx){
   if(!name)return;
   const cat=_billCategory||'bill';
   const freq=_billFreq||'monthly';
-  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:cat==='subscription'?true:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now(),category:cat,frequency:freq});
+    const dlSel=document.getElementById('debt-link-select');
+  const linkedDebtId=dlSel?dlSel.value||null:null;
+  if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:cat==='subscription'?true:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now(),category:cat,frequency:freq,linkedDebtId:linkedDebtId||null});
   else{
     const cat=_billCategory||'bill';
     const freq=_billFreq||'monthly';
@@ -1460,11 +1477,28 @@ function saveBill(idx){
     C.bills[idx].recurring=cat==='subscription'?true:_recurringBill;
     C.bills[idx].priority=_priorityHigh?'high':null;
     C.bills[idx].category=cat;C.bills[idx].frequency=freq;
+    C.bills[idx].linkedDebtId=linkedDebtId||null;
   }
   saveState();closeModal();render();
 }
 function deleteBill(idx){C.bills.splice(idx,1);saveState();closeModal();render();}
 let _justPaidBill=null;
+
+// Auto-log a debt payment when a linked bill is marked paid
+function applyLinkedDebtPayment(bill){
+  if(!bill||!bill.linkedDebtId)return;
+  const debt=(C.debts||[]).find(d=>d.id===bill.linkedDebtId);
+  if(!debt||debt.balance<=0)return;
+  const amount=Math.min(bill.amount||0,debt.balance);
+  if(amount<=0)return;
+  if(!debt.payments)debt.payments=[];
+  debt.payments.push({amount,date:new Date().toISOString().split('T')[0],note:'Auto from bill: '+bill.name});
+  const newBalance=Math.max(0,debt.balance-amount);
+  const paidOff=newBalance===0;
+  debt.balance=newBalance;
+  C.debtPayments=(C.debtPayments||0)+amount;
+  if(paidOff)setTimeout(()=>showToast('🎉 '+debt.name+' is paid off!'),400);
+}
 
 function toggleBill(i){
   const bill=C.bills[i];
@@ -1491,7 +1525,7 @@ function toggleBill(i){
     const goingPaid=!bill.paid;
     bill.paid=!bill.paid;
     if(!bill.paid) bill.paidBy=null;
-    if(goingPaid) _justPaidBill=i;
+    if(goingPaid){_justPaidBill=i;applyLinkedDebtPayment(bill);}
     saveState();render();
   }
 }
@@ -1499,6 +1533,7 @@ function markBillPaid(i,who){
   C.bills[i].paid=true;
   C.bills[i].paidBy=who;
   _justPaidBill=i;
+  applyLinkedDebtPayment(C.bills[i]);
   saveState();closeModal();render();
 }
 
