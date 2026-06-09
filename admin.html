@@ -256,8 +256,14 @@ footer{text-align:center;font-size:12px;color:var(--muted);
       <canvas id="trend-chart"></canvas>
     </div>
 
-    <!-- Recent signups table -->
-    <div class="section-title">Recent Signups</div>
+    <!-- Users table with tab switcher -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">Users</div>
+      <div class="toggle-pills">
+        <button class="toggle-pill active" id="tab-recent" onclick="switchTab('recent')">Recent</button>
+        <button class="toggle-pill" id="tab-all" onclick="switchTab('all')">All Users</button>
+      </div>
+    </div>
     <div class="table-card">
       <table>
         <thead>
@@ -266,12 +272,23 @@ footer{text-align:center;font-size:12px;color:var(--muted);
             <th>Display Name</th>
             <th>Plan</th>
             <th>Joined</th>
+            <th id="th-lastseen" style="display:none">Last Seen</th>
           </tr>
         </thead>
-        <tbody id="recent-tbody">
+        <tbody id="users-tbody">
           <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>
         </tbody>
       </table>
+    </div>
+    <!-- Pagination (all users tab only) -->
+    <div id="pagination" style="display:none;justify-content:center;align-items:center;gap:12px;margin-top:12px">
+      <button id="pg-prev" onclick="changePage(-1)"
+        style="background:none;border:0.5px solid var(--border);color:var(--muted);padding:7px 16px;
+               border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">← Prev</button>
+      <span id="pg-label" style="font-size:13px;color:var(--muted)"></span>
+      <button id="pg-next" onclick="changePage(1)"
+        style="background:none;border:0.5px solid var(--border);color:var(--muted);padding:7px 16px;
+               border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">Next →</button>
     </div>
 
     <footer>
@@ -293,6 +310,9 @@ const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
 
 let trendChart = null;
 let currentPeriod = 'weekly';
+let currentTab = 'recent';
+let allUsersPage = 1;
+let allUsersPages = 1;
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 async function init() {
@@ -470,23 +490,65 @@ function renderTrend(rows) {
   });
 }
 
-// ── Recent signups table ─────────────────────────────────────────────────
-function renderRecents(rows) {
-  const tbody = document.getElementById('recent-tbody');
+// ── Tab switching ────────────────────────────────────────────────────────
+async function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-recent').classList.toggle('active', tab === 'recent');
+  document.getElementById('tab-all').classList.toggle('active',    tab === 'all');
+  document.getElementById('th-lastseen').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('pagination').style.display  = tab === 'all' ? 'flex' : 'none';
+  if (tab === 'recent') {
+    const { data } = await sb.rpc('get_recent_signups', { lim: 25 });
+    renderUserRows(data || [], false);
+  } else {
+    allUsersPage = 1;
+    await loadAllUsers();
+  }
+}
+
+async function loadAllUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
+  const { data, error } = await sb.rpc('get_all_users', { page_num: allUsersPage, page_size: 50 });
+  if (error || !data) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--red);text-align:center;padding:24px">Error loading users</td></tr>'; return; }
+  allUsersPages = data.pages || 1;
+  renderUserRows(data.users || [], true);
+  document.getElementById('pg-label').textContent = `Page ${allUsersPage} of ${allUsersPages}`;
+  document.getElementById('pg-prev').disabled = allUsersPage <= 1;
+  document.getElementById('pg-next').disabled = allUsersPage >= allUsersPages;
+}
+
+async function changePage(dir) {
+  const next = allUsersPage + dir;
+  if (next < 1 || next > allUsersPages) return;
+  allUsersPage = next;
+  await loadAllUsers();
+}
+
+// ── User rows (shared by both tabs) ─────────────────────────────────────
+function renderRecents(rows) { renderUserRows(rows, false); }
+
+function renderUserRows(rows, showLastSeen) {
+  const tbody = document.getElementById('users-tbody');
+  const cols = showLastSeen ? 5 : 4;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">No signups yet</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${cols}" style="color:var(--muted);text-align:center;padding:24px">No users found</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r => {
     const tier = (r.tier || 'free').toLowerCase();
     const tagClass = tier === 'couples' ? 'couples' : tier === 'pro' ? 'pro' : 'free';
     const tagLabel = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
-    const date = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const joined = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const lastSeen = r.last_seen_at
+      ? new Date(r.last_seen_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+      : '<span style="color:var(--muted)">—</span>';
     return `<tr>
       <td><span style="color:var(--teal)">@</span>${esc(r.username || '—')}</td>
       <td style="color:var(--muted)">${esc(r.display_name || '—')}</td>
       <td><span class="tier-tag ${tagClass}">${tagLabel}</span></td>
-      <td style="color:var(--muted)">${date}</td>
+      <td style="color:var(--muted)">${joined}</td>
+      ${showLastSeen ? `<td style="color:var(--muted)">${lastSeen}</td>` : ''}
     </tr>`;
   }).join('');
 }
