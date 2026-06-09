@@ -4157,7 +4157,6 @@ function toggleAuthMode(){
   const submitBtn=document.getElementById('auth-submit-btn');
   const toggleText=document.getElementById('auth-toggle-text');
   const toggleLink=document.getElementById('auth-toggle-link');
-  const pin=document.getElementById('auth-pin');
   const loginUsernameWrap=document.getElementById('auth-username-login-wrap');
   const tosWrap=document.getElementById('auth-tos-wrap');
   const forgotWrap=document.getElementById('auth-forgot-wrap');
@@ -4201,11 +4200,11 @@ function pinBoxKeydown(e,idx){
 }
 function updateHiddenPin(){
   const vals=[0,1,2,3].map(i=>document.getElementById('pin-'+i)?.value||'').join('');
-  const h=document.getElementById('auth-pin');if(h)h.value=vals;
+  // PIN boxes unused — auth-password field used directly
 }
 function clearPinBoxes(){
   [0,1,2,3].forEach(i=>{const b=document.getElementById('pin-'+i);if(b)b.value='';});
-  const h=document.getElementById('auth-pin');if(h)h.value='';
+  const h=document.getElementById('auth-password');if(h)h.value='';
 }
 
 // ── ToS / Privacy placeholders ───────────────────────────────────
@@ -4294,8 +4293,8 @@ function openPrivacy(){
 
 async function submitAuth(){
   clearAuthError();
-  const pin=(document.getElementById('auth-pin').value||'').replace(/\D/g,'');
-  if(pin.length!==4){showAuthError('Please enter your 4-digit PIN.');return;}
+  const pin=(document.getElementById('auth-password')?.value||'').trim();
+  if(pin.length<4){showAuthError('Please enter your password.');return;}
   const sb=getSB();
   setAuthLoading(true);
 
