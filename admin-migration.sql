@@ -45,10 +45,12 @@ CREATE POLICY "admin_read_all_profiles"
 
 
 -- ── 5. Revenue tracking ──────────────────────────────────────────────────
--- pro_since: timestamp when the user upgraded (never cleared on cancel,
--- so you retain upgrade history even if they downgrade later).
+-- pro_since:    when the user first upgraded (never overwritten on re-subscribe)
+-- cancelled_at: set on cancellation, cleared on re-subscribe
+--               pro_tier is KEPT in DB on cancel so historical MRR chart is accurate
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS pro_since TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS pro_since    TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 
 
 -- ── 6. Verify it works ───────────────────────────────────────────────────

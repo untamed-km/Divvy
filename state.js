@@ -205,18 +205,17 @@ function isCouplePro(){const a=getAuth();const tier=a?.pro_tier||(getProData().a
 function activatePro(tier){
   const t=tier||'solo';
   const now=new Date().toISOString();
-  // Update local cache
+  // Update local cache (drives in-app feature gating)
   const a=getAuth();if(a){setAuth({...a,pro_tier:t});}
   localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:t,since:now}));
-  // Persist to Supabase — write pro_tier + pro_since (only set pro_since once)
+  // Persist to Supabase: set pro_tier, clear cancelled_at, set pro_since only once
   const sb=getSB();
   if(sb){
     sb.auth.getUser().then(({data})=>{
       if(!data?.user)return;
-      // Check if pro_since already set so we don't overwrite original upgrade date
       sb.from('profiles').select('pro_since').eq('id',data.user.id).maybeSingle().then(({data:prof})=>{
-        const update={pro_tier:t};
-        if(!prof?.pro_since)update.pro_since=now;
+        const update={pro_tier:t,cancelled_at:null};
+        if(!prof?.pro_since)update.pro_since=now; // preserve original upgrade date on re-subscribe
         sb.from('profiles').update(update).eq('id',data.user.id).then(()=>{});
       });
     });
@@ -224,14 +223,15 @@ function activatePro(tier){
   render();
 }
 function deactivatePro(){
+  // Null pro_tier locally (gates features in-app)
   const a=getAuth();if(a){setAuth({...a,pro_tier:null});}
   localStorage.removeItem(PRO_KEY);
-  // Clear pro_tier in Supabase (keep pro_since for history)
+  // In Supabase: set cancelled_at but KEEP pro_tier so historical MRR chart stays accurate
   const sb=getSB();
   if(sb){
     sb.auth.getUser().then(({data})=>{
       if(!data?.user)return;
-      sb.from('profiles').update({pro_tier:null}).eq('id',data.user.id).then(()=>{});
+      sb.from('profiles').update({cancelled_at:new Date().toISOString()}).eq('id',data.user.id).then(()=>{});
     });
   }
   render();

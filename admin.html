@@ -269,6 +269,16 @@ footer{text-align:center;font-size:12px;color:var(--muted);
         <div class="s-value green" id="r-conv">—</div>
         <div class="s-sub">paid / total users</div>
       </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-calendar-stats teal"></i>ARR</div>
+        <div class="s-value teal" id="r-arr">—</div>
+        <div class="s-sub" id="r-arr-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-user-check amber"></i>New Paid (30d)</div>
+        <div class="s-value amber" id="r-newpaid">—</div>
+        <div class="s-sub" id="r-newpaid-sub"></div>
+      </div>
     </div>
     <div class="chart-card" style="margin-bottom:28px">
       <div class="chart-header">
@@ -291,6 +301,20 @@ footer{text-align:center;font-size:12px;color:var(--muted);
     </div>
 
     <!-- Users table with tab switcher -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <input id="user-search" type="text" placeholder="Search username or name…"
+        oninput="onSearch(this.value)"
+        style="flex:1;background:var(--card);border:0.5px solid var(--border);color:var(--text);
+               font-size:13px;padding:9px 13px;border-radius:9px;font-family:inherit;outline:none"/>
+      <button onclick="csvExport()"
+        style="background:none;border:0.5px solid var(--border);color:var(--muted);font-size:12px;
+               padding:9px 14px;border-radius:9px;cursor:pointer;font-family:inherit;white-space:nowrap;
+               display:flex;align-items:center;gap:5px;transition:border-color .15s,color .15s"
+        onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+        <i class="ti ti-download" style="font-size:14px"></i> Export CSV
+      </button>
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div class="section-title" style="margin-bottom:0">Users</div>
       <div class="toggle-pills">
@@ -337,16 +361,22 @@ footer{text-align:center;font-size:12px;color:var(--muted);
 
 <script>
 // ── Supabase config (anon key only — service role key is NEVER used here) ──
-const SUPA_URL = 'https://lvpslwmodbhenxcnaifk.supabase.co';
+const SUPA_URL  = 'https://lvpslwmodbhenxcnaifk.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHNsd21vZGJoZW54Y25haWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Nzk2OTIsImV4cCI6MjA5NjE1NTY5Mn0.Ne-NWRI5Y0ZuLJJAP08cUvitfS3-XYv_g4uyc_PWj0Y';
 
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
 
-let trendChart = null;
+const PAGE_SIZE = 50;
+const PRICE     = { pro: 2.99, couples: 4.99 };
+
+let trendChart    = null;
+let mrrChart      = null;
 let currentPeriod = 'weekly';
-let currentTab = 'recent';
-let allUsersPage = 1;
+let currentTab    = 'recent';
+let allUsersPage  = 1;
 let allUsersPages = 1;
+let ALL_PROFILES  = [];
+let searchQuery   = '';
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 async function init() {
@@ -363,9 +393,8 @@ async function checkAdminAndLoad(user) {
     .maybeSingle();
 
   if (error || !profile) { showState('denied'); return; }
-  if (!profile.is_admin) { showState('denied'); return; }
+  if (!profile.is_admin)  { showState('denied'); return; }
 
-  // Admin confirmed — show dashboard
   document.getElementById('main-header').style.display = 'flex';
   showState('dashboard');
   await loadDashboard();
@@ -377,17 +406,17 @@ async function doLogin() {
   const errEl    = document.getElementById('login-error');
   const btn      = document.getElementById('login-submit');
   errEl.style.display = 'none';
-  if (!username || !pwd) { errEl.textContent = 'Enter your username and password.'; errEl.style.display = 'block'; return; }
+  if (!username || !pwd) {
+    errEl.textContent = 'Enter your username and password.';
+    errEl.style.display = 'block'; return;
+  }
   btn.disabled = true; btn.textContent = 'Logging in…';
 
-  // Look up real email by username (same approach as main app)
   const { data: prof } = await sb.from('profiles').select('email').eq('username', username).maybeSingle();
-  const realEmail = prof?.email && prof.email.includes('@') ? prof.email : null;
-  // Fallback: synthetic email format used by older accounts
+  const realEmail  = prof?.email && prof.email.includes('@') ? prof.email : null;
   const synthEmail = username.replace(/[^a-z0-9]/g, '') + '@distrofi.app';
 
   let authData = null;
-  // Try real email first, then synthetic
   for (const email of [realEmail, synthEmail].filter(Boolean)) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
     if (!error && data?.user) { authData = data; break; }
@@ -395,7 +424,8 @@ async function doLogin() {
 
   btn.disabled = false; btn.textContent = 'Log in';
   if (!authData?.user) {
-    errEl.textContent = 'Incorrect username or password.'; errEl.style.display = 'block'; return;
+    errEl.textContent = 'Incorrect username or password.';
+    errEl.style.display = 'block'; return;
   }
   showState('loading');
   await checkAdminAndLoad(authData.user);
@@ -410,26 +440,25 @@ async function doLogout() {
 }
 
 function showState(state) {
-  document.getElementById('loading-state').style.display  = state === 'loading'   ? 'flex' : 'none';
-  document.getElementById('access-denied').style.display  = state === 'denied'    ? 'flex' : 'none';
-  document.getElementById('login-wall').style.display     = state === 'login'     ? 'flex' : 'none';
-  document.getElementById('dashboard').style.display      = state === 'dashboard' ? 'block': 'none';
+  document.getElementById('loading-state').style.display = state === 'loading'   ? 'flex'  : 'none';
+  document.getElementById('access-denied').style.display = state === 'denied'    ? 'flex'  : 'none';
+  document.getElementById('login-wall').style.display    = state === 'login'     ? 'flex'  : 'none';
+  document.getElementById('dashboard').style.display     = state === 'dashboard' ? 'block' : 'none';
 }
-
-// ── All profiles cache ───────────────────────────────────────────────────
-let ALL_PROFILES = [];
 
 // ── Data loading ─────────────────────────────────────────────────────────
 async function loadDashboard() {
   const errBanner = document.getElementById('data-error');
   if (errBanner) errBanner.style.display = 'none';
 
-  // Direct query — works because the admin_read_all_profiles RLS policy
-  // allows admin users to see all rows.
+  // .limit(10000) overrides Supabase's default 1000-row cap.
+  // For >10 k users, switch to server-side pagination or raise the limit in
+  // Supabase Dashboard → Settings → API → Max Rows.
   const { data, error } = await sb
     .from('profiles')
-    .select('id, username, display_name, pro_tier, pro_since, created_at, last_seen_at')
-    .order('created_at', { ascending: false });
+    .select('id, username, display_name, pro_tier, pro_since, cancelled_at, created_at, last_seen_at')
+    .order('created_at', { ascending: false })
+    .limit(10000);
 
   if (error) {
     console.error('Profiles query error:', error);
@@ -441,37 +470,60 @@ async function loadDashboard() {
   }
 
   ALL_PROFILES = data || [];
+  searchQuery  = '';
+  const searchEl = document.getElementById('user-search');
+  if (searchEl) searchEl.value = '';
+
   renderStats(ALL_PROFILES);
   renderRevenue(ALL_PROFILES);
   renderTrend(ALL_PROFILES, currentPeriod);
-  renderUserRows(ALL_PROFILES.slice(0, 25), false);
+  switchTab(currentTab);
 
   document.getElementById('last-refresh').textContent =
     'Last updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// ── Filtered profiles (search-aware) ─────────────────────────────────────
+function filteredProfiles() {
+  if (!searchQuery) return ALL_PROFILES;
+  const q = searchQuery.toLowerCase();
+  return ALL_PROFILES.filter(p =>
+    (p.username     || '').toLowerCase().includes(q) ||
+    (p.display_name || '').toLowerCase().includes(q)
+  );
+}
+
 // ── Stat cards ───────────────────────────────────────────────────────────
 function renderStats(profiles) {
-  const now    = Date.now();
-  const d30    = now - 30 * 864e5;
-  const d7     = now - 7  * 864e5;
+  const now = Date.now();
+  const d30 = now - 30 * 864e5;
+  const d7  = now - 7  * 864e5;
 
-  const total   = profiles.length;
-  const active  = profiles.filter(p => p.last_seen_at && new Date(p.last_seen_at) > d30).length;
-  const new30   = profiles.filter(p => new Date(p.created_at) > d30).length;
-  const new7    = profiles.filter(p => new Date(p.created_at) > d7).length;
-  const free    = profiles.filter(p => !p.pro_tier || p.pro_tier === 'free').length;
-  const pro     = profiles.filter(p => p.pro_tier === 'pro').length;
-  const couples = profiles.filter(p => p.pro_tier === 'couples').length;
-  const actPct  = total ? Math.round(active / total * 100) : 0;
-  const tierTotal = free + pro + couples || 1;
+  const total  = profiles.length;
+  const active = profiles.filter(p => p.last_seen_at && new Date(p.last_seen_at) > d30).length;
+  const new30  = profiles.filter(p => new Date(p.created_at) > d30).length;
+  const new7   = profiles.filter(p => new Date(p.created_at) > d7).length;
 
-  setText('s-total',     total.toLocaleString());
-  setText('s-total-sub', new30 + ' joined this month');
-  setText('s-active',    active.toLocaleString());
-  setText('s-active-sub', actPct + '% of all users');
-  setText('s-7d',  new7.toLocaleString());
-  setText('s-30d', new30.toLocaleString());
+  // A user is "paid" only if they have pro_tier AND no active cancellation
+  const isPaid    = p => p.pro_tier && !p.cancelled_at;
+  const pro       = profiles.filter(p => isPaid(p) && p.pro_tier === 'pro').length;
+  const couples   = profiles.filter(p => isPaid(p) && p.pro_tier === 'couples').length;
+  const free      = total - pro - couples;
+  const actPct    = total ? Math.round(active / total * 100) : 0;
+  const tierTotal = total || 1;
+
+  // Active(30d) sub-text: note if last_seen_at isn't populated yet
+  const hasSeenData = profiles.some(p => p.last_seen_at);
+  const activeSub   = hasSeenData
+    ? actPct + '% of all users'
+    : 'requires last_seen_at data';
+
+  setText('s-total',      total.toLocaleString());
+  setText('s-total-sub',  new30 + ' joined last 30 days');
+  setText('s-active',     active.toLocaleString());
+  setText('s-active-sub', activeSub);
+  setText('s-7d',         new7.toLocaleString());
+  setText('s-30d',        new30.toLocaleString());
 
   setText('t-free',    free.toLocaleString());
   setText('t-pro',     pro.toLocaleString());
@@ -481,206 +533,74 @@ function renderStats(profiles) {
   setWidth('bar-couples', couples / tierTotal * 100);
 }
 
-// ── Trend chart ──────────────────────────────────────────────────────────
-function setTrendPeriod(period) {
-  currentPeriod = period;
-  document.getElementById('pill-weekly').classList.toggle('active',  period === 'weekly');
-  document.getElementById('pill-monthly').classList.toggle('active', period === 'monthly');
-  renderTrend(ALL_PROFILES, period);
-}
-
-function renderTrend(profiles, period) {
-  // Build bucket map from profile created_at dates
-  const buckets = {};
-  const cutoff = period === 'monthly'
-    ? new Date(Date.now() - 365 * 864e5)
-    : new Date(Date.now() - 84  * 864e5); // 12 weeks
-
-  profiles.forEach(p => {
-    const d = new Date(p.created_at);
-    if (d < cutoff) return;
-    let key;
-    if (period === 'monthly') {
-      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    } else {
-      // Floor to Monday of the week
-      const day = new Date(d);
-      day.setHours(0, 0, 0, 0);
-      day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
-      key = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-    buckets[key] = (buckets[key] || 0) + 1;
-  });
-
-  const labels = Object.keys(buckets);
-  const counts = Object.values(buckets);
-  const ctx = document.getElementById('trend-chart').getContext('2d');
-
-  if (trendChart) { trendChart.destroy(); }
-
-  trendChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Signups',
-        data: counts,
-        backgroundColor: 'rgba(45,212,191,0.25)',
-        borderColor: '#2dd4bf',
-        borderWidth: 1.5,
-        borderRadius: 5,
-        borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1d27',
-          borderColor: '#2a2e42',
-          borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#8892a4',
-          padding: 10,
-          callbacks: { label: ctx => ` ${ctx.parsed.y} signup${ctx.parsed.y !== 1 ? 's' : ''}` },
-        },
-      },
-      scales: {
-        x: {
-          grid: { color: '#2a2e42' },
-          ticks: { color: '#8892a4', font: { size: 11 } },
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: '#2a2e42' },
-          ticks: { color: '#8892a4', font: { size: 11 }, precision: 0 },
-        },
-      },
-    },
-  });
-}
-
-// ── Tab switching (uses local cache — no extra network requests) ─────────
-function switchTab(tab) {
-  currentTab = tab;
-  const PAGE_SIZE = 50;
-  document.getElementById('tab-recent').classList.toggle('active', tab === 'recent');
-  document.getElementById('tab-all').classList.toggle('active',    tab === 'all');
-  document.getElementById('th-lastseen').style.display = tab === 'all' ? '' : 'none';
-  document.getElementById('pagination').style.display  = tab === 'all' ? 'flex' : 'none';
-
-  if (tab === 'recent') {
-    renderUserRows(ALL_PROFILES.slice(0, 25), false);
-  } else {
-    allUsersPage  = 1;
-    allUsersPages = Math.ceil(ALL_PROFILES.length / PAGE_SIZE) || 1;
-    renderPagedUsers();
-  }
-}
-
-function renderPagedUsers() {
-  const PAGE_SIZE = 50;
-  const start = (allUsersPage - 1) * PAGE_SIZE;
-  renderUserRows(ALL_PROFILES.slice(start, start + PAGE_SIZE), true);
-  document.getElementById('pg-label').textContent = `Page ${allUsersPage} of ${allUsersPages} (${ALL_PROFILES.length} total)`;
-  document.getElementById('pg-prev').disabled = allUsersPage <= 1;
-  document.getElementById('pg-next').disabled = allUsersPage >= allUsersPages;
-}
-
-function changePage(dir) {
-  const next = allUsersPage + dir;
-  if (next < 1 || next > allUsersPages) return;
-  allUsersPage = next;
-  renderPagedUsers();
-}
-
-// ── User rows (shared by both tabs) ─────────────────────────────────────
-function renderRecents(rows) { renderUserRows(rows, false); }
-
-function renderUserRows(rows, showLastSeen) {
-  const tbody = document.getElementById('users-tbody');
-  const cols = showLastSeen ? 5 : 4;
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="${cols}" style="color:var(--muted);text-align:center;padding:24px">No users found</td></tr>`;
-    return;
-  }
-  // field is pro_tier (direct from profiles) or tier (from old RPC)
-  tbody.innerHTML = rows.map(r => {
-    const raw = (r.pro_tier || r.tier || '').toLowerCase();
-    const tier = raw === 'pro' ? 'pro' : raw === 'couples' ? 'couples' : 'free';
-    const tagLabel = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
-    const joined = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-    const lastSeen = r.last_seen_at
-      ? new Date(r.last_seen_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
-      : '<span style="color:var(--muted)">—</span>';
-    return `<tr>
-      <td><span style="color:var(--teal)">@</span>${esc(r.username || '—')}</td>
-      <td style="color:var(--muted)">${esc(r.display_name || '—')}</td>
-      <td><span class="tier-tag ${tier}">${tagLabel}</span></td>
-      <td style="color:var(--muted)">${joined}</td>
-      ${showLastSeen ? `<td style="color:var(--muted)">${lastSeen}</td>` : ''}
-    </tr>`;
-  }).join('');
-}
-
 // ── Revenue ──────────────────────────────────────────────────────────────
-const PRICE = { pro: 2.99, couples: 4.99 };
-let mrrChart = null;
-
 function renderRevenue(profiles) {
-  const proUsers     = profiles.filter(p => p.pro_tier === 'pro');
-  const couplesUsers = profiles.filter(p => p.pro_tier === 'couples');
-  const proMRR       = proUsers.length     * PRICE.pro;
-  const couplesMRR   = couplesUsers.length * PRICE.couples;
-  const totalMRR     = proMRR + couplesMRR;
-  const paidTotal    = proUsers.length + couplesUsers.length;
-  const convPct      = profiles.length ? (paidTotal / profiles.length * 100).toFixed(1) : '0.0';
+  // Active subscribers only — cancelled_at means they've churned
+  const isPaid      = p => p.pro_tier && !p.cancelled_at;
+  const proUsers    = profiles.filter(p => isPaid(p) && p.pro_tier === 'pro');
+  const cplUsers    = profiles.filter(p => isPaid(p) && p.pro_tier === 'couples');
+  const proMRR      = proUsers.length * PRICE.pro;
+  const cplMRR      = cplUsers.length * PRICE.couples;
+  const totalMRR    = proMRR + cplMRR;
+  const paidTotal   = proUsers.length + cplUsers.length;
+  const convPct     = profiles.length ? (paidTotal / profiles.length * 100).toFixed(1) : '0.0';
 
-  setText('r-mrr',        '$' + totalMRR.toFixed(2));
-  setText('r-mrr-sub',    paidTotal + ' paid subscriber' + (paidTotal !== 1 ? 's' : ''));
-  setText('r-pro-mrr',    '$' + proMRR.toFixed(2));
-  setText('r-pro-sub',    proUsers.length + ' subscriber' + (proUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.pro);
-  setText('r-couples-mrr','$' + couplesMRR.toFixed(2));
-  setText('r-couples-sub',couplesUsers.length + ' subscriber' + (couplesUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.couples);
-  setText('r-conv',       convPct + '%');
+  // New paid in last 30 days: first upgrade after 30d ago and still active
+  const d30      = Date.now() - 30 * 864e5;
+  const newPaid30 = profiles.filter(p =>
+    isPaid(p) && p.pro_since && new Date(p.pro_since) > d30
+  ).length;
+
+  setText('r-mrr',         '$' + totalMRR.toFixed(2));
+  setText('r-mrr-sub',     paidTotal + ' paid subscriber' + (paidTotal !== 1 ? 's' : ''));
+  setText('r-pro-mrr',     '$' + proMRR.toFixed(2));
+  setText('r-pro-sub',     proUsers.length + ' subscriber' + (proUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.pro);
+  setText('r-couples-mrr', '$' + cplMRR.toFixed(2));
+  setText('r-couples-sub', cplUsers.length + ' subscriber' + (cplUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.couples);
+  setText('r-conv',        convPct + '%');
+  setText('r-arr',         '$' + (totalMRR * 12).toFixed(2));
+  setText('r-arr-sub',     'MRR × 12');
+  setText('r-newpaid',     newPaid30.toLocaleString());
+  setText('r-newpaid-sub', 'first upgrade in last 30 days');
 
   renderMRRChart(profiles);
 }
 
+// ── MRR chart ────────────────────────────────────────────────────────────
 function renderMRRChart(profiles) {
-  // Build cumulative MRR month-by-month using pro_since dates
-  // Only include users who are currently paid (pro_tier set) and have pro_since
-  const paid = profiles.filter(p => p.pro_since && (p.pro_tier === 'pro' || p.pro_tier === 'couples'));
-  if (!paid.length) {
+  // Include anyone who has ever paid (has pro_since), including churned users,
+  // so we can reconstruct historical MRR accurately.
+  const everPaid = profiles.filter(p => p.pro_since && p.pro_tier);
+  if (!everPaid.length) {
     const ctx = document.getElementById('mrr-chart').getContext('2d');
     if (mrrChart) { mrrChart.destroy(); mrrChart = null; }
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     return;
   }
 
-  // Find earliest pro_since, build monthly labels from then to now
-  const earliest = new Date(Math.min(...paid.map(p => new Date(p.pro_since))));
+  const earliest = new Date(Math.min(...everPaid.map(p => new Date(p.pro_since))));
   earliest.setDate(1); earliest.setHours(0, 0, 0, 0);
-  const now = new Date(); now.setDate(1); now.setHours(0, 0, 0, 0);
+  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
 
   const months = [];
   const cursor = new Date(earliest);
-  while (cursor <= now) {
+  while (cursor <= nowM) {
     months.push(new Date(cursor));
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  // For each month end, sum MRR of all users who upgraded on or before that month
-  // and are still paid (current pro_tier). This is a simplified model — assumes
-  // churn happened at latest state, not historically.
   const labels = months.map(m => m.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
   const values = months.map(monthStart => {
     const monthEnd = new Date(monthStart);
     monthEnd.setMonth(monthEnd.getMonth() + 1);
-    return paid
-      .filter(p => new Date(p.pro_since) < monthEnd)
+    // User was active this month if they upgraded before month-end
+    // AND (never cancelled OR cancelled after this month ended)
+    return everPaid
+      .filter(p => {
+        const since = new Date(p.pro_since);
+        const cancelled = p.cancelled_at ? new Date(p.cancelled_at) : null;
+        return since < monthEnd && (!cancelled || cancelled >= monthEnd);
+      })
       .reduce((sum, p) => sum + PRICE[p.pro_tier === 'couples' ? 'couples' : 'pro'], 0);
   });
 
@@ -729,8 +649,200 @@ function renderMRRChart(profiles) {
   });
 }
 
+// ── Signup trend chart ───────────────────────────────────────────────────
+function setTrendPeriod(period) {
+  currentPeriod = period;
+  document.getElementById('pill-weekly').classList.toggle('active',  period === 'weekly');
+  document.getElementById('pill-monthly').classList.toggle('active', period === 'monthly');
+  renderTrend(ALL_PROFILES, period);
+}
+
+function renderTrend(profiles, period) {
+  const cutoff = period === 'monthly'
+    ? new Date(Date.now() - 365 * 864e5)
+    : new Date(Date.now() - 84  * 864e5); // 12 weeks
+
+  // Sort ascending so buckets appear in chronological order
+  const sorted = [...profiles]
+    .filter(p => new Date(p.created_at) >= cutoff)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  // Use a Map to preserve insertion order
+  const buckets = new Map();
+  sorted.forEach(p => {
+    const d = new Date(p.created_at);
+    let key;
+    if (period === 'monthly') {
+      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    } else {
+      const day = new Date(d);
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - ((day.getDay() + 6) % 7)); // floor to Monday
+      key = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    buckets.set(key, (buckets.get(key) || 0) + 1);
+  });
+
+  const labels = [...buckets.keys()];
+  const counts = [...buckets.values()];
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Signups',
+        data: counts,
+        backgroundColor: 'rgba(45,212,191,0.25)',
+        borderColor: '#2dd4bf',
+        borderWidth: 1.5,
+        borderRadius: 5,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2a2e42',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#8892a4',
+          padding: 10,
+          callbacks: { label: ctx => ` ${ctx.parsed.y} signup${ctx.parsed.y !== 1 ? 's' : ''}` },
+        },
+      },
+      scales: {
+        x: { grid: { color: '#2a2e42' }, ticks: { color: '#8892a4', font: { size: 11 } } },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#2a2e42' },
+          ticks: { color: '#8892a4', font: { size: 11 }, precision: 0 },
+        },
+      },
+    },
+  });
+}
+
+// ── Search ───────────────────────────────────────────────────────────────
+function onSearch(val) {
+  searchQuery  = val.trim();
+  allUsersPage = 1;
+  if (currentTab === 'recent') {
+    const fp = filteredProfiles();
+    renderUserRows(fp.slice(0, 25), false);
+  } else {
+    const fp  = filteredProfiles();
+    allUsersPages = Math.ceil(fp.length / PAGE_SIZE) || 1;
+    renderPagedUsers();
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-recent').classList.toggle('active', tab === 'recent');
+  document.getElementById('tab-all').classList.toggle('active',    tab === 'all');
+  document.getElementById('th-lastseen').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('pagination').style.display  = tab === 'all' ? 'flex' : 'none';
+
+  const fp = filteredProfiles();
+  if (tab === 'recent') {
+    renderUserRows(fp.slice(0, 25), false);
+  } else {
+    allUsersPage  = 1;
+    allUsersPages = Math.ceil(fp.length / PAGE_SIZE) || 1;
+    renderPagedUsers();
+  }
+}
+
+function renderPagedUsers() {
+  const fp    = filteredProfiles();
+  const start = (allUsersPage - 1) * PAGE_SIZE;
+  renderUserRows(fp.slice(start, start + PAGE_SIZE), true);
+  document.getElementById('pg-label').textContent =
+    `Page ${allUsersPage} of ${allUsersPages} (${fp.length} user${fp.length !== 1 ? 's' : ''})`;
+  document.getElementById('pg-prev').disabled = allUsersPage <= 1;
+  document.getElementById('pg-next').disabled = allUsersPage >= allUsersPages;
+}
+
+function changePage(dir) {
+  const next = allUsersPage + dir;
+  if (next < 1 || next > allUsersPages) return;
+  allUsersPage = next;
+  renderPagedUsers();
+}
+
+// ── User rows ─────────────────────────────────────────────────────────────
+function renderUserRows(rows, showLastSeen) {
+  const tbody = document.getElementById('users-tbody');
+  const cols  = showLastSeen ? 5 : 4;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols}" style="color:var(--muted);text-align:center;padding:24px">No users found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    // A user is paid only if pro_tier is set AND no active cancellation
+    const rawTier    = (r.pro_tier || '').toLowerCase();
+    const isActive   = rawTier && !r.cancelled_at;
+    const tier       = isActive && rawTier === 'couples' ? 'couples'
+                     : isActive && rawTier === 'pro'     ? 'pro'
+                     : 'free';
+    const tagLabel   = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
+    const joined     = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const lastSeen   = r.last_seen_at
+      ? new Date(r.last_seen_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td><span style="color:var(--teal)">@</span>${esc(r.username || '—')}</td>
+      <td style="color:var(--muted)">${esc(r.display_name || '—')}</td>
+      <td><span class="tier-tag ${tier}">${tagLabel}</span></td>
+      <td style="color:var(--muted)">${joined}</td>
+      ${showLastSeen ? `<td style="color:var(--muted)">${lastSeen}</td>` : ''}
+    </tr>`;
+  }).join('');
+}
+
+// ── CSV Export ───────────────────────────────────────────────────────────
+function csvExport() {
+  const rows = filteredProfiles();
+  const header = ['username','display_name','plan','pro_since','cancelled_at','joined','last_seen_at'];
+  const lines  = [header.join(',')];
+  rows.forEach(r => {
+    const isPaid  = r.pro_tier && !r.cancelled_at;
+    const plan    = isPaid ? r.pro_tier : 'free';
+    lines.push([
+      csvCell(r.username),
+      csvCell(r.display_name),
+      csvCell(plan),
+      csvCell(r.pro_since     ? r.pro_since     : ''),
+      csvCell(r.cancelled_at  ? r.cancelled_at  : ''),
+      csvCell(r.created_at    ? r.created_at    : ''),
+      csvCell(r.last_seen_at  ? r.last_seen_at  : ''),
+    ].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'distrofi-users-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return s.includes(',') || s.includes('"') || s.includes('\n')
+    ? '"' + s.replace(/"/g, '""') + '"'
+    : s;
+}
+
 // ── Utils ────────────────────────────────────────────────────────────────
-function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function setText(id, val)  { const el = document.getElementById(id); if (el) el.textContent = val; }
 function setWidth(id, pct) { const el = document.getElementById(id); if (el) el.style.width = Math.min(100, pct) + '%'; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
