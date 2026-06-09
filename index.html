@@ -1884,9 +1884,12 @@ function renderSnapshot(){
   // Net worth banner
   const nwEl=document.getElementById('net-worth-banner');
   if(nwEl){
-    const savingsTotal=allTimeSavings(),k401Total=allTime401K().total,investTotal=allTimeInvestments().grand,netWorth=savingsTotal+k401Total+investTotal;
+    const savingsTotal=allTimeSavings(),k401Total=allTime401K().total,investTotal=allTimeInvestments().grand;
+    const totalDebt=(C.debts||[]).filter(d=>!d.paid).reduce((a,d)=>a+(d.balance||0),0);
+    const netWorth=savingsTotal+k401Total+investTotal-totalDebt;
+    const grossAssets=savingsTotal+k401Total+investTotal;
     const breakdown=[{label:'Savings',val:savingsTotal,col:'var(--green)'},{label:'401K',val:k401Total,col:'var(--blue)'},{label:'Invested',val:investTotal,col:'var(--purple)'}];
-    nwEl.innerHTML=`<div style="background:linear-gradient(135deg,#6366f114,#a855f710);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:4px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:6px">Net Worth</div><div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--text);margin-bottom:14px">${fmt(netWorth)}</div><div style="display:flex;gap:0;border-radius:8px;overflow:hidden;height:8px;margin-bottom:12px">${netWorth>0?breakdown.filter(b=>b.val>0).map(b=>`<div style="flex:${b.val};background:${b.col};opacity:.8"></div>`).join(''):'<div style="flex:1;background:var(--border)"></div>'}</div><div style="display:flex;justify-content:space-between">${breakdown.map(b=>`<div style="text-align:center"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${b.col}">${fmt(b.val)}</div><div style="font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">${b.label}</div></div>`).join('')}</div></div>`;
+    nwEl.innerHTML=`<div style="background:linear-gradient(135deg,#6366f114,#a855f710);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:4px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:6px">Net Worth</div><div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:${netWorth<0?'var(--red)':'var(--text)'};margin-bottom:${totalDebt>0?6:14}px">${fmt(netWorth)}</div>${totalDebt>0?`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:11px;color:var(--muted)">Assets: <span style="color:var(--green);font-weight:600">${fmt(grossAssets)}</span></div><div style="font-size:11px;color:var(--muted)">Debt: <span style="color:var(--red);font-weight:600">−${fmt(totalDebt)}</span></div></div>`:''}<div style="display:flex;gap:0;border-radius:8px;overflow:hidden;height:8px;margin-bottom:12px">${grossAssets>0?breakdown.filter(b=>b.val>0).map(b=>`<div style="flex:${b.val};background:${b.col};opacity:.8"></div>`).join(''):'<div style="flex:1;background:var(--border)"></div>'}</div><div style="display:flex;justify-content:space-between">${breakdown.map(b=>`<div style="text-align:center"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${b.col}">${fmt(b.val)}</div><div style="font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">${b.label}</div></div>`).join('')}</div></div>`;
   }
 }
 
@@ -3922,7 +3925,8 @@ function renderMarketplace(){
     const savingsTotal=allTimeSavings();
     const k401Total=allTime401K().total;
     const investTotal=allTimeInvestments().grand;
-    const netWorth=savingsTotal+k401Total+investTotal;
+    const totalDebt=(C.debts||[]).filter(d=>!d.paid).reduce((a,d)=>a+(d.balance||0),0);
+    const netWorth=savingsTotal+k401Total+investTotal-totalDebt;
     const total=savingsTotal+k401Total+investTotal||1;
     // Cycle-by-cycle net worth trend
     const allCycles=[...STATE.history,C];
@@ -3949,7 +3953,8 @@ function renderMarketplace(){
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)">Net Worth</div>
         ${isGrowing?'<span style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:3px"><i class="ti ti-trending-up" style="font-size:13px"></i> Growing</span>':''}
       </div>
-      <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--text);margin-bottom:14px">${fmt(netWorth)}</div>
+      <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:${netWorth<0?'var(--red)':'var(--text)'};margin-bottom:${totalDebt>0?6:14}px">${fmt(netWorth)}</div>
+      ${totalDebt>0?`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:11px;color:var(--muted)">Assets: <span style="color:var(--green);font-weight:600">${fmt(savingsTotal+k401Total+investTotal)}</span></div><div style="font-size:11px;color:var(--muted)">Debt: <span style="color:var(--red);font-weight:600">−${fmt(totalDebt)}</span></div></div>`:''}
       ${trendPts.length>1?`<div style="margin-bottom:14px;border-radius:8px;overflow:hidden">
         <svg width="100%" viewBox="0 0 ${w} ${h}" style="display:block">
           <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
@@ -5317,6 +5322,14 @@ function renderHome(){
           <div style="font-size:13px;font-weight:600;color:var(--red)">Over budget by ${fmt(Math.abs(rem))}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Your spending exceeds your income this period</div>
         </div>
+      </div>
+      <div onclick="showScreen('plan',document.querySelectorAll('.nav-btn')[3])" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+        <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">See how small changes could get you back on track</div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted);flex-shrink:0"></i>
       </div>`;
     } else if(rem<warnThreshold&&rem>=0){
       const pct=Math.round((rem/totalInc)*100);
@@ -5326,6 +5339,14 @@ function renderHome(){
           <div style="font-size:13px;font-weight:600;color:var(--amber)">Running low — ${fmt(rem)} left</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Only ${pct}% of income remains this period</div>
         </div>
+      </div>
+      <div onclick="showScreen('plan',document.querySelectorAll('.nav-btn')[3])" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+        <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">See how small changes affect your remaining balance</div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted);flex-shrink:0"></i>
       </div>`;
     } else {
       bw.innerHTML='';
