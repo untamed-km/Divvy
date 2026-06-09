@@ -44,8 +44,14 @@ CREATE POLICY "admin_read_all_profiles"
 -- UPDATE public.profiles SET is_admin = TRUE WHERE username = 'untamed';
 
 
--- ── 5. Verify it works ───────────────────────────────────────────────────
+-- ── 5. Revenue tracking ──────────────────────────────────────────────────
+-- pro_since: timestamp when the user upgraded (never cleared on cancel,
+-- so you retain upgrade history even if they downgrade later).
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS pro_since TIMESTAMPTZ;
+
+
+-- ── 6. Verify it works ───────────────────────────────────────────────────
 -- Run these as a quick sanity check after the above:
---   SELECT public.is_admin();               -- should return TRUE when run as your user (won't work from SQL editor, that's fine)
---   SELECT count(*) FROM public.profiles;   -- should show all rows
---   SELECT username, is_admin, last_seen_at FROM public.profiles LIMIT 5;
+--   SELECT count(*) FROM public.profiles;
+--   SELECT username, is_admin, last_seen_at, pro_tier, pro_since FROM public.profiles LIMIT 5;

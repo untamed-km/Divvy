@@ -246,6 +246,38 @@ footer{text-align:center;font-size:12px;color:var(--muted);
       </div>
     </div>
 
+    <!-- Revenue -->
+    <div class="section-title">Revenue</div>
+    <div class="stat-grid" style="margin-bottom:12px">
+      <div class="stat-card highlight">
+        <div class="s-label"><i class="ti ti-cash teal"></i>Total MRR</div>
+        <div class="s-value" id="r-mrr">—</div>
+        <div class="s-sub" id="r-mrr-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-user" style="color:#818cf8"></i>Pro Solo MRR</div>
+        <div class="s-value" id="r-pro-mrr" style="color:#818cf8">—</div>
+        <div class="s-sub" id="r-pro-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-users" style="color:#c084fc"></i>Couples MRR</div>
+        <div class="s-value" id="r-couples-mrr" style="color:#c084fc">—</div>
+        <div class="s-sub" id="r-couples-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label"><i class="ti ti-trending-up green"></i>Conversion</div>
+        <div class="s-value green" id="r-conv">—</div>
+        <div class="s-sub">paid / total users</div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:28px">
+      <div class="chart-header">
+        <h3>MRR Over Time</h3>
+        <span style="font-size:11px;color:var(--muted)">cumulative · based on upgrade dates</span>
+      </div>
+      <canvas id="mrr-chart"></canvas>
+    </div>
+
     <!-- Signup trend chart -->
     <div class="chart-card">
       <div class="chart-header">
@@ -396,7 +428,7 @@ async function loadDashboard() {
   // allows admin users to see all rows.
   const { data, error } = await sb
     .from('profiles')
-    .select('id, username, display_name, pro_tier, created_at, last_seen_at')
+    .select('id, username, display_name, pro_tier, pro_since, created_at, last_seen_at')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -410,6 +442,7 @@ async function loadDashboard() {
 
   ALL_PROFILES = data || [];
   renderStats(ALL_PROFILES);
+  renderRevenue(ALL_PROFILES);
   renderTrend(ALL_PROFILES, currentPeriod);
   renderUserRows(ALL_PROFILES.slice(0, 25), false);
 
@@ -590,6 +623,110 @@ function renderUserRows(rows, showLastSeen) {
       ${showLastSeen ? `<td style="color:var(--muted)">${lastSeen}</td>` : ''}
     </tr>`;
   }).join('');
+}
+
+// ── Revenue ──────────────────────────────────────────────────────────────
+const PRICE = { pro: 2.99, couples: 4.99 };
+let mrrChart = null;
+
+function renderRevenue(profiles) {
+  const proUsers     = profiles.filter(p => p.pro_tier === 'pro');
+  const couplesUsers = profiles.filter(p => p.pro_tier === 'couples');
+  const proMRR       = proUsers.length     * PRICE.pro;
+  const couplesMRR   = couplesUsers.length * PRICE.couples;
+  const totalMRR     = proMRR + couplesMRR;
+  const paidTotal    = proUsers.length + couplesUsers.length;
+  const convPct      = profiles.length ? (paidTotal / profiles.length * 100).toFixed(1) : '0.0';
+
+  setText('r-mrr',        '$' + totalMRR.toFixed(2));
+  setText('r-mrr-sub',    paidTotal + ' paid subscriber' + (paidTotal !== 1 ? 's' : ''));
+  setText('r-pro-mrr',    '$' + proMRR.toFixed(2));
+  setText('r-pro-sub',    proUsers.length + ' subscriber' + (proUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.pro);
+  setText('r-couples-mrr','$' + couplesMRR.toFixed(2));
+  setText('r-couples-sub',couplesUsers.length + ' subscriber' + (couplesUsers.length !== 1 ? 's' : '') + ' × $' + PRICE.couples);
+  setText('r-conv',       convPct + '%');
+
+  renderMRRChart(profiles);
+}
+
+function renderMRRChart(profiles) {
+  // Build cumulative MRR month-by-month using pro_since dates
+  // Only include users who are currently paid (pro_tier set) and have pro_since
+  const paid = profiles.filter(p => p.pro_since && (p.pro_tier === 'pro' || p.pro_tier === 'couples'));
+  if (!paid.length) {
+    const ctx = document.getElementById('mrr-chart').getContext('2d');
+    if (mrrChart) { mrrChart.destroy(); mrrChart = null; }
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    return;
+  }
+
+  // Find earliest pro_since, build monthly labels from then to now
+  const earliest = new Date(Math.min(...paid.map(p => new Date(p.pro_since))));
+  earliest.setDate(1); earliest.setHours(0, 0, 0, 0);
+  const now = new Date(); now.setDate(1); now.setHours(0, 0, 0, 0);
+
+  const months = [];
+  const cursor = new Date(earliest);
+  while (cursor <= now) {
+    months.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  // For each month end, sum MRR of all users who upgraded on or before that month
+  // and are still paid (current pro_tier). This is a simplified model — assumes
+  // churn happened at latest state, not historically.
+  const labels = months.map(m => m.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+  const values = months.map(monthStart => {
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    return paid
+      .filter(p => new Date(p.pro_since) < monthEnd)
+      .reduce((sum, p) => sum + PRICE[p.pro_tier === 'couples' ? 'couples' : 'pro'], 0);
+  });
+
+  const ctx = document.getElementById('mrr-chart').getContext('2d');
+  if (mrrChart) mrrChart.destroy();
+  mrrChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'MRR',
+        data: values,
+        borderColor: '#2dd4bf',
+        backgroundColor: 'rgba(45,212,191,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#2dd4bf',
+        fill: true,
+        tension: 0.3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2a2e42',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#8892a4',
+          padding: 10,
+          callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(2)} MRR` },
+        },
+      },
+      scales: {
+        x: { grid: { color: '#2a2e42' }, ticks: { color: '#8892a4', font: { size: 11 } } },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#2a2e42' },
+          ticks: { color: '#8892a4', font: { size: 11 }, callback: v => '$' + v.toFixed(2) },
+        },
+      },
+    },
+  });
 }
 
 // ── Utils ────────────────────────────────────────────────────────────────

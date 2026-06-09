@@ -203,14 +203,38 @@ function getProData(){try{return JSON.parse(localStorage.getItem(PRO_KEY)||'{}')
 function isPro(){const a=getAuth();return !!(a?.pro_tier)||(getProData().active===true);}
 function isCouplePro(){const a=getAuth();const tier=a?.pro_tier||(getProData().active?getProData().tier:null);return tier==='couples';}
 function activatePro(tier){
-  // Update local cache — Supabase is the source of truth after payment
-  const a=getAuth();if(a){setAuth({...a,pro_tier:tier||'solo'});}
-  localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:tier||'solo',since:new Date().toISOString()}));
+  const t=tier||'solo';
+  const now=new Date().toISOString();
+  // Update local cache
+  const a=getAuth();if(a){setAuth({...a,pro_tier:t});}
+  localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:t,since:now}));
+  // Persist to Supabase — write pro_tier + pro_since (only set pro_since once)
+  const sb=getSB();
+  if(sb){
+    sb.auth.getUser().then(({data})=>{
+      if(!data?.user)return;
+      // Check if pro_since already set so we don't overwrite original upgrade date
+      sb.from('profiles').select('pro_since').eq('id',data.user.id).maybeSingle().then(({data:prof})=>{
+        const update={pro_tier:t};
+        if(!prof?.pro_since)update.pro_since=now;
+        sb.from('profiles').update(update).eq('id',data.user.id).then(()=>{});
+      });
+    });
+  }
   render();
 }
 function deactivatePro(){
   const a=getAuth();if(a){setAuth({...a,pro_tier:null});}
-  localStorage.removeItem(PRO_KEY);render();
+  localStorage.removeItem(PRO_KEY);
+  // Clear pro_tier in Supabase (keep pro_since for history)
+  const sb=getSB();
+  if(sb){
+    sb.auth.getUser().then(({data})=>{
+      if(!data?.user)return;
+      sb.from('profiles').update({pro_tier:null}).eq('id',data.user.id).then(()=>{});
+    });
+  }
+  render();
 }
 function getUsage(){try{return JSON.parse(localStorage.getItem(USAGE_KEY)||'{}')}catch(e){return{}}}
 function setUsage(u){localStorage.setItem(USAGE_KEY,JSON.stringify(u));}
