@@ -1941,7 +1941,8 @@ function renderHistory(){
     const bills=cycle.bills.reduce((a,b)=>a+(b.amount||0),0);
     const savings=(cycle.savings?.perPaycheck||0)+(cycle.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0);
     const spent=Object.keys(cycle.buckets).reduce((a,k)=>a+cycle.buckets[k].transactions.reduce((b,t)=>b+(t.amount||0),0),0);
-    const rem=inc-bills-savings-spent;
+    const debtPmts2=cycle.debtExtraPayments||0;
+    const rem=inc-bills-savings-spent-debtPmts2;
     const d=document.createElement('div');d.className='cycle-card';
     const cycleIdx=STATE.history.indexOf(cycle);
     d.style.cursor='pointer';d.onclick=()=>openCycleDetail(cycleIdx);
