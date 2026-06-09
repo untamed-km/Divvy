@@ -1016,7 +1016,7 @@ function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amou
 function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
-function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings();}
+function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings()-(C.debtExtraPayments||0);}
 function allTimeSavings(){return[...STATE.history,C].reduce((s,cyc)=>s+((cyc.savings?.perPaycheck||0))+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0)),0);}
 function currentExtraSavings(){return(C.savings.extra||[]).reduce((s,e)=>s+(e.amount||0),0);}
 function allTime401K(){const all=[...STATE.history,C];const me=all.reduce((s,cyc)=>s+(cyc.k401?.me||0),0);const emp=all.reduce((s,cyc)=>s+(cyc.k401?.emp||0),0);return{me,emp,total:me+emp,periods:all.length};}
@@ -1498,7 +1498,7 @@ function applyLinkedDebtPayment(bill){
   const newBalance=Math.max(0,debt.balance-amount);
   const paidOff=newBalance===0;
   debt.balance=newBalance;
-  C.debtPayments=(C.debtPayments||0)+amount;
+  // Note: auto-linked payments are already deducted via the bill — no extra tracking needed
   bill._autoPayId=payId; // stamp the bill so we can reverse it if unchecked
   if(paidOff)setTimeout(()=>showToast('🎉 '+debt.name+' is paid off!'),400);
 }
@@ -1513,7 +1513,6 @@ function reverseLinkedDebtPayment(bill){
   const amount=debt.payments[idx].amount||0;
   debt.payments.splice(idx,1);
   debt.balance=debt.balance+amount;
-  C.debtPayments=Math.max(0,(C.debtPayments||0)-amount);
   delete bill._autoPayId;
 }
 
@@ -4944,7 +4943,7 @@ function openPaymentModal(idx){
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Note (optional)</div>
-        <input type="text" id="pmt-note" placeholder="e.g. Extra payment"/>
+        <input type="text" id="pmt-note" placeholder="Extra" value="Extra"/>
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Min payment: <strong style="color:var(--text)">$${(d.minPayment||0).toLocaleString()}/mo</strong></div>
@@ -4971,10 +4970,11 @@ function savePayment(idx){
   const newBalance=Math.max(0,d.balance-amount);
   const paidOff=newBalance===0;
   d.balance=newBalance;
-  C.debtPayments=(C.debtPayments||0)+amount;
+  C.debtExtraPayments=(C.debtExtraPayments||0)+amount;
   saveState();
   closeModal();
   renderDebt();
+  render(); // refresh home remaining
   if(paidOff){
     setTimeout(()=>showToast('🎉 '+d.name+' is paid off!'),300);
   }
