@@ -1487,17 +1487,34 @@ let _justPaidBill=null;
 // Auto-log a debt payment when a linked bill is marked paid
 function applyLinkedDebtPayment(bill){
   if(!bill||!bill.linkedDebtId)return;
+  if(bill._autoPayId)return; // already applied this cycle — don't double-log
   const debt=(C.debts||[]).find(d=>d.id===bill.linkedDebtId);
   if(!debt||debt.balance<=0)return;
   const amount=Math.min(bill.amount||0,debt.balance);
   if(amount<=0)return;
   if(!debt.payments)debt.payments=[];
-  debt.payments.push({amount,date:new Date().toISOString().split('T')[0],note:'Auto from bill: '+bill.name});
+  const payId='ap_'+Date.now();
+  debt.payments.push({id:payId,amount,date:new Date().toISOString().split('T')[0],note:'Auto from bill: '+bill.name});
   const newBalance=Math.max(0,debt.balance-amount);
   const paidOff=newBalance===0;
   debt.balance=newBalance;
   C.debtPayments=(C.debtPayments||0)+amount;
+  bill._autoPayId=payId; // stamp the bill so we can reverse it if unchecked
   if(paidOff)setTimeout(()=>showToast('🎉 '+debt.name+' is paid off!'),400);
+}
+
+// Reverse an auto-payment when a bill is unchecked
+function reverseLinkedDebtPayment(bill){
+  if(!bill||!bill.linkedDebtId||!bill._autoPayId)return;
+  const debt=(C.debts||[]).find(d=>d.id===bill.linkedDebtId);
+  if(!debt)return;
+  const idx=(debt.payments||[]).findIndex(p=>p.id===bill._autoPayId);
+  if(idx===-1){delete bill._autoPayId;return;}
+  const amount=debt.payments[idx].amount||0;
+  debt.payments.splice(idx,1);
+  debt.balance=debt.balance+amount;
+  C.debtPayments=Math.max(0,(C.debtPayments||0)-amount);
+  delete bill._autoPayId;
 }
 
 function toggleBill(i){
@@ -1524,7 +1541,7 @@ function toggleBill(i){
   } else {
     const goingPaid=!bill.paid;
     bill.paid=!bill.paid;
-    if(!bill.paid) bill.paidBy=null;
+    if(!bill.paid){bill.paidBy=null;reverseLinkedDebtPayment(bill);}
     if(goingPaid){_justPaidBill=i;applyLinkedDebtPayment(bill);}
     saveState();render();
   }
