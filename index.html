@@ -4897,10 +4897,11 @@ function renderDebtList(){
       <div style="background:var(--card2);border-radius:6px;height:6px;width:100%;margin-bottom:6px">
         <div style="height:6px;border-radius:6px;width:${pct}%;background:${barColor}"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${!isPaid&&utilPct!==null?4:isPaid||!d.payments||!d.payments.length?0:6}px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
         <div style="font-size:13px;font-weight:600;color:var(--text)">${isPaid?'Paid off!':'$'+(d.balance||0).toLocaleString()+' left'}</div>
         <div style="font-size:11px;color:var(--muted)">${pct}% paid</div>
       </div>
+      ${!isPaid&&orig!==d.balance?`<div style="font-size:10px;color:var(--muted);margin-bottom:${!isPaid&&utilPct!==null?4:isPaid||!d.payments||!d.payments.length?0:6}px">of $${orig.toLocaleString()} original</div>`:`<div style="margin-bottom:${!isPaid&&utilPct!==null?4:isPaid||!d.payments||!d.payments.length?0:6}px"></div>`}
       ${!isPaid&&payoffStr?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:${utilPct!==null?4:!d.payments||!d.payments.length?0:6}px">
         <i class="ti ti-calendar-due" style="font-size:12px;color:var(--muted)"></i>
         <span style="font-size:12px;color:var(--muted)">Payoff est. <strong style="color:var(--text)">${payoffStr}</strong></span>
@@ -4920,7 +4921,7 @@ function renderDebtList(){
       ${lastPmtStr&&!isPaid?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${lastPmtStr}</div>`:''}
       ${!isPaid?`<div style="display:flex;gap:8px;margin-top:8px">
         <button onclick="openPaymentModal(${i})" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid #6366f140;background:#6366f110;color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"><i class="ti ti-cash" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Make payment</button>
-        ${d.payments&&d.payments.length?`<button onclick="toggleDebtHistory(${i})" style="padding:8px 12px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" id="debt-hist-btn-${i}"><i class="ti ti-history" style="font-size:13px;vertical-align:-2px"></i></button>`:''}
+        ${d.payments&&d.payments.length?`<button onclick="toggleDebtHistory(${i})" style="padding:8px 12px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px" id="debt-hist-btn-${i}"><i class="ti ti-history" style="font-size:13px"></i> ${d.payments.filter(p=>!p.isInterest).length} payments <i class="ti ti-chevron-down" style="font-size:11px" id="debt-hist-chev-${i}"></i></button>`:''}
       </div>`:''}
       ${histHtml}
     </div>`;
@@ -4937,10 +4938,12 @@ function renderDebtList(){
 function toggleDebtHistory(i){
   const el=document.getElementById('debt-hist-'+i);
   const btn=document.getElementById('debt-hist-btn-'+i);
+  const chev=document.getElementById('debt-hist-chev-'+i);
   if(!el)return;
   const open=el.style.display==='block';
   el.style.display=open?'none':'block';
-  if(btn)btn.querySelector('i').style.color=open?'var(--muted)':'#a5b4fc';
+  if(btn){btn.style.color=open?'var(--muted)':'#a5b4fc';btn.style.borderColor=open?'var(--border)':'#6366f140';btn.style.background=open?'transparent':'#6366f110';}
+  if(chev){chev.className=open?'ti ti-chevron-down':'ti ti-chevron-up';}
 }
 
 function openPaymentModal(idx){
