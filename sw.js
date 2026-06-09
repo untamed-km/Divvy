@@ -1,8 +1,8 @@
-// DistroFi Service Worker — v7
+// DistroFi Service Worker — v8
 // Network-first for all navigation; static assets cached after first load.
 // On every SW update, ALL old caches are wiped so stale HTML never survives.
 
-const CACHE_NAME = 'distrofi-v6';
+const CACHE_NAME = 'distrofi-v8';
 
 // Install: skip waiting immediately — take over as fast as possible
 self.addEventListener('install', event => {
