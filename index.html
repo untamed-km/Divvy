@@ -3334,6 +3334,39 @@ function openSpendingTrends(){
 
 
 // ── MARKETPLACE DATA (sample/demo — replace with live feeds in Phase 2) ──
+const MKT_STOCKS=[
+  {sym:'SPY',name:'S&P 500 ETF',price:'$548.20',chg:'+0.82%',up:true,spark:[20,22,21,24,23,26,28,27,30]},
+  {sym:'AAPL',name:'Apple Inc.',price:'$229.15',chg:'+1.14%',up:true,spark:[18,17,19,20,19,22,21,24,25]},
+  {sym:'TSLA',name:'Tesla Inc.',price:'$248.50',chg:'-1.92%',up:false,spark:[30,28,29,26,27,24,22,23,20]},
+  {sym:'NVDA',name:'NVIDIA Corp.',price:'$132.65',chg:'+2.41%',up:true,spark:[15,18,17,20,22,24,23,27,30]},
+  {sym:'MSFT',name:'Microsoft',price:'$424.80',chg:'+0.55%',up:true,spark:[22,23,22,24,25,24,26,27,28]},
+  {sym:'AMZN',name:'Amazon',price:'$186.40',chg:'+1.62%',up:true,spark:[18,19,21,20,22,24,23,25,27]},
+  {sym:'GOOGL',name:'Alphabet',price:'$178.30',chg:'-0.41%',up:false,spark:[26,25,27,24,25,23,24,22,23]},
+  {sym:'META',name:'Meta Platforms',price:'$512.20',chg:'+2.08%',up:true,spark:[20,22,24,23,26,28,27,30,32]},
+  {sym:'QQQ',name:'Nasdaq 100 ETF',price:'$478.90',chg:'+1.05%',up:true,spark:[21,22,24,23,25,27,26,28,30]},
+  {sym:'AMD',name:'AMD',price:'$162.40',chg:'-1.20%',up:false,spark:[28,27,29,26,25,24,26,23,22]},
+  {sym:'DIS',name:'Disney',price:'$98.75',chg:'+0.34%',up:true,spark:[19,20,19,21,20,22,21,23,24]},
+  {sym:'JPM',name:'JPMorgan Chase',price:'$204.10',chg:'+0.92%',up:true,spark:[22,23,24,23,25,26,25,27,28]},
+];
+const MKT_CRYPTO=[
+  {sym:'BTC',name:'Bitcoin',price:'$67,420',chg:'+3.10%',up:true,spark:[20,22,25,24,28,30,29,33,36]},
+  {sym:'ETH',name:'Ethereum',price:'$3,285',chg:'+1.85%',up:true,spark:[18,19,18,21,22,21,24,25,27]},
+  {sym:'SOL',name:'Solana',price:'$168.40',chg:'-0.74%',up:false,spark:[28,27,29,26,25,27,24,23,22]},
+  {sym:'XRP',name:'XRP',price:'$0.62',chg:'+1.40%',up:true,spark:[18,19,20,19,21,22,21,23,24]},
+  {sym:'ADA',name:'Cardano',price:'$0.45',chg:'-0.95%',up:false,spark:[26,25,24,26,23,24,22,23,21]},
+  {sym:'DOGE',name:'Dogecoin',price:'$0.16',chg:'+5.20%',up:true,spark:[15,17,16,20,22,21,26,28,31]},
+  {sym:'AVAX',name:'Avalanche',price:'$38.20',chg:'+2.30%',up:true,spark:[19,20,22,21,24,23,26,27,29]},
+  {sym:'LINK',name:'Chainlink',price:'$14.85',chg:'-1.10%',up:false,spark:[27,26,28,25,24,26,23,24,22]},
+  {sym:'MATIC',name:'Polygon',price:'$0.72',chg:'+0.85%',up:true,spark:[20,21,20,22,21,23,22,24,25]},
+  {sym:'DOT',name:'Polkadot',price:'$7.15',chg:'+1.55%',up:true,spark:[19,20,21,20,22,24,23,25,26]},
+];
+
+// ── Live market data ─────────────────────────────────────────────
+
+function membersBack(){
+  showMembersHub();
+}
+
 const MKT_CACHE_KEY='distrofi_mkt_cache';
 const MKT_CACHE_TTL=60000; // 60 seconds
 
