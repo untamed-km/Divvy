@@ -352,6 +352,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
   </div>
   <div id="screen-invest" class="screen">
     <div class="top-bar"><h2>Investments &amp; Savings</h2></div>
+    <div id="invest-total-banner" style="margin-bottom:4px"></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="section-label" style="margin-top:0">AI Advisor</span>
       <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Powered by Claude</span>
@@ -2607,6 +2608,9 @@ async function sendToAdvisor(){
   if(!msg)return;
   input.value='';
   addBubble('user',msg);
+  // Reveal context chip now that the conversation has started
+  const chip=document.getElementById('ai-context-chip');
+  if(chip)chip.style.display='block';
   renderAISuggestions();
 
   // Disable send while waiting
@@ -5756,6 +5760,27 @@ function renderSpend(){
 }
 
 function renderInvest(){
+  // Total across all accounts summary
+  const itb=document.getElementById('invest-total-banner');
+  if(itb){
+    const savTotal=allTimeSavings(),k401Total=allTime401K().total,invTotal=allTimeInvestments().grand;
+    const grandTotal=savTotal+k401Total+invTotal;
+    const parts=[
+      {label:'Savings',val:savTotal,col:'var(--green)',icon:'ti-pig-money'},
+      {label:'Invested',val:invTotal,col:'var(--purple)',icon:'ti-trending-up'},
+      {label:'401(k)',val:k401Total,col:'var(--blue)',icon:'ti-building-bank'},
+    ];
+    itb.innerHTML=`<div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px 16px;margin-bottom:2px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Total across all accounts</div>
+      <div style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--text);margin-bottom:12px">${fmt(grandTotal)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        ${parts.map(p=>`<div style="background:var(--card2);border-radius:10px;padding:8px 10px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><i class="ti ${p.icon}" style="font-size:13px;color:${p.col}"></i><span style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${p.label}</span></div>
+          <div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:${p.col}">${fmt(p.val)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
   const chip=document.getElementById('ai-context-chip');
   if(chip){
     const income=totalIncome(),bills=totalBills(),spent=totalSpent(),savings=(C.savings?.perPaycheck||0)+currentExtraSavings(),invested=totalInvested(),rem=remaining();
@@ -5768,6 +5793,10 @@ function renderInvest(){
       {label:'Remaining',val:fmt(rem),col:rem<0?'var(--red)':rem<200?'var(--amber)':'var(--green)'},
     ];
     chip.innerHTML=`<div style="background:var(--card2);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px"><div style="font-size:10px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:5px"><i class="ti ti-eye" style="font-size:12px"></i> Advisor can see</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">${items.map(it=>`<div style="background:var(--card);border-radius:8px;padding:7px 8px"><div style="font-size:10px;color:var(--muted);margin-bottom:2px">${it.label}</div><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${it.col}">${it.val}</div></div>`).join('')}</div></div>`;
+    // Only show chip if a conversation has started (more than the welcome bubble)
+    const log=document.getElementById('ai-chat-messages');
+    const hasConvo=log&&log.querySelectorAll('.ai-user-msg').length>0;
+    chip.style.display=hasConvo?'block':'none';
   }
   renderAISuggestions();
   // Update banner subtitles
