@@ -1,203 +1,51 @@
 -- ═══════════════════════════════════════════════════════════════════════
--- DistroFi Admin Analytics — Supabase Migration (v2)
+-- DistroFi Admin Analytics — Supabase Migration (v3)
 -- Run in Supabase SQL Editor. Safe to re-run.
 -- ═══════════════════════════════════════════════════════════════════════
 
--- ── 1. Admin flag + last_seen tracking on profiles ───────────────────────
+-- ── 1. Columns ───────────────────────────────────────────────────────────
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS is_admin   BOOLEAN   NOT NULL DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
-
--- Set yourself as admin (replace with your username):
---   UPDATE public.profiles SET is_admin = TRUE WHERE username = 'untamed';
+  ADD COLUMN IF NOT EXISTS is_admin      BOOLEAN      NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS last_seen_at  TIMESTAMPTZ;
 
 
--- ── 2. Admin stats (profiles only — no auth.users dependency) ────────────
-CREATE OR REPLACE FUNCTION public.get_admin_stats()
-RETURNS JSON
-LANGUAGE plpgsql
+-- ── 2. is_admin() helper ─────────────────────────────────────────────────
+-- SECURITY DEFINER means it runs as postgres (bypasses RLS on profiles),
+-- so it can safely check the is_admin flag without circular policy issues.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
 SECURITY DEFINER
+STABLE
 SET search_path = public
 AS $$
-DECLARE
-  result JSON;
-BEGIN
-  IF NOT EXISTS (
+  SELECT EXISTS (
     SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND is_admin = TRUE
-  ) THEN
-    RAISE EXCEPTION 'Access denied: admin only';
-  END IF;
-
-  SELECT json_build_object(
-    'total_users',    (SELECT COUNT(*)::INT    FROM public.profiles),
-    'active_30d',     (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE last_seen_at >= NOW() - INTERVAL '30 days'),
-    'new_7d',         (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE created_at  >= NOW() - INTERVAL '7 days'),
-    'new_30d',        (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE created_at  >= NOW() - INTERVAL '30 days'),
-    'tier_free',      (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE pro_tier IS NULL OR pro_tier = 'free'),
-    'tier_pro',       (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE pro_tier = 'pro'),
-    'tier_couples',   (SELECT COUNT(*)::INT    FROM public.profiles
-                       WHERE pro_tier = 'couples'),
-    'conversion_pct', ROUND(
-      CASE WHEN (SELECT COUNT(*) FROM public.profiles) = 0 THEN 0
-      ELSE (
-        (SELECT COUNT(*) FROM public.profiles WHERE pro_tier IN ('pro','couples'))::NUMERIC
-        / (SELECT COUNT(*) FROM public.profiles)::NUMERIC * 100
-      ) END, 1
-    )
-  ) INTO result;
-
-  RETURN result;
-END;
+  );
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_admin_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
 
 
--- ── 3. Signup trend (weekly / monthly) ───────────────────────────────────
-CREATE OR REPLACE FUNCTION public.get_signup_trend(period TEXT DEFAULT 'weekly')
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  result JSON;
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND is_admin = TRUE
-  ) THEN
-    RAISE EXCEPTION 'Access denied: admin only';
-  END IF;
+-- ── 3. RLS policy: admins can read all profiles ──────────────────────────
+-- Drop if it already exists so re-running is safe.
+DROP POLICY IF EXISTS "admin_read_all_profiles" ON public.profiles;
 
-  IF period = 'monthly' THEN
-    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.period_start ASC), '[]'::JSON)
-    INTO result
-    FROM (
-      SELECT
-        TO_CHAR(DATE_TRUNC('month', created_at), 'Mon ''YY') AS label,
-        DATE_TRUNC('month', created_at)                       AS period_start,
-        COUNT(*)::INT                                          AS count
-      FROM public.profiles
-      WHERE created_at >= NOW() - INTERVAL '12 months'
-      GROUP BY DATE_TRUNC('month', created_at)
-    ) t;
-  ELSE
-    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.period_start ASC), '[]'::JSON)
-    INTO result
-    FROM (
-      SELECT
-        TO_CHAR(DATE_TRUNC('week', created_at), 'Mon DD')    AS label,
-        DATE_TRUNC('week', created_at)                        AS period_start,
-        COUNT(*)::INT                                          AS count
-      FROM public.profiles
-      WHERE created_at >= NOW() - INTERVAL '12 weeks'
-      GROUP BY DATE_TRUNC('week', created_at)
-    ) t;
-  END IF;
-
-  RETURN COALESCE(result, '[]'::JSON);
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_signup_trend(TEXT) TO authenticated;
+CREATE POLICY "admin_read_all_profiles"
+  ON public.profiles
+  FOR SELECT
+  TO authenticated
+  USING ( public.is_admin() OR auth.uid() = id );
+-- Note: this adds to (OR) any existing policies — it doesn't replace them.
 
 
--- ── 4. Recent signups ─────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.get_recent_signups(lim INT DEFAULT 50)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  result JSON;
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND is_admin = TRUE
-  ) THEN
-    RAISE EXCEPTION 'Access denied: admin only';
-  END IF;
-
-  SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON)
-  INTO result
-  FROM (
-    SELECT
-      username,
-      display_name,
-      COALESCE(pro_tier, 'free') AS tier,
-      created_at,
-      last_seen_at
-    FROM public.profiles
-    ORDER BY created_at DESC
-    LIMIT lim
-  ) t;
-
-  RETURN COALESCE(result, '[]'::JSON);
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_recent_signups(INT) TO authenticated;
+-- ── 4. Set yourself as admin ─────────────────────────────────────────────
+-- UPDATE public.profiles SET is_admin = TRUE WHERE username = 'untamed';
 
 
--- ── 5. All current users (paginated) ─────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.get_all_users(
-  page_num  INT  DEFAULT 1,
-  page_size INT  DEFAULT 50
-)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  result    JSON;
-  total_cnt INT;
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND is_admin = TRUE
-  ) THEN
-    RAISE EXCEPTION 'Access denied: admin only';
-  END IF;
-
-  SELECT COUNT(*)::INT INTO total_cnt FROM public.profiles;
-
-  SELECT json_build_object(
-    'total', total_cnt,
-    'page',  page_num,
-    'pages', CEIL(total_cnt::NUMERIC / page_size),
-    'users', COALESCE((
-      SELECT json_agg(row_to_json(t))
-      FROM (
-        SELECT
-          username,
-          display_name,
-          COALESCE(pro_tier, 'free') AS tier,
-          created_at,
-          last_seen_at
-        FROM public.profiles
-        ORDER BY created_at DESC
-        LIMIT page_size OFFSET (page_num - 1) * page_size
-      ) t
-    ), '[]'::JSON)
-  ) INTO result;
-
-  RETURN result;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_all_users(INT, INT) TO authenticated;
-
-
--- ═══════════════════════════════════════════════════════════════════════
--- After running, set your admin flag:
---   UPDATE public.profiles SET is_admin = TRUE WHERE username = 'untamed';
--- ═══════════════════════════════════════════════════════════════════════
+-- ── 5. Verify it works ───────────────────────────────────────────────────
+-- Run these as a quick sanity check after the above:
+--   SELECT public.is_admin();               -- should return TRUE when run as your user (won't work from SQL editor, that's fine)
+--   SELECT count(*) FROM public.profiles;   -- should show all rows
+--   SELECT username, is_admin, last_seen_at FROM public.profiles LIMIT 5;

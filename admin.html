@@ -189,6 +189,8 @@ footer{text-align:center;font-size:12px;color:var(--muted);
 
   <!-- Dashboard -->
   <div id="dashboard">
+    <div id="data-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;
+      color:var(--red);font-size:13px;padding:12px 16px;border-radius:10px;margin-bottom:20px"></div>
 
     <!-- Summary stats -->
     <div class="section-title">Overview</div>
@@ -382,66 +384,103 @@ function showState(state) {
   document.getElementById('dashboard').style.display      = state === 'dashboard' ? 'block': 'none';
 }
 
+// ── All profiles cache ───────────────────────────────────────────────────
+let ALL_PROFILES = [];
+
 // ── Data loading ─────────────────────────────────────────────────────────
 async function loadDashboard() {
-  const [statsRes, trendRes, recentsRes] = await Promise.all([
-    sb.rpc('get_admin_stats'),
-    sb.rpc('get_signup_trend', { period: currentPeriod }),
-    sb.rpc('get_recent_signups', { lim: 25 }),
-  ]);
+  const errBanner = document.getElementById('data-error');
+  if (errBanner) errBanner.style.display = 'none';
 
-  if (statsRes.error)   { console.error('Stats error:', statsRes.error); }
-  if (trendRes.error)   { console.error('Trend error:', trendRes.error); }
-  if (recentsRes.error) { console.error('Recents error:', recentsRes.error); }
+  // Direct query — works because the admin_read_all_profiles RLS policy
+  // allows admin users to see all rows.
+  const { data, error } = await sb
+    .from('profiles')
+    .select('id, username, display_name, pro_tier, created_at, last_seen_at')
+    .order('created_at', { ascending: false });
 
-  renderStats(statsRes.data || {});
-  renderTrend(trendRes.data || []);
-  renderRecents(recentsRes.data || []);
+  if (error) {
+    console.error('Profiles query error:', error);
+    if (errBanner) {
+      errBanner.textContent = 'Error loading data: ' + error.message;
+      errBanner.style.display = 'block';
+    }
+    return;
+  }
+
+  ALL_PROFILES = data || [];
+  renderStats(ALL_PROFILES);
+  renderTrend(ALL_PROFILES, currentPeriod);
+  renderUserRows(ALL_PROFILES.slice(0, 25), false);
 
   document.getElementById('last-refresh').textContent =
     'Last updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // ── Stat cards ───────────────────────────────────────────────────────────
-function renderStats(d) {
-  const total = d.total_users ?? 0;
-  const active = d.active_30d ?? 0;
-  const actPct = total ? Math.round(active / total * 100) : 0;
+function renderStats(profiles) {
+  const now    = Date.now();
+  const d30    = now - 30 * 864e5;
+  const d7     = now - 7  * 864e5;
 
-  setText('s-total', total.toLocaleString());
-  setText('s-total-sub', d.new_30d + ' joined this month');
-  setText('s-active', active.toLocaleString());
-  setText('s-active-sub', actPct + '% of all users');
-  setText('s-7d', (d.new_7d ?? 0).toLocaleString());
-  setText('s-30d', (d.new_30d ?? 0).toLocaleString());
-
-  // Tier bars
-  const free    = d.tier_free ?? 0;
-  const pro     = d.tier_pro ?? 0;
-  const couples = d.tier_couples ?? 0;
+  const total   = profiles.length;
+  const active  = profiles.filter(p => p.last_seen_at && new Date(p.last_seen_at) > d30).length;
+  const new30   = profiles.filter(p => new Date(p.created_at) > d30).length;
+  const new7    = profiles.filter(p => new Date(p.created_at) > d7).length;
+  const free    = profiles.filter(p => !p.pro_tier || p.pro_tier === 'free').length;
+  const pro     = profiles.filter(p => p.pro_tier === 'pro').length;
+  const couples = profiles.filter(p => p.pro_tier === 'couples').length;
+  const actPct  = total ? Math.round(active / total * 100) : 0;
   const tierTotal = free + pro + couples || 1;
+
+  setText('s-total',     total.toLocaleString());
+  setText('s-total-sub', new30 + ' joined this month');
+  setText('s-active',    active.toLocaleString());
+  setText('s-active-sub', actPct + '% of all users');
+  setText('s-7d',  new7.toLocaleString());
+  setText('s-30d', new30.toLocaleString());
 
   setText('t-free',    free.toLocaleString());
   setText('t-pro',     pro.toLocaleString());
   setText('t-couples', couples.toLocaleString());
-  setWidth('bar-free',    (free    / tierTotal * 100));
-  setWidth('bar-pro',     (pro     / tierTotal * 100));
-  setWidth('bar-couples', (couples / tierTotal * 100));
+  setWidth('bar-free',    free    / tierTotal * 100);
+  setWidth('bar-pro',     pro     / tierTotal * 100);
+  setWidth('bar-couples', couples / tierTotal * 100);
 }
 
 // ── Trend chart ──────────────────────────────────────────────────────────
-async function setTrendPeriod(period) {
+function setTrendPeriod(period) {
   currentPeriod = period;
   document.getElementById('pill-weekly').classList.toggle('active',  period === 'weekly');
   document.getElementById('pill-monthly').classList.toggle('active', period === 'monthly');
-
-  const { data, error } = await sb.rpc('get_signup_trend', { period });
-  if (!error) renderTrend(data || []);
+  renderTrend(ALL_PROFILES, period);
 }
 
-function renderTrend(rows) {
-  const labels = rows.map(r => r.label);
-  const counts = rows.map(r => r.count);
+function renderTrend(profiles, period) {
+  // Build bucket map from profile created_at dates
+  const buckets = {};
+  const cutoff = period === 'monthly'
+    ? new Date(Date.now() - 365 * 864e5)
+    : new Date(Date.now() - 84  * 864e5); // 12 weeks
+
+  profiles.forEach(p => {
+    const d = new Date(p.created_at);
+    if (d < cutoff) return;
+    let key;
+    if (period === 'monthly') {
+      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    } else {
+      // Floor to Monday of the week
+      const day = new Date(d);
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+      key = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    buckets[key] = (buckets[key] || 0) + 1;
+  });
+
+  const labels = Object.keys(buckets);
+  const counts = Object.values(buckets);
   const ctx = document.getElementById('trend-chart').getContext('2d');
 
   if (trendChart) { trendChart.destroy(); }
@@ -490,39 +529,38 @@ function renderTrend(rows) {
   });
 }
 
-// ── Tab switching ────────────────────────────────────────────────────────
-async function switchTab(tab) {
+// ── Tab switching (uses local cache — no extra network requests) ─────────
+function switchTab(tab) {
   currentTab = tab;
+  const PAGE_SIZE = 50;
   document.getElementById('tab-recent').classList.toggle('active', tab === 'recent');
   document.getElementById('tab-all').classList.toggle('active',    tab === 'all');
   document.getElementById('th-lastseen').style.display = tab === 'all' ? '' : 'none';
   document.getElementById('pagination').style.display  = tab === 'all' ? 'flex' : 'none';
+
   if (tab === 'recent') {
-    const { data } = await sb.rpc('get_recent_signups', { lim: 25 });
-    renderUserRows(data || [], false);
+    renderUserRows(ALL_PROFILES.slice(0, 25), false);
   } else {
-    allUsersPage = 1;
-    await loadAllUsers();
+    allUsersPage  = 1;
+    allUsersPages = Math.ceil(ALL_PROFILES.length / PAGE_SIZE) || 1;
+    renderPagedUsers();
   }
 }
 
-async function loadAllUsers() {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
-  const { data, error } = await sb.rpc('get_all_users', { page_num: allUsersPage, page_size: 50 });
-  if (error || !data) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--red);text-align:center;padding:24px">Error loading users</td></tr>'; return; }
-  allUsersPages = data.pages || 1;
-  renderUserRows(data.users || [], true);
-  document.getElementById('pg-label').textContent = `Page ${allUsersPage} of ${allUsersPages}`;
+function renderPagedUsers() {
+  const PAGE_SIZE = 50;
+  const start = (allUsersPage - 1) * PAGE_SIZE;
+  renderUserRows(ALL_PROFILES.slice(start, start + PAGE_SIZE), true);
+  document.getElementById('pg-label').textContent = `Page ${allUsersPage} of ${allUsersPages} (${ALL_PROFILES.length} total)`;
   document.getElementById('pg-prev').disabled = allUsersPage <= 1;
   document.getElementById('pg-next').disabled = allUsersPage >= allUsersPages;
 }
 
-async function changePage(dir) {
+function changePage(dir) {
   const next = allUsersPage + dir;
   if (next < 1 || next > allUsersPages) return;
   allUsersPage = next;
-  await loadAllUsers();
+  renderPagedUsers();
 }
 
 // ── User rows (shared by both tabs) ─────────────────────────────────────
@@ -535,9 +573,10 @@ function renderUserRows(rows, showLastSeen) {
     tbody.innerHTML = `<tr><td colspan="${cols}" style="color:var(--muted);text-align:center;padding:24px">No users found</td></tr>`;
     return;
   }
+  // field is pro_tier (direct from profiles) or tier (from old RPC)
   tbody.innerHTML = rows.map(r => {
-    const tier = (r.tier || 'free').toLowerCase();
-    const tagClass = tier === 'couples' ? 'couples' : tier === 'pro' ? 'pro' : 'free';
+    const raw = (r.pro_tier || r.tier || '').toLowerCase();
+    const tier = raw === 'pro' ? 'pro' : raw === 'couples' ? 'couples' : 'free';
     const tagLabel = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
     const joined = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
     const lastSeen = r.last_seen_at
@@ -546,7 +585,7 @@ function renderUserRows(rows, showLastSeen) {
     return `<tr>
       <td><span style="color:var(--teal)">@</span>${esc(r.username || '—')}</td>
       <td style="color:var(--muted)">${esc(r.display_name || '—')}</td>
-      <td><span class="tier-tag ${tagClass}">${tagLabel}</span></td>
+      <td><span class="tier-tag ${tier}">${tagLabel}</span></td>
       <td style="color:var(--muted)">${joined}</td>
       ${showLastSeen ? `<td style="color:var(--muted)">${lastSeen}</td>` : ''}
     </tr>`;
