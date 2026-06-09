@@ -1022,6 +1022,20 @@ function currentExtraSavings(){return(C.savings.extra||[]).reduce((s,e)=>s+(e.am
 function allTime401K(){const all=[...STATE.history,C];const me=all.reduce((s,cyc)=>s+(cyc.k401?.me||0),0);const emp=all.reduce((s,cyc)=>s+(cyc.k401?.emp||0),0);return{me,emp,total:me+emp,periods:all.length};}
 function allTimeInvestments(){const t={};[...STATE.history,C].forEach(cyc=>{(cyc.investments||[]).forEach(i=>{t[i.name]=(t[i.name]||0)+(i.amount||0);});});return{totals:t,grand:Object.values(t).reduce((a,v)=>a+v,0)};}
 
+function showScreenAndScrollToBucket(name,key){
+  showScreen(name,document.querySelectorAll('.nav-btn')[2]);
+  if(!key)return;
+  // Wait for render then scroll + flash highlight
+  setTimeout(()=>{
+    const card=document.querySelector(`[data-bucket-key="${key}"]`);
+    if(!card)return;
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+    card.style.transition='box-shadow .2s,border-color .2s';
+    card.style.borderColor='var(--accent)';
+    card.style.boxShadow='0 0 0 2px #6366f140';
+    setTimeout(()=>{card.style.borderColor='';card.style.boxShadow='';},1800);
+  },120);
+}
 function showScreen(name,btn){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
@@ -5375,7 +5389,7 @@ function renderHome(){
         <span style="font-size:11px;color:${over?'var(--red)':'var(--muted)'};font-variant-numeric:tabular-nums">${over?'Over by '+fmt(sp-b.budget):fmt(rem)+' left'}</span>
       </div>
       ${lastTxn?`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">Last: ${lastTxn.label||'Purchase'}</span><span style="font-variant-numeric:tabular-nums;padding-left:8px;flex-shrink:0">${fmt(lastTxn.amount)}</span></div>`:''}`;
-    d.onclick=()=>showScreen('spend',document.querySelectorAll('.nav-btn')[2]);
+    d.onclick=(()=>{const _k=k;return()=>showScreenAndScrollToBucket('spend',_k);})();
     hb.appendChild(d);
   });
   // Home next-bill card
@@ -5700,7 +5714,7 @@ function renderSpend(){
     const b=C.buckets[k],spent=bucketSpent(k),pct=spent/b.budget,col=bucketColor(pct);
     const isExpanded=!!_bucketExpanded[k];
     const lastTxn=b.transactions.length?b.transactions[b.transactions.length-1]:null;
-    const card=document.createElement('div');card.className='bucket-card';card.style.paddingBottom=isExpanded?'16px':'12px';
+    const card=document.createElement('div');card.className='bucket-card';card.dataset.bucketKey=k;card.style.paddingBottom=isExpanded?'16px':'12px';
 
     // Build txn rows only when expanded
     let txnSection='';
