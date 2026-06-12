@@ -1168,15 +1168,6 @@ function openBucketModal(key){
     <input type="number" id="bucket-budget-input" value="${b.budget||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Icon</span>
     <div class="icon-grid" id="igrid-edit"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:0.5px solid var(--border);margin-top:2px">
-      <div>
-        <div style="font-size:14px;font-weight:500">Roll over unused budget</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Adds leftover to next period's budget</div>
-      </div>
-      <div id="rollover-toggle" onclick="toggleRollover()" style="width:44px;height:26px;border-radius:99px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
-        <div id="rollover-knob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s"></div>
-      </div>
-    </div>
     <div class="modal-btns">
       <button class="btn btn-danger" onclick="deleteBucket('${key}')"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1184,24 +1175,13 @@ function openBucketModal(key){
     </div>
   </div></div>`;
   renderIconGrid('igrid-edit');
-  setTimeout(()=>{initRollover(b.rollover===true);document.getElementById('bucket-label-input').focus();},100);
+  setTimeout(()=>{document.getElementById('bucket-label-input').focus();},100);
 }
-let _rolloverEnabled=false;
-function initRollover(val){
-  _rolloverEnabled=!!val;
-  const tog=document.getElementById('rollover-toggle');
-  const knob=document.getElementById('rollover-knob');
-  if(tog)tog.style.background=_rolloverEnabled?'var(--accent)':'var(--border)';
-  if(knob)knob.style.transform=_rolloverEnabled?'translateX(18px)':'translateX(0)';
-}
-function toggleRollover(){initRollover(!_rolloverEnabled);}
 function saveBucket(key){
   const label=document.getElementById('bucket-label-input').value.trim();
   const budget=parseFloat(document.getElementById('bucket-budget-input').value)||0;
   if(!label)return;
-  if(_rolloverEnabled&&!C.buckets[key].baseBudget) C.buckets[key].baseBudget=budget;
-  if(!_rolloverEnabled) C.buckets[key].baseBudget=null;
-  C.buckets[key].label=label;C.buckets[key].budget=budget;C.buckets[key].icon=selectedIcon;C.buckets[key].rollover=_rolloverEnabled;
+  C.buckets[key].label=label;C.buckets[key].budget=budget;C.buckets[key].icon=selectedIcon;
   saveState();closeModal();render();
 }
 function deleteBucket(key){delete C.buckets[key];saveState();closeModal();render();}
@@ -1955,6 +1935,42 @@ function renderHistory(){
 }
 
 function startNewCycle(){
+  // Pro: show under-budget summary before the leftover/confirm modal
+  if(isPro()){
+    const underBudgetBuckets=Object.keys(C.buckets).map(k=>{
+      const b=C.buckets[k];
+      const spent=bucketSpent(k);
+      const under=Math.max(0,(b.budget||0)-spent);
+      return under>0.01?{label:b.label,icon:b.icon,under,budget:b.budget,spent}:null;
+    }).filter(Boolean);
+    const totalUnder=underBudgetBuckets.reduce((a,b)=>a+b.under,0);
+    if(underBudgetBuckets.length>0){
+      const rows=underBudgetBuckets.map(b=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)">
+        <span style="font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ${b.icon}" style="font-size:14px;color:var(--muted)"></i>${b.label}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--green)">$${b.under.toFixed(2)} under</span>
+      </div>`).join('');
+      document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="width:56px;height:56px;border-radius:18px;background:#22c55e18;border:1.5px solid #22c55e44;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+            <i class="ti ti-award" style="font-size:28px;color:var(--green)"></i>
+          </div>
+          <h3 style="margin:0 0 4px">Great budgeting!</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0">You finished under budget in ${underBudgetBuckets.length} ${underBudgetBuckets.length===1?'category':'categories'}</p>
+        </div>
+        <div style="background:var(--card2);border-radius:12px;padding:4px 12px;margin-bottom:14px">${rows}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#22c55e12;border:0.5px solid #22c55e44;border-radius:10px;padding:10px 14px;margin-bottom:18px">
+          <span style="font-size:13px;color:var(--muted)">Total saved this period</span>
+          <span style="font-size:16px;font-weight:700;color:var(--green)">${fmt(totalUnder)}</span>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="closeModal();setTimeout(startNewCycleConfirm,50)">Continue to close period</button>
+        <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancel</button>
+      </div></div>`;
+      return;
+    }
+  }
+  startNewCycleConfirm();
+}
+function startNewCycleConfirm(){
   const rem=remaining();
   if(rem>0.01){
     // Show leftover prompt
@@ -1992,14 +2008,6 @@ function startNewCycle(){
   }
 }
 function confirmNewCycle(leftoverAction){
-  const rolloverMap={};
-  Object.keys(C.buckets).forEach(k=>{
-    const b=C.buckets[k];
-    if(b.rollover){
-      const unused=Math.max(0,(b.budget||0)-bucketSpent(k));
-      if(unused>0) rolloverMap[k]={unused,baseBudget:b.baseBudget||b.budget,rollover:true};
-    }
-  });
   STATE.history.push(JSON.parse(JSON.stringify(C)));
   const recurringIncome=C.income.filter(l=>l.recurring!==false).map(l=>({...l,depositDate:''}));
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
@@ -2023,15 +2031,6 @@ function confirmNewCycle(leftoverAction){
   if(recurringBills.length) C.bills=recurringBills;
   if(recurringInvs.length) C.investments=recurringInvs;
   if(recurring401k) C.k401=recurring401k;
-  Object.keys(rolloverMap).forEach(k=>{
-    if(C.buckets[k]){
-      const r=rolloverMap[k];
-      C.buckets[k].budget=r.baseBudget+r.unused;
-      C.buckets[k].baseBudget=r.baseBudget;
-      C.buckets[k].rollover=true;
-      C.buckets[k].rolloverAdded=r.unused;
-    }
-  });
   C.debtExtraPayments=0; // reset per-cycle debt payment tracking
   saveState();closeModal();render();
 }
@@ -3179,7 +3178,7 @@ function openPaywall(feature){
   };
   const info=featureInfo[feature]||{name:'This Pro feature',tier:'solo',why:'Upgrade to DistroFi Pro to unlock this feature and everything else.'};
   const isCouplesFeature=info.tier==='couples';
-  const freeItems=['Unlimited buckets, bills & savings goals','Full pay period history','Partner expense tracking (single device)','Recurring bills & budget rollover','Bill priority & reorder','All core tracking — forever free'];
+  const freeItems=['Unlimited buckets, bills & savings goals','Full pay period history','Partner expense tracking (single device)','Recurring bills & auto-tracking','Bill priority & reorder','All core tracking — forever free'];
   const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)','Custom market watchlist'];
   const couplesItems=['Real-time partner sync','Shared savings goals','Combined net worth view','Per-person spending reports','Everything in Pro Solo'];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
@@ -5961,7 +5960,7 @@ function renderSpend(){
     card.innerHTML=`
       <div onclick="toggleBucketExpand('${k}')" style="cursor:pointer">
         <div class="bucket-header" style="margin-bottom:10px">
-          <span class="bucket-name"><i class="ti ${b.icon}" style="font-size:19px;vertical-align:-3px;margin-right:8px;color:${col}"></i>${b.label}${b.rollover?'<i class="ti ti-arrow-forward-up" style="font-size:12px;color:var(--accent);margin-left:6px;opacity:.7"></i>':''}${b.rolloverAdded?' <span style="font-size:10px;color:var(--accent);background:#6366f118;border-radius:99px;padding:1px 7px">+'+fmt(b.rolloverAdded)+' rolled</span>':''}</span>
+          <span class="bucket-name"><i class="ti ${b.icon}" style="font-size:19px;vertical-align:-3px;margin-right:8px;color:${col}"></i>${b.label}</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:13px;color:${col};font-variant-numeric:tabular-nums">${fmt(spent)}<span style="color:var(--muted);font-size:12px"> / ${fmt(b.budget)}</span></span>
             <button class="icon-btn" onclick="event.stopPropagation();openBucketModal('${k}')"><i class="ti ti-edit"></i></button>
