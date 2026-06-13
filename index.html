@@ -3,12 +3,22 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<meta name="theme-color" content="#1b2e4c"/>
+<meta name="theme-color" content="#0d0f1a"/>
 <link rel="apple-touch-icon" href="/assets/logo.png"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="DistroFi"/>
+<meta name="description" content="DistroFi — the smart budgeting app that helps you manage cash flow, track bills, crush debt, and grow your savings. Free to start. Built for real paychecks."/>
+<meta property="og:title" content="DistroFi — Budget Smarter"/>
+<meta property="og:description" content="Manage your money by paycheck. Track bills, debt, savings, and investments — all in one place. Free to start."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://distrofi.org"/>
+<meta property="og:image" content="https://distrofi.org/assets/og-image.png"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="DistroFi — Budget Smarter"/>
+<meta name="twitter:description" content="Manage your money by paycheck. Track bills, debt, savings, and investments — all in one place."/>
+<meta name="twitter:image" content="https://distrofi.org/assets/og-image.png"/>
 <title>DistroFi</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap"/>
@@ -4554,11 +4564,38 @@ function openToS(){
 }
 function openPrivacy(){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <h3 style="margin:0">Privacy Policy</h3>
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
-    <p style="font-size:14px;color:var(--muted);line-height:1.7">Privacy Policy coming soon. For questions about your data, contact us through the feedback form in the app.</p>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px">DistroFi &nbsp;·&nbsp; Mayer Ventures LLC &nbsp;·&nbsp; Effective: June 2026</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.75">
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:0">1. Overview</p>
+      <p style="color:var(--muted);margin-bottom:14px">Mayer Ventures LLC ("we", "us", "our") operates DistroFi, a personal budgeting application ("App"). This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information. By using DistroFi, you agree to the practices described here.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">2. Information We Collect</p>
+      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Account information:</strong> When you create an account, we collect your chosen username and a display name. We do not collect your real name unless you choose to provide it.</p>
+      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Budget data:</strong> All financial data you enter — income, bills, spending, savings, investments, and debt — is stored locally on your device and, if signed in, synced to our secure cloud database to enable access across devices.</p>
+      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Payment information:</strong> Subscription payments are processed by Stripe, Inc. We do not store your credit card number or payment credentials. Stripe's privacy policy governs payment data handling.</p>
+      <p style="color:var(--muted);margin-bottom:14px"><strong style="color:var(--text)">Usage data:</strong> We may collect anonymous usage analytics to improve the App. This data cannot be used to identify you personally.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">3. How We Use Your Information</p>
+      <p style="color:var(--muted);margin-bottom:4px">We use collected information solely to provide and maintain DistroFi, sync your data across devices, process subscription payments, respond to support requests, and improve the App based on anonymous usage patterns.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:14px">4. Data Storage &amp; Security</p>
+      <p style="color:var(--muted);margin-bottom:14px">Your data is stored locally on your device and, for signed-in users, in a secured database hosted in the United States. We use industry-standard encryption in transit and at rest. Access is restricted to your account only. We do not sell, rent, or share your personal data with third parties for marketing purposes.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">5. Third-Party Services</p>
+      <p style="color:var(--muted);margin-bottom:4px">DistroFi uses <strong style="color:var(--text)">Supabase</strong> for authentication and cloud storage, and <strong style="color:var(--text)">Stripe</strong> for subscription payment processing. Each operates under their own privacy policy.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:14px">6. Your Rights</p>
+      <p style="color:var(--muted);margin-bottom:14px">You may access, correct, or request deletion of your personal data at any time. To delete your account and data, use the Clear Data option in the App or contact us directly. Exported data is available via the Export feature.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">7. Data Retention</p>
+      <p style="color:var(--muted);margin-bottom:14px">We retain your data while your account is active. Upon account deletion, data is permanently removed from our servers within 30 days.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">8. Children's Privacy</p>
+      <p style="color:var(--muted);margin-bottom:14px">DistroFi is not directed at children under 13. We do not knowingly collect information from children.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">9. Changes to This Policy</p>
+      <p style="color:var(--muted);margin-bottom:14px">We may update this policy periodically. Material changes will be communicated via the effective date above or an in-app notification.</p>
+      <p style="font-weight:700;color:var(--text);margin-bottom:4px">10. Contact</p>
+      <p style="color:var(--muted);margin-bottom:2px">For privacy questions or data deletion requests:</p>
+      <p style="color:var(--accent);margin-bottom:2px">support@distrofi.org</p>
+      <p style="color:var(--muted);font-size:11px">Mayer Ventures LLC &nbsp;·&nbsp; State of Florida, United States</p>
+    </div>
     <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
   </div></div>`;
 }
@@ -5463,7 +5500,7 @@ function renderHome(){
   if(ft)ft.style.display=getPartners().p2?'block':'none';
   const income=totalIncome(),bills=totalBills()-paidBillsAmt(),spent=totalSpent(),rem=remaining();
   document.getElementById('home-income').textContent=fmt(income);
-  const bl=document.getElementById('home-bills-left');bl.textContent=fmt(bills);bl.className='value '+(bills<=0?'green':'amber');
+  const bl=document.getElementById('home-bills-left');bl.textContent=bills<=0?'All paid ✓':fmt(bills);bl.className='value '+(bills<=0?'green':'amber');
   document.getElementById('home-spent').textContent=fmt(spent);
   const re=document.getElementById('home-remaining');
   re.textContent=fmt(rem);
