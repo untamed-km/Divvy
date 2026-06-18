@@ -885,13 +885,21 @@ function subscribeRealtime(householdId){
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'app_state',filter:`household_id=eq.${householdId}`},payload=>{
       const incoming=payload.new?.state_json;
       if(!incoming)return;
-      // Only update if newer
+      // Only apply if newer than our local state
       const cur=JSON.parse(localStorage.getItem('distrofi_app')||'{}');
-      if(!cur.lastUpdated||incoming.lastUpdated>cur.lastUpdated){
+      if(cur.lastUpdated&&incoming.lastUpdated<=cur.lastUpdated)return;
+      if(incoming.syncMode==='bills'&&STATE.syncMode==='bills'){
+        // Bills-only: merge just bills and buckets into current cycle
+        if(incoming.current){
+          STATE.current.bills=incoming.current.bills||STATE.current.bills;
+          STATE.current.buckets=incoming.current.buckets||STATE.current.buckets;
+        }
+      }else{
         Object.assign(STATE,incoming);
-        try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
-        render();showToast("Partner updated the budget",2500);
       }
+      try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+      C=STATE.current;
+      render();showToast('Partner updated the budget',2500);
     })
     .subscribe();
 }
@@ -908,6 +916,38 @@ function setSyncStatus(status){
 
 // Debounced cloud push
 let _syncTimer=null;
+
+function setSyncMode(mode){
+  STATE.syncMode=mode;
+  saveState();
+  // Refresh the sync mode button styles without re-opening modal
+  const fullBtn=document.getElementById('sync-mode-full');
+  const billsBtn=document.getElementById('sync-mode-bills');
+  if(fullBtn){
+    fullBtn.style.borderColor=mode==='full'?'var(--accent)':'var(--border)';
+    fullBtn.style.background=mode==='full'?'#7c3aed18':'var(--card2)';
+    fullBtn.style.color=mode==='full'?'var(--accent)':'var(--muted)';
+  }
+  if(billsBtn){
+    billsBtn.style.borderColor=mode==='bills'?'var(--accent)':'var(--border)';
+    billsBtn.style.background=mode==='bills'?'#7c3aed18':'var(--card2)';
+    billsBtn.style.color=mode==='bills'?'var(--accent)':'var(--muted)';
+  }
+}
+
+function buildSyncPayload(){
+  // Bills-only mode: only share bills and spending buckets, not income/debts
+  if(STATE.syncMode==='bills'){
+    return{
+      ...STATE,
+      current:{...STATE.current,bills:STATE.current.bills,buckets:STATE.current.buckets},
+      syncMode:'bills',
+      lastUpdated:new Date().toISOString(),
+    };
+  }
+  return{...STATE,lastUpdated:new Date().toISOString()};
+}
+
 function scheduleSyncPush(){
   clearTimeout(_syncTimer);
   setSyncStatus('syncing');
@@ -917,7 +957,7 @@ function scheduleSyncPush(){
       const {data:{user}}=await sb.auth.getUser();
       if(!user){setSyncStatus('offline');return;}
       const hid=getHouseholdId();
-      const stateWithTs={...STATE,lastUpdated:new Date().toISOString()};
+      const stateWithTs=buildSyncPayload();
       const row={user_id:user.id,state_json:stateWithTs,updated_at:new Date().toISOString()};
       if(hid)row.household_id=hid;
       const {error}=await sb.from('app_state').upsert(row,{onConflict:'user_id'});
@@ -2715,11 +2755,21 @@ function openPartnerSetup(){
       <label class="modal-label">Your display name</label>
       <input type="text" id="p1-name" value="${p.p1||'You'}" placeholder="Your name" autocomplete="off" style="margin-bottom:12px"/>
       <label class="modal-label">Partner's display name</label>
-      <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off"/>
-      <div class="modal-btns" style="margin-top:16px">
+      <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off" style="margin-bottom:16px"/>
+      <label class="modal-label">Sync mode</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+        <button id="sync-mode-full" onclick="setSyncMode('full')" style="padding:10px;border-radius:10px;border:1.5px solid ${(STATE.syncMode||'full')==='full'?'var(--accent)':'var(--border)'};background:${(STATE.syncMode||'full')==='full'?'#7c3aed18':'var(--card2)'};color:${(STATE.syncMode||'full')==='full'?'var(--accent)':'var(--muted)'};font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">
+          <i class="ti ti-stack-2" style="font-size:15px;display:block;margin-bottom:4px"></i>Everything
+        </button>
+        <button id="sync-mode-bills" onclick="setSyncMode('bills')" style="padding:10px;border-radius:10px;border:1.5px solid ${STATE.syncMode==='bills'?'var(--accent)':'var(--border)'};background:${STATE.syncMode==='bills'?'#7c3aed18':'var(--card2)'};color:${STATE.syncMode==='bills'?'var(--accent)':'var(--muted)'};font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">
+          <i class="ti ti-receipt" style="font-size:15px;display:block;margin-bottom:4px"></i>Bills & spending
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px">${STATE.syncMode==='bills'?'Income stays private — only bills and spending are shared.':'All budget data is shared with your partner.'}</div>
+      <div class="modal-btns" style="margin-top:4px">
         <button class="btn btn-danger" onclick="confirmLeaveHousehold()"><i class="ti ti-unlink" style="font-size:15px;vertical-align:-2px"></i> Unlink</button>
         <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="savePartners()">Save names</button>
+        <button class="btn btn-primary" onclick="savePartners()">Save</button>
       </div>
     </div></div>`;
     setTimeout(()=>document.getElementById('p1-name').focus(),100);
@@ -2755,10 +2805,13 @@ function openInviteFlow(){
     document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <h3>Share this code</h3>
       <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Have your partner open DistroFi, go to Settings → Finance together, and enter this code.</p>
-      <div onclick="navigator.clipboard?.writeText('${result.invite_code}').then(()=>showToast('Code copied!'))" style="background:linear-gradient(135deg,#7c3aed18,#6366f118);border:1.5px dashed #6366f166;border-radius:16px;padding:24px;text-align:center;cursor:pointer;margin-bottom:20px">
+      <div onclick="navigator.clipboard?.writeText('${result.invite_code}').then(()=>showToast('Code copied!'))" style="background:linear-gradient(135deg,#7c3aed18,#6366f118);border:1.5px dashed #6366f166;border-radius:16px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px">
         <div style="font-size:40px;font-weight:900;letter-spacing:8px;color:var(--accent);font-variant-numeric:tabular-nums">${result.invite_code}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:.06em">Tap to copy</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:.06em">Tap to copy code</div>
       </div>
+      <button onclick="(function(){const link='https://distrofi.org/?invite=${result.invite_code}';navigator.share?navigator.share({title:'Join my DistroFi budget',text:'Join my budget on DistroFi',url:link}).catch(()=>{}):navigator.clipboard?.writeText(link).then(()=>showToast('Link copied!'));})()" style="width:100%;padding:12px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <i class="ti ti-share" style="font-size:16px"></i> Share invite link
+      </button>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Code expires after use. Once your partner joins, the budget syncs automatically.</p>
       <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Done</button>
     </div></div>`;
@@ -2957,6 +3010,10 @@ function openSettingsModal(){
           </span>
         </label>
       </div>
+      <div onclick="openExportModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <i class="ti ti-download" style="font-size:20px;color:var(--accent)"></i>
+        <div><div style="font-size:15px;font-weight:500">Export data</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Download your budget as CSV or PDF</div></div>
+      </div>
       <div onclick="openFeedbackModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-message-circle" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Send feedback</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bugs, ideas, or anything on your mind</div></div>
@@ -2981,6 +3038,185 @@ function openSettingsModal(){
   if(remToggle){remToggle.checked=remEnabled;}
   if(remTrack){remTrack.style.background=remEnabled?'var(--accent)':'var(--border)';}
   if(remThumb){remThumb.style.transform=remEnabled?'translateX(18px)':'translateX(0)';}
+}
+
+// ── Data Export ──────────────────────────────────────────────────────────────
+
+function openExportModal(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3 style="margin-bottom:4px">Export data</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Download your full budget for the current period.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="exportCSV()" class="btn btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <i class="ti ti-file-spreadsheet"></i> Download CSV
+      </button>
+      <button onclick="exportPDF()" class="btn" style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--card);border:0.5px solid var(--border)">
+        <i class="ti ti-printer"></i> Print / Save as PDF
+      </button>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+
+function _esc(v){
+  if(v===null||v===undefined)return'';
+  const s=String(v);
+  return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function _row(...cells){return cells.map(_esc).join(',');}
+
+function exportCSV(){
+  const period=`${fmtD(C.startDate)} – ${fmtD(C.endDate)}`;
+  const now=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const rows=[];
+
+  // Header
+  rows.push(_row('DistroFi Budget Export',period));
+  rows.push(_row('Generated',now));
+  rows.push('');
+
+  // Budget summary
+  const income=totalIncome(),bills=totalBills()-paidBillsAmt(),spent=totalSpent(),rem=remaining();
+  const sav=(C.savings?.perPaycheck||0)+currentExtraSavings();
+  rows.push(_row('BUDGET SUMMARY'));
+  rows.push(_row('Income',fmt(totalIncome())));
+  rows.push(_row('Bills remaining',fmt(bills)));
+  rows.push(_row('Spent',fmt(spent)));
+  rows.push(_row('Savings',fmt(sav)));
+  rows.push(_row('Remaining',fmt(rem)));
+  rows.push('');
+
+  // Income sources
+  rows.push(_row('INCOME SOURCES'));
+  rows.push(_row('Source','Amount','Owner','Deposit Date'));
+  (C.income||[]).forEach(l=>rows.push(_row(l.label,fmt(l.amount),l.owner||'',l.depositDate||'')));
+  rows.push('');
+
+  // Bills
+  rows.push(_row('BILLS'));
+  rows.push(_row('Name','Amount','Due Day','Status','Category','Frequency'));
+  (C.bills||[]).forEach(b=>rows.push(_row(
+    b.name,fmt(b.amount||0),b.dueDay?b.dueDay+'th':'—',b.paid?'Paid':'Unpaid',b.category||'bill',b.frequency||'monthly'
+  )));
+  rows.push('');
+
+  // Transactions
+  rows.push(_row('TRANSACTIONS'));
+  rows.push(_row('Category','Description','Amount','Date','Notes'));
+  Object.keys(C.buckets||{}).forEach(k=>{
+    const bucket=C.buckets[k];
+    (bucket.transactions||[]).forEach(t=>rows.push(_row(
+      bucket.label,t.label||'',fmt(t.amount||0),t.date||'',t.notes||''
+    )));
+  });
+  rows.push('');
+
+  // Debts
+  rows.push(_row('DEBTS'));
+  rows.push(_row('Name','Type','Balance','Original Balance','APR','Min Payment','Credit Limit'));
+  (C.debts||[]).forEach(d=>rows.push(_row(
+    d.name,d.type||'',fmt(d.balance||0),fmt(d.originalBalance||0),
+    d.apr?d.apr+'%':'—',d.minPayment?fmt(d.minPayment):'—',d.creditLimit?fmt(d.creditLimit):'—'
+  )));
+  rows.push('');
+
+  // Investment goals
+  rows.push(_row('SAVINGS GOALS'));
+  rows.push(_row('Name','Target','Saved','Progress'));
+  (STATE.invGoals||[]).forEach(g=>{
+    const pct=g.goal>0?Math.round(((g.saved||0)/g.goal)*100):0;
+    rows.push(_row(g.name,fmt(g.goal||0),fmt(g.saved||0),pct+'%'));
+  });
+
+  const csv=rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`distrofi-export-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeModal();
+  showToast('CSV downloaded');
+}
+
+function exportPDF(){
+  const period=`${fmtD(C.startDate)} – ${fmtD(C.endDate)}`;
+  const now=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const income=totalIncome(),billsRem=totalBills()-paidBillsAmt(),spent=totalSpent(),rem=remaining();
+  const sav=(C.savings?.perPaycheck||0)+currentExtraSavings();
+
+  const billRows=(C.bills||[]).map(b=>`
+    <tr>
+      <td>${b.name}</td><td>${fmt(b.amount||0)}</td>
+      <td>${b.dueDay?b.dueDay+'th':'—'}</td>
+      <td><span class="badge ${b.paid?'paid':'unpaid'}">${b.paid?'Paid':'Unpaid'}</span></td>
+      <td>${b.category||'bill'}</td>
+    </tr>`).join('');
+
+  const txRows=Object.keys(C.buckets||{}).flatMap(k=>{
+    const bkt=C.buckets[k];
+    return (bkt.transactions||[]).map(t=>`
+      <tr><td>${bkt.label}</td><td>${t.label||'—'}</td><td>${fmt(t.amount||0)}</td><td>${t.date||'—'}</td><td>${t.notes||''}</td></tr>`);
+  }).join('');
+
+  const debtRows=(C.debts||[]).map(d=>`
+    <tr><td>${d.name}</td><td>${d.type||'—'}</td><td>${fmt(d.balance||0)}</td><td>${d.apr?d.apr+'%':'—'}</td><td>${d.minPayment?fmt(d.minPayment):'—'}</td></tr>`).join('');
+
+  const goalRows=(STATE.invGoals||[]).map(g=>{
+    const pct=g.goal>0?Math.round(((g.saved||0)/g.goal)*100):0;
+    return`<tr><td>${g.name}</td><td>${fmt(g.goal||0)}</td><td>${fmt(g.saved||0)}</td><td>${pct}%</td></tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>DistroFi Export — ${period}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111;background:#fff;padding:32px;max-width:900px;margin:0 auto;font-size:13px;}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #7c3aed;}
+    .logo{font-size:22px;font-weight:800;color:#7c3aed;letter-spacing:-0.5px;}
+    .meta{text-align:right;color:#666;font-size:12px;line-height:1.6;}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+    .summary-card{background:#f8f5ff;border-radius:10px;padding:14px;border:1px solid #e9e0ff;}
+    .summary-card .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;margin-bottom:4px;}
+    .summary-card .value{font-size:20px;font-weight:700;}
+    .value.green{color:#16a34a;} .value.red{color:#dc2626;} .value.amber{color:#d97706;}
+    h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;margin:24px 0 10px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:4px;}
+    th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#666;padding:6px 8px;border-bottom:1px solid #e5e7eb;}
+    td{padding:7px 8px;border-bottom:1px solid #f3f4f6;font-size:13px;}
+    tr:last-child td{border-bottom:none;}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;}
+    .badge.paid{background:#dcfce7;color:#16a34a;} .badge.unpaid{background:#fef3c7;color:#d97706;}
+    .footer{margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#999;text-align:center;}
+    @media print{body{padding:16px;}h2{break-before:avoid;}table{break-inside:avoid;}}
+  </style>
+  </head><body>
+  <div class="header">
+    <div class="logo">DistroFi</div>
+    <div class="meta">Budget Export<br>${period}<br>Generated ${now}</div>
+  </div>
+  <div class="summary">
+    <div class="summary-card"><div class="label">Income</div><div class="value green">${fmt(income)}</div></div>
+    <div class="summary-card"><div class="label">Spent</div><div class="value">${fmt(spent)}</div></div>
+    <div class="summary-card"><div class="label">Remaining</div><div class="value ${rem<0?'red':rem<200?'amber':'green'}">${fmt(rem)}</div></div>
+    <div class="summary-card"><div class="label">Bills Remaining</div><div class="value amber">${billsRem<=0?'All paid':fmt(billsRem)}</div></div>
+    <div class="summary-card"><div class="label">Savings</div><div class="value">${fmt(sav)}</div></div>
+  </div>
+  ${(C.bills||[]).length?`<h2>Bills</h2><table><thead><tr><th>Name</th><th>Amount</th><th>Due</th><th>Status</th><th>Category</th></tr></thead><tbody>${billRows}</tbody></table>`:''}
+  ${txRows?`<h2>Transactions</h2><table><thead><tr><th>Category</th><th>Description</th><th>Amount</th><th>Date</th><th>Notes</th></tr></thead><tbody>${txRows}</tbody></table>`:''}
+  ${(C.debts||[]).length?`<h2>Debts</h2><table><thead><tr><th>Name</th><th>Type</th><th>Balance</th><th>APR</th><th>Min Payment</th></tr></thead><tbody>${debtRows}</tbody></table>`:''}
+  ${(STATE.invGoals||[]).length?`<h2>Savings Goals</h2><table><thead><tr><th>Name</th><th>Target</th><th>Saved</th><th>Progress</th></tr></thead><tbody>${goalRows}</tbody></table>`:''}
+  <div class="footer">distrofi.org — Exported ${now}</div>
+  <script>window.onload=()=>window.print();<\/script>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else showToast('Allow pop-ups to open the PDF view');
+  closeModal();
 }
 
 function openFeedbackModal(){
@@ -4947,6 +5183,16 @@ async function enterApp(){
   setSyncStatus('synced');
   if(!localStorage.getItem(ONBOARD_KEY)){setTimeout(showOnboarding,400);}
   checkProactiveInsights(); // fire-and-forget daily insight check
+  // Resume pending invite link from before login
+  const pendingInvite=sessionStorage.getItem('distrofi_pending_invite');
+  if(pendingInvite){
+    sessionStorage.removeItem('distrofi_pending_invite');
+    setTimeout(()=>{
+      openJoinFlow();
+      const inp=document.getElementById('invite-code-input');
+      if(inp) inp.value=pendingInvite.toUpperCase();
+    },600);
+  }
 }
 
 async function logOut(){
@@ -6384,6 +6630,22 @@ function renderInvest(){
   if(isLoggedIn()){
     render();
     await handleStripeReturn();
+    // Handle ?invite=XXXXXX link — auto-open join flow with code pre-filled
+    const params=new URLSearchParams(window.location.search);
+    const inviteCode=params.get('invite');
+    if(inviteCode&&inviteCode.length===6){
+      window.history.replaceState({},'',window.location.pathname);
+      setTimeout(()=>{
+        openJoinFlow();
+        const inp=document.getElementById('invite-code-input');
+        if(inp){inp.value=inviteCode.toUpperCase();}
+      },400);
+    }
+  } else {
+    // Not logged in — store invite code so we can re-check after login
+    const params=new URLSearchParams(window.location.search);
+    const inviteCode=params.get('invite');
+    if(inviteCode) sessionStorage.setItem('distrofi_pending_invite',inviteCode);
   }
 })();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
