@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 545" width="620" height="545">
+  <!--
+    DistroFi Circuit-Tree Mark — Editable SVG
+    ==========================================
+    To change circle color: find fill="#2E1B82" in the CIRCLES group and change it.
+    To change line color:   find stroke="#3A2480" in the LINES group and change it.
+    To use teal circles:    change fill="#2E1B82"  →  fill="#0C9488"
+    All elements are standard SVG shapes — open in Figma, Illustrator, or Inkscape.
+  -->
+
+  <defs>
+    <!-- Gradient for lines: dark navy-indigo → medium blue-purple -->
+    <linearGradient id="lg" x1="0" y1="0" x2="620" y2="545" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#12085C"/>
+      <stop offset="50%"  stop-color="#3A2480"/>
+      <stop offset="100%" stop-color="#5060C0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════
+       LINES  (change stroke color here)
+       ═══════════════════════════════════════════════════ -->
+  <g fill="none" stroke="url(#lg)" stroke-width="18"
+     stroke-linecap="round" stroke-linejoin="round" id="lines">
+
+    <!-- Main vertical spine -->
+    <line x1="310" y1="30"  x2="310" y2="440"/>
+
+    <!-- Y-fork at bottom — two trunk lines -->
+    <line x1="310" y1="440" x2="262" y2="545"/>
+    <line x1="310" y1="440" x2="358" y2="545"/>
+
+    <!-- Left branches (spine → left endpoint) -->
+    <line x1="310" y1="125" x2="56"  y2="125"/>
+    <line x1="310" y1="207" x2="46"  y2="207"/>
+    <line x1="310" y1="280" x2="56"  y2="280"/>
+    <line x1="310" y1="372" x2="56"  y2="372"/>
+
+    <!-- Right branches (spine → right endpoint) -->
+    <line x1="310" y1="86"  x2="490" y2="86"/>
+    <line x1="310" y1="207" x2="558" y2="207"/>
+    <line x1="310" y1="280" x2="588" y2="280"/>
+    <line x1="310" y1="388" x2="508" y2="388"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════
+       CIRCLES  — change fill="#2E1B82" to any color
+       e.g. fill="#0C9488" for DistroFi teal
+       ═══════════════════════════════════════════════════ -->
+  <g id="circles" fill="#2E1B82" stroke="#12085C" stroke-width="3">
+
+    <!-- Top -->
+    <circle cx="310" cy="30"  r="28"/>
+
+    <!-- Left side (top → bottom) -->
+    <circle cx="56"  cy="125" r="28"/>
+    <circle cx="46"  cy="207" r="28"/>
+    <circle cx="56"  cy="280" r="28"/>
+    <circle cx="56"  cy="372" r="28"/>
+
+    <!-- Center hub (slightly larger) -->
+    <circle cx="310" cy="280" r="35"/>
+
+    <!-- Right side (top → bottom) -->
+    <circle cx="490" cy="86"  r="28"/>
+    <circle cx="558" cy="207" r="28"/>
+    <circle cx="588" cy="280" r="28"/>
+    <circle cx="508" cy="388" r="28"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════
+       INNER GLOW DOTS  (white center of each circle)
+       ═══════════════════════════════════════════════════ -->
+  <g id="inner-dots" fill="white" opacity="0.85">
+    <circle cx="310" cy="30"  r="10"/>
+    <circle cx="56"  cy="125" r="10"/>
+    <circle cx="46"  cy="207" r="10"/>
+    <circle cx="56"  cy="280" r="10"/>
+    <circle cx="56"  cy="372" r="10"/>
+    <circle cx="310" cy="280" r="13"/>
+    <circle cx="490" cy="86"  r="10"/>
+    <circle cx="558" cy="207" r="10"/>
+    <circle cx="588" cy="280" r="10"/>
+    <circle cx="508" cy="388" r="10"/>
+  </g>
+
+</svg>
