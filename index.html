@@ -614,12 +614,25 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <!-- FREE USER GATE -->
     <div id="members-gate" style="display:flex;flex-direction:column;padding:24px 16px 16px">
       <!-- Header -->
-      <div style="text-align:center;margin-bottom:24px">
+      <div style="text-align:center;margin-bottom:20px">
         <div style="width:56px;height:56px;border-radius:16px;background:#6366f118;border:1px solid #6366f133;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
           <i class="ti ti-crown" style="font-size:26px;color:var(--accent)"></i>
         </div>
         <div style="font-size:21px;font-weight:700;margin-bottom:6px">Unlock your Members area</div>
         <div style="font-size:14px;color:var(--muted);line-height:1.6;max-width:280px;margin:0 auto">AI insights, live markets, financial lessons — personalised to your actual budget.</div>
+      </div>
+
+      <!-- Monthly / Annual toggle -->
+      <div style="display:flex;background:var(--card2);border-radius:10px;padding:3px;margin-bottom:16px;position:relative" id="cadence-toggle">
+        <button id="cadence-monthly" onclick="setCadence('monthly')"
+          style="flex:1;padding:7px 0;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--accent);color:#fff;transition:background .15s,color .15s">
+          Monthly
+        </button>
+        <button id="cadence-annual" onclick="setCadence('annual')"
+          style="flex:1;padding:7px 0;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--muted);transition:background .15s,color .15s;display:flex;align-items:center;justify-content:center;gap:5px">
+          Annual
+          <span style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px">2 months free</span>
+        </button>
       </div>
 
       <!-- Solo card -->
@@ -629,7 +642,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
             <div style="font-size:16px;font-weight:700">Pro Solo</div>
             <div style="font-size:13px;color:var(--muted);margin-top:1px">For individuals</div>
           </div>
-          <div style="text-align:right">
+          <div style="text-align:right" id="gate-solo-price">
             <div style="font-size:20px;font-weight:800;color:var(--accent)">$2.99</div>
             <div style="font-size:11px;color:var(--muted)">/month</div>
           </div>
@@ -640,7 +653,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-history" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Unlimited budget history</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-eye" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Live markets + financial news</div>
         </div>
-        <button onclick="startTrial('solo')" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        <button data-stripe-tier="solo" onclick="startStripeCheckout('solo',_checkoutCadence)" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
           Start free trial — Solo
         </button>
       </div>
@@ -653,7 +666,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
             <div style="font-size:16px;font-weight:700">Pro Couples</div>
             <div style="font-size:13px;color:var(--muted);margin-top:1px">For partners</div>
           </div>
-          <div style="text-align:right">
+          <div style="text-align:right" id="gate-couples-price">
             <div style="font-size:20px;font-weight:800;color:#ec4899">$4.99</div>
             <div style="font-size:11px;color:var(--muted)">/month</div>
           </div>
@@ -664,7 +677,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-chart-pie" style="font-size:14px;color:#ec4899;flex-shrink:0"></i>Combined net worth view</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-sparkles" style="font-size:14px;color:#ec4899;flex-shrink:0"></i>Everything in Pro Solo</div>
         </div>
-        <button onclick="startTrial('couples')" style="width:100%;padding:13px;background:linear-gradient(135deg,#ec4899,#f43f5e);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        <button data-stripe-tier="couples" onclick="startStripeCheckout('couples',_checkoutCadence)" style="width:100%;padding:13px;background:linear-gradient(135deg,#ec4899,#f43f5e);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
           Start free trial — Couples
         </button>
       </div>
@@ -3235,18 +3248,99 @@ function openPaywall(feature){
   </div></div>`;
 }
 
-function startTrial(tier){
-  // UI demo — in production this would initiate Stripe checkout
+// ── Stripe checkout cadence state ────────────────────────────────────────────
+let _checkoutCadence='monthly';
+
+function setCadence(c){
+  _checkoutCadence=c;
+  const mBtn=document.getElementById('cadence-monthly');
+  const aBtn=document.getElementById('cadence-annual');
+  if(mBtn){mBtn.style.background=c==='monthly'?'var(--accent)':'transparent';mBtn.style.color=c==='monthly'?'#fff':'var(--muted)';}
+  if(aBtn){aBtn.style.background=c==='annual'?'var(--accent)':'transparent';aBtn.style.color=c==='annual'?'#fff':'var(--muted)';}
+  // Update price display (Stripe will show exact annual price at checkout)
+  const soloPrice=document.getElementById('gate-solo-price');
+  const couplesPrice=document.getElementById('gate-couples-price');
+  if(soloPrice)soloPrice.innerHTML=c==='annual'
+    ?`<div style="font-size:20px;font-weight:800;color:var(--accent)">$2.99</div><div style="font-size:11px;color:var(--muted)">billed annually</div>`
+    :`<div style="font-size:20px;font-weight:800;color:var(--accent)">$2.99</div><div style="font-size:11px;color:var(--muted)">/month</div>`;
+  if(couplesPrice)couplesPrice.innerHTML=c==='annual'
+    ?`<div style="font-size:20px;font-weight:800;color:#ec4899">$4.99</div><div style="font-size:11px;color:var(--muted)">billed annually</div>`
+    :`<div style="font-size:20px;font-weight:800;color:#ec4899">$4.99</div><div style="font-size:11px;color:var(--muted)">/month</div>`;
+}
+
+async function startStripeCheckout(tier,cadence){
   const t=tier||'solo';
-  closeModal();
-  activatePro(t);
-  const isCouple=t==='couples';
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="text-align:center;padding:32px 24px">
-    <div style="font-size:48px;margin-bottom:12px">🎉</div>
-    <h3 style="margin-bottom:8px">Welcome to ${isCouple?'DistroFi Couples':'DistroFi Pro'}!</h3>
-    <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Your 7-day free trial has started.<br>${isCouple?'Partner sync and all shared features are now unlocked.':'All Pro features are now unlocked.'}</p>
-    <button onclick="closeModal();render();" style="width:100%;padding:14px;background:linear-gradient(135deg,${isCouple?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Let's go</button>
-  </div></div>`;
+  const c=cadence||_checkoutCadence||'monthly';
+  const auth=getAuth();
+  if(!auth?.user_id){
+    showToast('Please log in to upgrade.');
+    return;
+  }
+  const btn=document.querySelector(`[data-stripe-tier="${t}"]`);
+  if(btn){btn.disabled=true;btn.textContent='Redirecting…';}
+  try{
+    const resp=await fetch('/api/create-checkout-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tier:t,cadence:c,userId:auth.user_id}),
+    });
+    const data=await resp.json();
+    if(data.url){
+      window.location.href=data.url;
+    }else{
+      showToast(data.error||'Could not start checkout. Try again.');
+      if(btn){btn.disabled=false;btn.textContent=t==='couples'?'Start free trial — Couples':'Start free trial — Solo';}
+    }
+  }catch(e){
+    showToast('Network error. Check your connection and try again.');
+    if(btn){btn.disabled=false;btn.textContent=t==='couples'?'Start free trial — Couples':'Start free trial — Solo';}
+  }
+}
+
+// Legacy alias — some paywall call sites use startTrial(tier)
+function startTrial(tier){startStripeCheckout(tier,_checkoutCadence);}
+
+// Called from init() when Stripe redirects back to /?stripe=success
+async function handleStripeReturn(){
+  const params=new URLSearchParams(window.location.search);
+  const result=params.get('stripe');
+  if(!result)return;
+  // Clean the URL
+  window.history.replaceState({},'',window.location.pathname);
+  if(result==='cancel'){
+    showToast('Checkout cancelled — no charge.');
+    return;
+  }
+  if(result==='success'){
+    // Optimistically activate locally; webhook will write to Supabase
+    showToast('🎉 Welcome to Pro! Setting up your account…');
+    // Poll Supabase for up to 10 s for the webhook to write pro_tier
+    const sb=getSB();
+    const auth=getAuth();
+    if(sb&&auth?.user_id){
+      for(let i=0;i<10;i++){
+        await new Promise(r=>setTimeout(r,1000));
+        const {data}=await sb.from('profiles').select('pro_tier,stripe_customer_id').eq('id',auth.user_id).maybeSingle();
+        if(data?.pro_tier){
+          setAuth({...auth,pro_tier:data.pro_tier});
+          activatePro(data.pro_tier);
+          const isCouple=data.pro_tier==='couples';
+          document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal" style="text-align:center;padding:32px 24px">
+            <div style="font-size:48px;margin-bottom:12px">🎉</div>
+            <h3 style="margin-bottom:8px">Welcome to ${isCouple?'DistroFi Couples':'DistroFi Pro'}!</h3>
+            <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Your 7-day free trial is active.<br>${isCouple?'Partner sync and all shared features are unlocked.':'All Pro features are now unlocked.'}</p>
+            <button onclick="closeModal();render();" style="width:100%;padding:14px;background:linear-gradient(135deg,${isCouple?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Let's go!</button>
+          </div></div>`;
+          render();
+          return;
+        }
+      }
+    }
+    // Webhook took >10 s — activate optimistically, sync will happen on next login
+    activatePro('solo');
+    showToast('Pro activated! Refresh if your status doesn\'t update.');
+    render();
+  }
 }
 
 function openProSettings(){
@@ -6088,7 +6182,10 @@ function renderInvest(){
 // ── Startup ──────────────────────────────────────────────────────────────
 (async function init(){
   await checkAuthGate();
-  if(isLoggedIn()){render();}
+  if(isLoggedIn()){
+    render();
+    await handleStripeReturn();
+  }
 })();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 </script>
