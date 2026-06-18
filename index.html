@@ -1022,8 +1022,9 @@ function billInPeriod(b){
   if(dueInEndMonth>=start&&dueInEndMonth<=end) return true;
   return false;
 }
-function totalBills(){return C.bills.reduce((a,b)=>a+(billInPeriod(b)?b.amount||0:0),0);}
-function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+(b.amount||0),0);}
+function billAmt(b){return(b.category==='subscription'&&b.frequency==='annual')?(b.amount||0)/12:(b.amount||0);}
+function totalBills(){return C.bills.reduce((a,b)=>a+(billInPeriod(b)?billAmt(b):0),0);}
+function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+billAmt(b),0);}
 function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
