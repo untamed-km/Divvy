@@ -12,8 +12,20 @@
     "api/stripe-webhook.js": {
       "maxDuration": 10,
       "memory": 256
+    },
+    "api/save-push-subscription.js": {
+      "maxDuration": 10
+    },
+    "api/send-bill-reminders.js": {
+      "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/send-bill-reminders",
+      "schedule": "0 9 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" }
   ],

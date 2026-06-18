@@ -322,6 +322,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved">$0</div></div>
     </div>
     <div id="payment-past-due-banner"></div>
+    <div id="upcoming-bills-banner"></div>
     <div id="balance-warning"></div>
     <div id="cycle-banner"></div>
     <div id="partner-split"></div>
@@ -1499,9 +1500,9 @@ function saveBill(idx){
     C.bills[idx].category=cat;C.bills[idx].frequency=freq;
     C.bills[idx].linkedDebtId=linkedDebtId||null;
   }
-  saveState();closeModal();render();
+  saveState();closeModal();render();syncBillRemindersIfEnabled();
 }
-function deleteBill(idx){C.bills.splice(idx,1);saveState();closeModal();render();}
+function deleteBill(idx){C.bills.splice(idx,1);saveState();closeModal();render();syncBillRemindersIfEnabled();}
 let _justPaidBill=null;
 
 // Auto-log a debt payment when a linked bill is marked paid
@@ -2944,6 +2945,18 @@ function openSettingsModal(){
         </div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-top:0.5px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:14px">
+          <i class="ti ti-bell" style="font-size:20px;color:var(--accent)"></i>
+          <div><div style="font-size:15px;font-weight:500">Bill reminders</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Notify me 3 days before &amp; day of</div></div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
+          <input type="checkbox" id="settings-reminders-toggle" onchange="toggleBillReminders(this.checked)" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="settings-reminders-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:.2s;cursor:pointer">
+            <span id="settings-reminders-thumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s"></span>
+          </span>
+        </label>
+      </div>
       <div onclick="openFeedbackModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-message-circle" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Send feedback</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bugs, ideas, or anything on your mind</div></div>
@@ -2960,6 +2973,14 @@ function openSettingsModal(){
   const a=getAuth();
   const sub=document.getElementById('settings-auth-sub');
   if(sub&&a){sub.textContent=a.method==='guest'?'Browsing as guest':a.username?'@'+a.username:(a.name||'Signed in');}
+  // Sync reminders toggle state
+  const remToggle=document.getElementById('settings-reminders-toggle');
+  const remTrack=document.getElementById('settings-reminders-track');
+  const remThumb=document.getElementById('settings-reminders-thumb');
+  const remEnabled=!!localStorage.getItem('distrofi_reminders');
+  if(remToggle){remToggle.checked=remEnabled;}
+  if(remTrack){remTrack.style.background=remEnabled?'var(--accent)':'var(--border)';}
+  if(remThumb){remThumb.style.transform=remEnabled?'translateX(18px)':'translateX(0)';}
 }
 
 function openFeedbackModal(){
@@ -3327,6 +3348,113 @@ async function openBillingPortal(){
   }catch(e){
     showToast('Network error. Try again.');
   }
+}
+
+// ── Bill Reminders / Push Notifications ─────────────────────────────────────
+
+const VAPID_PUBLIC_KEY='BNXMDaT_klzqgC4jGtAE6KbXXq7WBzU48lC-R90KGNIlc__eXOmFbG7he-I3wrJbru2-_uUUGMT7jCGrbM6_HeM';
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  return new Uint8Array([...raw].map(c=>c.charCodeAt(0)));
+}
+
+function getBillDueDays(){
+  return (C.bills||[])
+    .filter(b=>b.dueDay&&!b.paid)
+    .map(b=>({name:b.name,dueDay:b.dueDay}));
+}
+
+async function savePushSubscriptionToServer(sub,enabled){
+  const auth=getAuth();
+  if(!auth?.user_id)return;
+  try{
+    await fetch('/api/save-push-subscription',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        userId:auth.user_id,
+        subscription:sub,
+        billDueDays:getBillDueDays(),
+        enabled,
+      }),
+    });
+  }catch(e){console.warn('Could not save push subscription:',e);}
+}
+
+async function toggleBillReminders(enable){
+  const track=document.getElementById('settings-reminders-track');
+  const thumb=document.getElementById('settings-reminders-thumb');
+  function setVisual(on){
+    if(track)track.style.background=on?'var(--accent)':'var(--border)';
+    if(thumb)thumb.style.transform=on?'translateX(18px)':'translateX(0)';
+  }
+
+  if(!enable){
+    // Disable
+    localStorage.removeItem('distrofi_reminders');
+    setVisual(false);
+    if('serviceWorker' in navigator){
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(sub) await sub.unsubscribe();
+    }
+    await savePushSubscriptionToServer(null,false);
+    showToast('Bill reminders off');
+    return;
+  }
+
+  // Enable — request permission first
+  if(!('Notification' in window)){
+    showToast('Push notifications not supported on this browser.');
+    const tog=document.getElementById('settings-reminders-toggle');
+    if(tog)tog.checked=false;
+    setVisual(false);
+    return;
+  }
+
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){
+    showToast('Enable notifications in your browser settings to use this feature.');
+    const tog=document.getElementById('settings-reminders-toggle');
+    if(tog)tog.checked=false;
+    setVisual(false);
+    return;
+  }
+
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    localStorage.setItem('distrofi_reminders','1');
+    setVisual(true);
+    await savePushSubscriptionToServer(sub.toJSON(),true);
+    showToast('Bill reminders on — we\'ll notify you 3 days before and day of');
+  }catch(e){
+    console.error('Push subscribe failed:',e);
+    showToast('Could not enable notifications. Try again.');
+    const tog=document.getElementById('settings-reminders-toggle');
+    if(tog)tog.checked=false;
+    setVisual(false);
+  }
+}
+
+// Call when bills are saved/edited — keeps server-side due days in sync
+async function syncBillRemindersIfEnabled(){
+  if(!localStorage.getItem('distrofi_reminders'))return;
+  const auth=getAuth();
+  if(!auth?.user_id)return;
+  try{
+    await fetch('/api/save-push-subscription',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:auth.user_id,billDueDays:getBillDueDays(),enabled:true}),
+    });
+  }catch(e){/* silent */}
 }
 
 // Called from init() when Stripe redirects back to /?stripe=success
@@ -5627,6 +5755,35 @@ function renderHome(){
       </div>
       <i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted);flex-shrink:0"></i>
     </div>`:'';
+  }
+  // Upcoming bills banner
+  const ubb=document.getElementById('upcoming-bills-banner');
+  if(ubb){
+    const now=new Date(),today=now.getDate();
+    const inThree=new Date(now.getFullYear(),now.getMonth(),today+3).getDate();
+    const upcoming=(C.bills||[]).filter(b=>!b.paid&&b.dueDay&&(b.dueDay===today||b.dueDay===inThree));
+    if(upcoming.length){
+      const items=upcoming.map(b=>{
+        const daysLeft=b.dueDay===today?0:b.dueDay>today?b.dueDay-today:3;
+        const label=daysLeft===0?'Due today':`Due in ${daysLeft} day${daysLeft===1?'':'s'}`;
+        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${upcoming.indexOf(b)<upcoming.length-1?'border-bottom:0.5px solid #ffffff08':''}">
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${b.name}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:${daysLeft===0?'var(--red)':'var(--amber)'};font-weight:600">${label}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text)">${fmt(b.amount||0)}</span>
+          </div>
+        </div>`;
+      }).join('');
+      ubb.innerHTML=`<div style="background:var(--card);border:0.5px solid #ffffff12;border-radius:14px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="ti ti-bell-ringing" style="font-size:15px;color:var(--amber)"></i>
+          <span style="font-size:12px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px">Upcoming Bills</span>
+        </div>
+        ${items}
+      </div>`;
+    } else {
+      ubb.innerHTML='';
+    }
   }
   const badge=document.getElementById('pro-badge');
   if(badge)badge.style.display=isPro()?'inline-block':'none';
