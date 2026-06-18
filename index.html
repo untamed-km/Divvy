@@ -229,7 +229,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <input type="email" id="auth-recovery-email" placeholder="you@email.com" autocomplete="email" inputmode="email" style="margin-bottom:4px"/>
         <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4">We'll use this email to help you recover your account.</div>
       </div>
-      <!-- Login username field -->      <!-- Login username field -->
+      <!-- Login username field -->
       <div id="auth-username-login-wrap">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">USERNAME</div>
         <input type="text" id="auth-username-login" placeholder="Your username" autocomplete="username" inputmode="text" style="margin-bottom:12px"/>
@@ -243,7 +243,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="auth-tos-wrap" style="display:none;margin:16px 0 4px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
           <input type="checkbox" id="auth-tos-check" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--accent)"/>
-          <div id="auth-trust-statement" style="display:none;background:#6366f10e;border:0.5px solid #6366f130;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px">
+          <div id="auth-trust-statement" style="background:#6366f10e;border:0.5px solid #6366f130;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px">
             <i class="ti ti-lock" style="font-size:15px;color:var(--accent);flex-shrink:0;margin-top:1px"></i>
             <span style="font-size:11px;color:var(--muted);line-height:1.5">Your financial data is encrypted and never sold. We use bank-level security to keep your information private and confidential.</span>
           </div>
@@ -301,7 +301,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <h2 id="cycle-title" style="font-size:15px;font-weight:500;color:var(--muted)"></h2>
     </div>
     <!-- Hero remaining card -->
-    <div onclick="showScreen('snapshot',null)" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
+    <div id="hero-remaining-card" onclick="showScreen('snapshot',null)" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--accent)">Remaining</span>
         <div style="display:flex;align-items:center;gap:6px">
@@ -319,7 +319,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
     <div class="summary-row">
       <div class="stat-card" onclick="openSpendingChart()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Spent<i class="ti ti-chart-bar" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-spent">$0</div><div id="delta-spent" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
-      <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved" style="font-size:20px">$0</div></div>
+      <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved">$0</div></div>
     </div>
     <div id="balance-warning"></div>
     <div id="cycle-banner"></div>
@@ -2919,7 +2919,7 @@ function openSettingsModal(){
       <div onclick="closeModal();openProSettings();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px">
           <i class="ti ti-crown" style="font-size:20px;color:#f59e0b"></i>
-          <div><div style="font-size:15px;font-weight:500">${isPro()?(isCouplePro()?'Couples — Active':'Pro Solo — Active'):'Upgrade to Pro'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isPro()?(isCouplePro()?'Shared features unlocked · $5.99/mo':'AI, trends & more unlocked · $2.99/mo'):'Solo $2.99 · Couples $5.99 · Free trial'}</div></div>
+          <div><div style="font-size:15px;font-weight:500">${isPro()?(isCouplePro()?'Couples — Active':'Pro Solo — Active'):'Upgrade to Pro'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isPro()?(isCouplePro()?'Shared features unlocked · $4.99/mo':'AI, trends & more unlocked · $2.99/mo'):'Solo $2.99 · Couples $4.99 · Free trial'}</div></div>
         </div>
         ${isPro()?`<span style="font-size:11px;background:linear-gradient(135deg,${isCouplePro()?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});color:#fff;padding:3px 10px;border-radius:99px;font-weight:700">${isCouplePro()?'COUPLES':'PRO'}</span>`:'<i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>'}
       </div>
@@ -3212,7 +3212,7 @@ function openPaywall(feature){
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid ${isCouplesFeature?'#ec4899':'var(--border)'};border-radius:12px;padding:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899">Couples</div>
-          <div style="font-size:13px;font-weight:700;color:#ec4899">$5.99<span style="font-size:10px;font-weight:400;color:var(--muted)">/mo</span></div>
+          <div style="font-size:13px;font-weight:700;color:#ec4899">$4.99<span style="font-size:10px;font-weight:400;color:var(--muted)">/mo</span></div>
         </div>
         ${couplesItems.map(f=>`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0"><i class="ti ti-heart" style="font-size:12px;color:#ec4899;flex-shrink:0;margin-top:2px"></i><span style="font-size:11px;line-height:1.4">${f}</span></div>`).join('')}
       </div>
@@ -3228,7 +3228,7 @@ function openPaywall(feature){
       Start free trial — Pro Solo
     </button>
     <button onclick="startTrial('couples')" style="width:100%;padding:12px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">
-      Couples plan — $5.99/mo
+      Couples plan — $4.99/mo
     </button>`}
     <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px">7-day free trial · Cancel anytime</div>
     <button onclick="closeModal()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Maybe later</button>
@@ -3254,7 +3254,7 @@ function openProSettings(){
   const couples=isCouplePro();
   const tier=couples?'couples':'solo';
   const tierLabel=couples?'DistroFi Couples':'Pro Solo';
-  const tierPrice=couples?'$5.99/mo':'$2.99/mo';
+  const tierPrice=couples?'$4.99/mo':'$2.99/mo';
   const tierColor=couples?'#ec4899,#f43f5e':'#7c3aed,#6366f1';
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3 style="margin-bottom:16px">${pro?tierLabel+' — Active':'Upgrade'}</h3>
@@ -3267,7 +3267,7 @@ function openProSettings(){
       </div>
     </div>
     ${!couples?`<button onclick="closeModal();startTrial('couples')" style="width:100%;padding:12px;background:linear-gradient(135deg,#ec4899,#f43f5e);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:12px">
-      Upgrade to Couples — $5.99/mo
+      Upgrade to Couples — $4.99/mo
     </button>`:''}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
@@ -3281,7 +3281,7 @@ function openProSettings(){
       </div>
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid #ec4899;border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899;margin-bottom:6px">Couples</div>
-        <div style="font-size:16px;font-weight:700;color:#ec4899;margin-bottom:8px">$5.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
+        <div style="font-size:16px;font-weight:700;color:#ec4899;margin-bottom:8px">$4.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
         ${['Everything in Solo','Partner sync','Shared goals','Combined NW','Per-person reports'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">♥ ${f}</div>`).join('')}
       </div>
     </div>
