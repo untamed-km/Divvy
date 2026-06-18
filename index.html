@@ -321,6 +321,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div class="stat-card" onclick="openSpendingChart()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Spent<i class="ti ti-chart-bar" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-spent">$0</div><div id="delta-spent" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
       <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved">$0</div></div>
     </div>
+    <div id="payment-past-due-banner"></div>
     <div id="balance-warning"></div>
     <div id="cycle-banner"></div>
     <div id="partner-split"></div>
@@ -2936,6 +2937,13 @@ function openSettingsModal(){
         </div>
         ${isPro()?`<span style="font-size:11px;background:linear-gradient(135deg,${isCouplePro()?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});color:#fff;padding:3px 10px;border-radius:99px;font-weight:700">${isCouplePro()?'COUPLES':'PRO'}</span>`:'<i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>'}
       </div>
+      ${isPro()?`<div onclick="closeModal();openBillingPortal();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <div style="display:flex;align-items:center;gap:14px">
+          <i class="ti ti-credit-card" style="font-size:20px;color:var(--accent)"></i>
+          <div><div style="font-size:15px;font-weight:500">Manage subscription</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Cancel, upgrade, or update payment method</div></div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
+      </div>`:''}
       <div onclick="openFeedbackModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-message-circle" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Send feedback</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bugs, ideas, or anything on your mind</div></div>
@@ -3299,6 +3307,27 @@ async function startStripeCheckout(tier,cadence){
 
 // Legacy alias — some paywall call sites use startTrial(tier)
 function startTrial(tier){startStripeCheckout(tier,_checkoutCadence);}
+
+async function openBillingPortal(){
+  const auth=getAuth();
+  if(!auth?.user_id){showToast('Please log in first.');return;}
+  showToast('Opening billing portal…');
+  try{
+    const resp=await fetch('/api/create-portal-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:auth.user_id}),
+    });
+    const data=await resp.json();
+    if(data.url){
+      window.location.href=data.url;
+    }else{
+      showToast(data.error||'Could not open billing portal.');
+    }
+  }catch(e){
+    showToast('Network error. Try again.');
+  }
+}
 
 // Called from init() when Stripe redirects back to /?stripe=success
 async function handleStripeReturn(){
@@ -5586,6 +5615,19 @@ function accrueMonthlyInterest(){
 function render(){accrueMonthlyInterest();renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
 
 function renderHome(){
+  // Payment past due banner
+  const ppd=document.getElementById('payment-past-due-banner');
+  if(ppd){
+    const pastDue=getAuth()?.payment_past_due;
+    ppd.innerHTML=pastDue?`<div onclick="openBillingPortal()" style="background:#ef444418;border:0.5px solid #ef444444;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+      <i class="ti ti-credit-card-off" style="font-size:22px;color:var(--red);flex-shrink:0"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--red)">Payment failed</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Tap to update your payment method and keep Pro access</div>
+      </div>
+      <i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted);flex-shrink:0"></i>
+    </div>`:'';
+  }
   const badge=document.getElementById('pro-badge');
   if(badge)badge.style.display=isPro()?'inline-block':'none';
   const ft=document.getElementById('home-finance-together');

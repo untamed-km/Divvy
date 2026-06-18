@@ -6,6 +6,9 @@
     "api/create-checkout-session.js": {
       "maxDuration": 10
     },
+    "api/create-portal-session.js": {
+      "maxDuration": 10
+    },
     "api/stripe-webhook.js": {
       "maxDuration": 10,
       "memory": 256

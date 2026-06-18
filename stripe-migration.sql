@@ -16,6 +16,10 @@ CREATE INDEX IF NOT EXISTS profiles_stripe_customer_id_idx
 -- ── 2. RLS: service role can update Stripe fields (webhook uses service key) ──
 -- The service role key bypasses RLS by default — no extra policy needed.
 
--- ── 3. Verify ────────────────────────────────────────────────────────────────
--- SELECT username, pro_tier, stripe_customer_id, stripe_subscription_id, pro_since, cancelled_at
+-- ── 3. Payment past due flag ─────────────────────────────────────────────────
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS payment_past_due BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ── 4. Verify ────────────────────────────────────────────────────────────────
+-- SELECT username, pro_tier, stripe_customer_id, stripe_subscription_id, pro_since, cancelled_at, payment_past_due
 -- FROM public.profiles LIMIT 5;

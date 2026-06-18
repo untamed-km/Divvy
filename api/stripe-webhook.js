@@ -158,7 +158,7 @@ export default async function handler(req, res) {
       const customerId = invoice.customer;
       const userId = await sbFindByCustomer(customerId);
       if (userId) {
-        await sbPatch(`id=eq.${userId}`, { cancelled_at: null });
+        await sbPatch(`id=eq.${userId}`, { cancelled_at: null, payment_past_due: false });
       }
     }
 
@@ -177,9 +177,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Payment failed — don't remove Pro immediately, Stripe will retry ─────
+    // ── Payment failed — flag the account, Stripe will retry ────────────────
     else if (event.type === 'invoice.payment_failed') {
-      console.log(`Payment failed for customer ${event.data.object.customer} — Stripe will retry`);
+      const invoice = event.data.object;
+      const customerId = invoice.customer;
+      const userId = await sbFindByCustomer(customerId);
+      if (userId) {
+        await sbPatch(`id=eq.${userId}`, { payment_past_due: true });
+        console.log(`Payment failed for user ${userId} — flagged as past due`);
+      }
     }
 
   } catch (e) {

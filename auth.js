@@ -371,10 +371,10 @@ async function submitAuth(){
           STATE=cloudState.state_json;C=STATE.current;
           try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
         }
-        const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier').eq('id',data.user.id).maybeSingle();
+        const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier,payment_past_due').eq('id',data.user.id).maybeSingle();
         // Stamp last_seen_at for admin active-user tracking
         sb.from('profiles').update({last_seen_at:new Date().toISOString()}).eq('id',data.user.id).then(()=>{});
-        setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,user_id:data.user.id,pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
+        setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,user_id:data.user.id,pro_tier:profile?.pro_tier||null,payment_past_due:!!profile?.payment_past_due,method:'supabase',since:new Date().toISOString()});
         if(profile?.pro_tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:profile.pro_tier,since:new Date().toISOString()}));}
         else{localStorage.removeItem(PRO_KEY);}
         await initHousehold(data.user.id);
