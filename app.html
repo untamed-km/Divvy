@@ -3018,6 +3018,10 @@ function openSettingsModal(){
         <i class="ti ti-message-circle" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Send feedback</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bugs, ideas, or anything on your mind</div></div>
       </div>
+      ${getAuth()?.username&&getAuth()?.method!=='guest'?`<div onclick="closeModal();setTimeout(openReferralModal,50)" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-gift" style="font-size:20px;color:var(--green)"></i><div><div style="font-size:15px;font-weight:500">Refer a friend</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Give 14 days free · Earn 1 free month</div></div></div>
+        <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
+      </div>`:''}
       <div onclick="confirmLogout();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-logout" style="font-size:20px;color:var(--muted)"></i>
         <div><div style="font-size:15px;font-weight:500">Log out</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="settings-auth-sub">Signed in</div></div>
@@ -3038,6 +3042,53 @@ function openSettingsModal(){
   if(remToggle){remToggle.checked=remEnabled;}
   if(remTrack){remTrack.style.background=remEnabled?'var(--accent)':'var(--border)';}
   if(remThumb){remThumb.style.transform=remEnabled?'translateX(18px)':'translateX(0)';}
+}
+
+// ── Referral Modal ───────────────────────────────────────────────────────────
+async function openReferralModal(){
+  const a=getAuth();
+  if(!a?.username)return;
+  const link=`https://distrofi.org/app?ref=${encodeURIComponent(a.username)}`;
+
+  // Fetch stats from Supabase
+  let totalRefs=0,rewardsEarned=0;
+  const sb=getSB();
+  if(sb&&a.user_id){
+    const {count:tc}=await sb.from('profiles').select('id',{count:'exact',head:true}).eq('referred_by',a.user_id);
+    const {count:rc}=await sb.from('profiles').select('id',{count:'exact',head:true}).eq('referred_by',a.user_id).eq('referral_reward_given',true);
+    totalRefs=tc||0;rewardsEarned=rc||0;
+  }
+
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3 style="margin-bottom:4px">Refer a friend</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Share your link. They get 14 days free. You get a free month when they subscribe.</p>
+    <div style="background:var(--card2);border-radius:14px;padding:16px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Your referral link</div>
+      <div style="font-size:13px;font-weight:600;color:var(--accent);word-break:break-all;margin-bottom:12px">${link}</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="navigator.clipboard?.writeText('${link}').then(()=>showToast('Link copied!'))" class="btn btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px">
+          <i class="ti ti-copy"></i> Copy link
+        </button>
+        ${'share' in navigator?`<button onclick="navigator.share({title:'DistroFi',text:'Try DistroFi — the budgeting app I use. 14 days free:',url:'${link}'})" class="btn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;background:var(--card);border:0.5px solid var(--border)">
+          <i class="ti ti-share"></i> Share
+        </button>`:''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:var(--text)">${totalRefs}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Friends joined</div>
+      </div>
+      <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:var(--green)">${rewardsEarned}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Free months earned</div>
+      </div>
+    </div>
+    <div style="background:#22c55e10;border:0.5px solid #22c55e33;border-radius:12px;padding:12px;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px">
+      <strong style="color:var(--green)">How it works:</strong> Your friend signs up with your link and gets 14 days free instead of 7. When they make their first payment, you automatically get one free month on your next bill. No limit on referrals.
+    </div>
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  </div></div>`;
 }
 
 // ── Data Export ──────────────────────────────────────────────────────────────
@@ -3547,7 +3598,7 @@ async function startStripeCheckout(tier,cadence){
     const resp=await fetch('/api/create-checkout-session',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tier:t,cadence:c,userId:auth.user_id}),
+      body:JSON.stringify({tier:t,cadence:c,userId:auth.user_id,referred:!!localStorage.getItem('distrofi_referred')}),
     });
     const data=await resp.json();
     if(data.url){

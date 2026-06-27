@@ -23,9 +23,9 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS });
   }
 
-  let tier, cadence, userId;
+  let tier, cadence, userId, referred;
   try {
-    ({ tier, cadence, userId } = await req.json());
+    ({ tier, cadence, userId, referred } = await req.json());
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: CORS });
   }
@@ -51,7 +51,7 @@ export default async function handler(req) {
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
     client_reference_id: userId,
-    'subscription_data[trial_period_days]': '7',
+    'subscription_data[trial_period_days]': referred ? '14' : '7',
     'subscription_data[metadata][tier]': tier,
     allow_promotion_codes: 'true',
     success_url: `${origin}/app?stripe=success&session_id={CHECKOUT_SESSION_ID}`,

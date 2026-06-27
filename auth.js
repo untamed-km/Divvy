@@ -312,13 +312,6 @@ async function submitAuth(){
     const email=emailVal; // use real email as Supabase auth email directly
     const password=pwd; // raw password — no derivation
 
-    // Validate invite code
-    const inviteCodeRaw=(document.getElementById('auth-invite-code')?.value||'').trim().toUpperCase();
-    if(!inviteCodeRaw){showAuthError('Please enter your invite code.');setAuthLoading(false);return;}
-    if(sb){
-      const {data:codeRow,error:codeErr}=await sb.from('beta_codes').select('code,used').eq('code',inviteCodeRaw).maybeSingle();
-      if(codeErr||!codeRow||codeRow.used){showAuthError('Invalid invite code.');setAuthLoading(false);return;}
-    }
     // Check username availability
     if(sb){
       const {data:existing}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
@@ -328,9 +321,27 @@ async function submitAuth(){
       if(error){showAuthError(error.message);setAuthLoading(false);return;}
       // Save profile
       if(data.user){
-        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,email:emailVal});
-        // Mark invite code as used
-        await sb.from('beta_codes').update({used:true,used_by:data.user.id,used_at:new Date().toISOString()}).eq('code',inviteCodeRaw);
+        // Check for referral
+        const refCode=localStorage.getItem('distrofi_ref');
+        let referredBy=null;
+        if(refCode){
+          const {data:referrer}=await sb.from('profiles').select('id').eq('referral_code',refCode).maybeSingle();
+          if(referrer?.id&&referrer.id!==data.user.id)referredBy=referrer.id;
+          localStorage.removeItem('distrofi_ref');
+          if(referredBy)localStorage.setItem('distrofi_referred','1');
+        }
+        await sb.from('profiles').insert({
+          id:data.user.id,username,display_name:displayName,email:emailVal,
+          referral_code:username,
+          ...(referredBy?{referred_by:referredBy}:{})
+        });
+        // Email confirmation required — don't enter app yet
+        if(!data.session){
+          setAuthLoading(false);
+          const e=document.getElementById('auth-error');
+          if(e){e.style.background='#22c55e18';e.style.borderColor='#22c55e44';e.style.color='var(--green)';e.textContent='Account created! Check your email to confirm your address, then log in.';e.style.display='block';}
+          return;
+        }
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
@@ -433,5 +444,15 @@ async function logOut(){
   if(ov)ov.style.display='flex';
 }
 
+
+// ── Referral code capture ─────────────────────────────────────────────────────
+// Runs on page load — stores ?ref= param so it survives to signup
+(function(){
+  try{
+    const p=new URLSearchParams(window.location.search);
+    const ref=p.get('ref');
+    if(ref)localStorage.setItem('distrofi_ref',ref.toLowerCase().trim());
+  }catch(e){}
+})();
 
 // ══════════════════════════════════════════

@@ -72,6 +72,44 @@ async function sbFindByCustomer(customerId) {
   return rows[0]?.id || null;
 }
 
+async function sbGet(path) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/${path}`;
+  const resp = await fetch(url, { headers: sbHeaders() });
+  if (!resp.ok) return null;
+  const rows = await resp.json();
+  return rows[0] || null;
+}
+
+async function applyReferralReward(userId) {
+  const couponId = process.env.STRIPE_REFERRAL_COUPON_ID;
+  if (!couponId) return;
+
+  const profile = await sbGet(`profiles?id=eq.${userId}&select=referred_by,referral_reward_given`);
+  if (!profile?.referred_by || profile?.referral_reward_given) return;
+
+  const referrer = await sbGet(`profiles?id=eq.${profile.referred_by}&select=stripe_subscription_id`);
+
+  if (referrer?.stripe_subscription_id) {
+    const stripeResp = await fetch(`https://api.stripe.com/v1/subscriptions/${referrer.stripe_subscription_id}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ coupon: couponId }).toString(),
+    });
+    if (stripeResp.ok) {
+      console.log(`Referral reward applied to referrer ${profile.referred_by}`);
+    } else {
+      const err = await stripeResp.json();
+      console.error('Referral coupon error:', err.error?.message);
+    }
+  }
+
+  // Mark reward given regardless — prevents double-reward on retry
+  await sbPatch(`id=eq.${userId}`, { referral_reward_given: true });
+}
+
 async function getSubscriptionTier(subscriptionId) {
   const resp = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
     headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` },
@@ -159,6 +197,8 @@ export default async function handler(req, res) {
       const userId = await sbFindByCustomer(customerId);
       if (userId) {
         await sbPatch(`id=eq.${userId}`, { cancelled_at: null, payment_past_due: false });
+        // Apply referral reward to referrer on first payment (idempotent)
+        await applyReferralReward(userId);
       }
     }
 
