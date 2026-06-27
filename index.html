@@ -697,6 +697,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <div id="members-hub-cards"></div>
         <div style="height:1px;background:var(--border);margin:16px 0"></div>
         <div id="members-insight" style="margin-bottom:8px"></div>
+        <div id="members-poll" style="margin-bottom:8px"></div>
         <div id="members-networth" style="margin-bottom:8px"><div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:16px;padding:16px;margin-bottom:4px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Worth</div><div style="height:28px;background:var(--border);border-radius:8px;width:120px;opacity:.4"></div></div></div>
         <div id="members-couples" style="display:none;margin-bottom:8px"></div>
       </div>
@@ -734,6 +735,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <!-- Merch sub-view -->
       <div id="members-merch" style="display:none">
         <div id="mkt-merch"></div>
+      </div>
+      <!-- Community sub-view -->
+      <div id="members-community" style="display:none">
+        <div id="mkt-community"></div>
       </div>
     </div>
   </div>
@@ -4407,7 +4412,7 @@ function sparkSVG(data,up){
 }
 
 
-const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop'};
+const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop',community:'Community'};
 function toggleInsights(){
   const exp=document.getElementById('insights-expanded');
   const chev=document.getElementById('insights-chevron');
@@ -4421,7 +4426,8 @@ function showMembersView(view){
   if(view==='markets')fetchLiveMarketData();
   if(view==='news')fetchLiveNews();
   if(view==='merch')renderMarketplace();
-  const views=['hub','markets','news','learn','shop','deals','merch'];
+  if(view==='community')renderCommunityView();
+  const views=['hub','markets','news','learn','shop','deals','merch','community'];
   views.forEach(v=>{
     const el=document.getElementById('members-'+(v==='hub'?'hub':v));
     if(el)el.style.display=(v===view||(v==='hub'&&view==='hub'))?'block':'none';
@@ -4592,6 +4598,9 @@ function renderMarketplace(){
   const insight=document.getElementById('members-insight');
   if(insight)fetchHubInsight();
 
+  // ── Community Poll mini card ──
+  renderMiniPoll();
+
   // ── Net Worth card ──
   const nwCard=document.getElementById('members-networth');
   if(nwCard){
@@ -4692,6 +4701,7 @@ function renderMarketplace(){
       {id:'news',icon:'ti-news',color:'var(--accent)',bg:'#6366f118',label:'News',sub:liveNewsHeadline,subCol:'var(--muted)',badge:null},
       {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' unread':'All read',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
       {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
+      {id:'community',icon:'ti-users-group',color:'#f59e0b',bg:'#f59e0b18',label:'Community',sub:'Vote on this week\'s poll',subCol:'var(--muted)',badge:'POLL',badgeCol:'#f59e0b'},
     ];
     hubCards.innerHTML=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Explore</div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
@@ -6852,3 +6862,62 @@ function removeHolding(i){
 </script>
 </body>
 </html>
+
+
+// ── Community Polls ──────────────────────────────────────────────────────────
+function getPollUserId(){let uid=localStorage.getItem('distrofi_poll_uid');if(!uid){uid=crypto.randomUUID();localStorage.setItem('distrofi_poll_uid',uid);}return getAuth()?.user_id||uid;}
+
+async function fetchActivePoll(){try{const r=await fetch(SUPA_URL+'/rest/v1/polls?active=eq.true&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();return polls[0]||null;}catch(e){return null;}}
+
+async function fetchPollResults(pollId){try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&select=option_id',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();const counts={};(Array.isArray(votes)?votes:[]).forEach(v=>{counts[v.option_id]=(counts[v.option_id]||0)+1;});return counts;}catch(e){return {};}}
+
+async function checkUserVoted(pollId){const userId=getPollUserId();try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&user_id=eq.'+encodeURIComponent(userId)+'&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();return Array.isArray(votes)&&votes.length?votes[0].option_id:null;}catch(e){return null;}}
+
+async function submitPollVote(pollId,optionId){const userId=getPollUserId();try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes',{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({poll_id:pollId,user_id:userId,option_id:optionId})});return r.ok||r.status===409;}catch(e){return false;}}
+
+async function renderMiniPoll(){
+  const el=document.getElementById('members-poll');
+  if(!el)return;
+  const poll=await fetchActivePoll();
+  if(!poll){el.innerHTML='';return;}
+  const COLS=['#6366f1','#3b82f6','#22c55e','#f59e0b'];
+  const [votedOption,results]=await Promise.all([checkUserVoted(poll.id),fetchPollResults(poll.id)]);
+  const totalVotes=Object.values(results).reduce((a,v)=>a+v,0);
+  const opts=poll.options||[];
+  if(votedOption){
+    const bars=opts.map((o,i)=>{const c=results[o.id]||0;const p=totalVotes>0?Math.round((c/totalVotes)*100):0;const chosen=o.id===votedOption;return`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:${chosen?700:400};color:${chosen?COLS[i%COLS.length]:'var(--text)'};">${chosen?'✓ ':''}${o.label}</span><span style="color:var(--muted)">${p}%</span></div><div style="height:6px;background:var(--card2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p}%;background:${COLS[i%COLS.length]};border-radius:99px"></div></div></div>`;}).join('');
+    el.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #f59e0b;border-radius:16px;padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b">Community Poll</div><span style="font-size:10px;color:var(--muted)">${totalVotes} vote${totalVotes!==1?'s':''}</span></div><div style="font-size:13px;font-weight:600;margin-bottom:12px;line-height:1.4">${poll.question}</div>${bars}<button onclick="showMembersView('community')" style="width:100%;margin-top:8px;padding:8px;background:none;border:0.5px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">See full results →</button></div>`;
+  }else{
+    const btns=opts.map((o,i)=>`<button onclick="castPollVote('${poll.id}','${o.id}')" style="width:100%;text-align:left;padding:11px 14px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:7px">${o.label}</button>`).join('');
+    el.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #f59e0b;border-radius:16px;padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b">Community Poll</div><span style="font-size:10px;color:var(--muted)">${totalVotes} vote${totalVotes!==1?'s':''}</span></div><div style="font-size:13px;font-weight:600;margin-bottom:12px;line-height:1.4">${poll.question}</div>${btns}</div>`;
+  }
+}
+
+async function castPollVote(pollId,optionId){
+  await submitPollVote(pollId,optionId);
+  renderMiniPoll();
+  const cv=document.getElementById('mkt-community');
+  if(cv&&cv.innerHTML)renderCommunityView();
+}
+
+async function renderCommunityView(){
+  const el=document.getElementById('mkt-community');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Loading…</div>';
+  const poll=await fetchActivePoll();
+  if(!poll){el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">No active poll right now — check back soon!</div>';return;}
+  const COLS=['#6366f1','#3b82f6','#22c55e','#f59e0b'];
+  const [votedOption,results]=await Promise.all([checkUserVoted(poll.id),fetchPollResults(poll.id)]);
+  const totalVotes=Object.values(results).reduce((a,v)=>a+v,0);
+  const opts=poll.options||[];
+  let html=`<div style="background:var(--card);border:0.5px solid #f59e0b44;border-left:3px solid #f59e0b;border-radius:16px;padding:18px;margin-bottom:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#f59e0b;margin-bottom:10px">This week's poll</div><div style="font-size:16px;font-weight:700;line-height:1.4;margin-bottom:14px">${poll.question}</div>`;
+  if(votedOption){
+    html+=opts.map((o,i)=>{const c=results[o.id]||0;const p=totalVotes>0?Math.round((c/totalVotes)*100):0;const chosen=o.id===votedOption;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:13px;font-weight:${chosen?700:400};color:${chosen?COLS[i%COLS.length]:'var(--text)'}">${chosen?'<i class=\"ti ti-circle-check\" style=\"font-size:13px;vertical-align:-1px;margin-right:4px\"></i>':''}${o.label}</span><span style="font-size:12px;color:var(--muted)">${p}% · ${c} vote${c!==1?'s':''}</span></div><div style="height:8px;background:var(--card2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p}%;background:${COLS[i%COLS.length]};border-radius:99px;opacity:${chosen?1:0.6}"></div></div></div>`;}).join('');
+    html+=`<div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">${totalVotes} total vote${totalVotes!==1?'s':''} · Thanks for participating!</div>`;
+  }else{
+    html+=opts.map((o,i)=>`<button onclick="castPollVote('${poll.id}','${o.id}')" style="width:100%;text-align:left;padding:13px 16px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:8px;background:${COLS[i%COLS.length]}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:${COLS[i%COLS.length]}">${String.fromCharCode(65+i)}</div>${o.label}</button>`).join('');
+    html+=`<div style="font-size:11px;color:var(--muted);text-align:center">${totalVotes} vote${totalVotes!==1?'s':''} so far</div>`;
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
