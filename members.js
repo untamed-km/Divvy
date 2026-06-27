@@ -1,6 +1,82 @@
 const MKT_CACHE_KEY='distrofi_mkt_cache';
 const MKT_CACHE_TTL=60000; // 60 seconds
 
+// ── Hub AI insight cache (per session) ──────────────────────────
+const HUB_INSIGHT_CACHE_KEY='distrofi_hub_insight';
+function getHubInsightCache(){try{const c=JSON.parse(sessionStorage.getItem(HUB_INSIGHT_CACHE_KEY)||'{}');return c.text||null;}catch(e){return null;}}
+function setHubInsightCache(text){try{sessionStorage.setItem(HUB_INSIGHT_CACHE_KEY,JSON.stringify({text}));}catch(e){}}
+function clearHubInsightCache(){try{sessionStorage.removeItem(HUB_INSIGHT_CACHE_KEY);}catch(e){}}
+
+// ── Portfolio holdings ───────────────────────────────────────────
+const HOLDINGS_KEY='distrofi_holdings';
+function getHoldings(){try{return JSON.parse(localStorage.getItem(HOLDINGS_KEY)||'[]');}catch(e){return[];}}
+function saveHoldings(h){localStorage.setItem(HOLDINGS_KEY,JSON.stringify(h));}
+
+// ── Budget health grade ──────────────────────────────────────────
+function calcBudgetGrade(){
+  const income=totalIncome();
+  if(!income)return{grade:'—',col:'var(--muted)',label:'No data',detail:'Add income to get your score.'};
+  const rem=remaining();
+  const saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
+  const savRate=saved/income;
+  const debtPmt=C.debtPayments||0;
+  const debtRatio=debtPmt/income;
+  const bills=totalBills();
+  const billRatio=bills/income;
+  let score=0;
+  // Savings rate: 0–40 pts
+  if(savRate>=0.20)score+=40;
+  else if(savRate>=0.10)score+=25;
+  else if(savRate>=0.05)score+=15;
+  else if(savRate>0)score+=5;
+  // Budget positive: 0–30 pts
+  if(rem>=0)score+=30;
+  else score+=Math.max(0,30+Math.round((rem/income)*30));
+  // Debt-to-income: 0–20 pts
+  if(debtRatio<0.15)score+=20;
+  else if(debtRatio<0.30)score+=10;
+  else if(debtRatio<0.50)score+=5;
+  // Bills coverage: 0–10 pts
+  if(billRatio<0.50)score+=10;
+  else if(billRatio<0.70)score+=5;
+  score=Math.max(0,Math.min(100,score));
+  let grade,col,label;
+  if(score>=90){grade='A';col='var(--green)';label='Excellent';}
+  else if(score>=80){grade='A−';col='var(--green)';label='Great';}
+  else if(score>=70){grade='B';col='#4ade80';label='Good';}
+  else if(score>=60){grade='C';col='var(--amber)';label='Fair';}
+  else if(score>=50){grade='D';col='#f97316';label='Needs Work';}
+  else{grade='F';col='var(--red)';label='Critical';}
+  const details=[];
+  if(rem<0)details.push(`Over budget by ${fmt(Math.abs(rem))}`);
+  if(savRate<0.10)details.push(`Savings rate ${Math.round(savRate*100)}% — target 10%+`);
+  if(debtRatio>=0.30)details.push(`Debt payments ${Math.round(debtRatio*100)}% of income`);
+  if(!details.length&&score>=80)details.push(`Saving ${Math.round(savRate*100)}% of income — keep it up`);
+  return{grade,col,label,score,detail:details[0]||`Score ${score}/100`};
+}
+
+// ── Personalized lesson sort ─────────────────────────────────────
+function sortedLessons(){
+  const income=totalIncome();
+  const debtPmt=C.debtPayments||0;
+  const saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
+  const savRate=income>0?saved/income:0;
+  const allTimeSav=allTimeSavings();
+  const readLessons=getReadLessons();
+  // Index-based priority scores (higher = show earlier)
+  const pri={0:0,1:0,2:5,3:0,4:0,5:0,6:0,7:5};
+  if(debtPmt>0)pri[4]+=20;          // Pay Off Debt if they have debt
+  if(allTimeSav<1000)pri[5]+=20;    // Emergency fund if savings low
+  else if(allTimeSav<3000)pri[5]+=10;
+  if(allTimeSav>5000){pri[1]+=15;pri[3]+=10;pri[6]+=10;} // Investing if healthy savings
+  if(savRate<0.05)pri[2]+=15;       // 50/30/20 if savings rate is poor
+  return MKT_LEARN.map((l,i)=>({...l,_orig:i})).sort((a,b)=>{
+    const aScore=(readLessons.includes(a._orig)?-100:0)+pri[a._orig];
+    const bScore=(readLessons.includes(b._orig)?-100:0)+pri[b._orig];
+    return bScore-aScore;
+  });
+}
+
 // CoinGecko ID map
 const COINGECKO_IDS={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',AVAX:'avalanche-2',LINK:'chainlink',MATIC:'matic-network',DOT:'polkadot'};
 
@@ -159,6 +235,7 @@ function renderNewsWithData(articles){
 }
 
 function renderMarketsWithData(liveData){
+  renderHoldings();
   const wl=getWatchlist();
   const st=document.getElementById('mkt-stocks');
   const cr=document.getElementById('mkt-crypto');
@@ -190,10 +267,10 @@ function toggleWatch(type,sym){
   renderMarketplace();
 }
 const MKT_NEWS=[
-  {title:'Federal Reserve holds interest rates steady for third consecutive meeting',summary:'The Fed signaled it needs more data before cutting rates, with officials citing persistent services inflation.',src:'Reuters',cat:'Policy',url:'https://www.reuters.com/markets/us/federal-reserve/'},
-  {title:'How to build an emergency fund in 6 months',summary:'Financial planners recommend saving 3-6 months of expenses. Here\'s a realistic step-by-step plan.',src:'NerdWallet',cat:'Personal Finance',url:'https://www.nerdwallet.com/article/banking/emergency-fund-why-it-matters'},
-  {title:'Inflation cools to lowest level in three years',summary:'The CPI report showed price growth slowing across food, shelter, and energy — good news for household budgets.',src:'CNBC',cat:'Economy',url:'https://www.cnbc.com/economy/'},
-  {title:'The case for automating your savings',summary:'Studies show people who automate transfers save 2-3x more than those who move money manually each month.',src:'Investopedia',cat:'Savings',url:'https://www.investopedia.com/articles/personal-finance/040915/how-automate-your-savings.asp'},
+  {title:'How the Federal Reserve affects your savings account rate',summary:'When the Fed raises or lowers its benchmark rate, banks follow — here\'s how it directly impacts what you earn on your cash.',src:'Investopedia',cat:'Policy',url:'https://www.investopedia.com/articles/economics/08/federal-reserve.asp'},
+  {title:'How to build an emergency fund in 6 months',summary:'Financial planners recommend saving 3–6 months of expenses. Here\'s a realistic step-by-step plan.',src:'NerdWallet',cat:'Personal Finance',url:'https://www.nerdwallet.com/article/banking/emergency-fund-why-it-matters'},
+  {title:'How inflation impacts your household budget — and what to do about it',summary:'Even modest inflation erodes purchasing power over time. These budgeting moves help you stay ahead.',src:'CNBC',cat:'Economy',url:'https://www.cnbc.com/economy/'},
+  {title:'The case for automating your savings',summary:'Studies show people who automate transfers save 2–3x more than those who move money manually each month.',src:'Investopedia',cat:'Savings',url:'https://www.investopedia.com/articles/personal-finance/040915/how-automate-your-savings.asp'},
   {title:'Index funds vs. ETFs: what\'s the difference?',summary:'Both offer low-cost diversification, but there are key differences in how they\'re bought, sold, and taxed.',src:'Investopedia',cat:'Investing',url:'https://www.investopedia.com/articles/investing/102015/etf-vs-index-fund.asp'},
 ];
 const LESSONS_READ_KEY='distrofi_lessons_read';
@@ -318,7 +395,7 @@ function sparkSVG(data,up){
 }
 
 
-const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals'};
+const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',deals:'Member Deals'};
 function toggleInsights(){
   const exp=document.getElementById('insights-expanded');
   const chev=document.getElementById('insights-chevron');
@@ -331,7 +408,7 @@ function toggleInsights(){
 function showMembersView(view){
   if(view==='markets')fetchLiveMarketData();
   if(view==='news')fetchLiveNews();
-  const views=['hub','markets','news','learn','shop','deals'];
+  const views=['hub','markets','news','learn','deals'];
   views.forEach(v=>{
     const el=document.getElementById('members-'+(v==='hub'?'hub':v));
     if(el)el.style.display=(v===view||(v==='hub'&&view==='hub'))?'block':'none';
@@ -413,11 +490,12 @@ function renderMarketplace(){
     const diff=Math.ceil((new Date(C.endDate+'T00:00:00')-new Date())/(864e5));
     const tier=isCouplePro()?'COUPLES':'PRO';
     const col=isCouplePro()?'#ec4899':'#6366f1';
+    const grade=calcBudgetGrade();
     statsMini.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div style="font-size:16px;font-weight:700">Members</div>
       <span style="background:${col};color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em">${tier}</span>
     </div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
       <div style="flex:1;background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Remaining</div>
         <div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:${rem<0?'var(--red)':rem<200?'var(--amber)':'var(--green)'}">${fmt(rem)}</div>
@@ -430,48 +508,20 @@ function renderMarketplace(){
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Days left</div>
         <div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:${diff<=3?'var(--amber)':'var(--text)'}">${diff>0?diff:0}</div>
       </div>
+    </div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid ${grade.col};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:32px;font-weight:900;color:${grade.col};font-variant-numeric:tabular-nums;line-height:1;min-width:40px;text-align:center">${grade.grade}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:${grade.col}">${grade.label} Budget Health</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${grade.detail}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);flex-shrink:0">${grade.score}/100</div>
     </div>`;
   }
 
-  // ── AI Insights — collapsed hub card + expandable ──
+  // ── AI Insights — async call, session-cached ──
   const insight=document.getElementById('members-insight');
-  if(insight){
-    const spent=totalSpent(),income=totalIncome(),rem=remaining();
-    const pct=income>0?Math.round((spent/income)*100):0;
-    const saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
-    const bills=totalBills()-paidBillsAmt();
-    const signals=[];
-    if(rem<0) signals.push({icon:'ti-alert-circle',col:'var(--red)',msg:`Over budget by ${fmt(Math.abs(rem))} — review your top spending buckets.`});
-    else if(pct>70) signals.push({icon:'ti-alert-triangle',col:'var(--amber)',msg:`${pct}% of income spent. You\'re in the cautious zone.`});
-    else signals.push({icon:'ti-circle-check',col:'var(--green)',msg:`On track — ${pct}% of income spent with ${fmt(rem)} remaining.`});
-    if(bills>0) signals.push({icon:'ti-receipt-2',col:'var(--amber)',msg:`${fmt(bills)} in unpaid bills this period.`});
-    if(saved===0&&income>0) signals.push({icon:'ti-pig-money',col:'var(--muted)',msg:`No savings logged this period.`});
-    else if(saved>0) signals.push({icon:'ti-pig-money',col:'var(--green)',msg:`${fmt(saved)} saved this period — great habit.`});
-    const allTime=allTimeSavings()+allTime401K().total+allTimeInvestments().grand;
-    if(allTime>0) signals.push({icon:'ti-trending-up',col:'var(--accent)',msg:`Net worth tracked: ${fmt(allTime)}.`});
-    const top=signals[0];
-    const extra=signals.length-1;
-    const insightBorderCol=rem<0?'var(--red)':pct>70?'var(--amber)':'var(--green)';
-    insight.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid ${insightBorderCol};border-radius:14px;padding:14px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px" onclick="toggleInsights()" style="cursor:pointer">
-        <div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-            <i class="ti ${top.icon}" style="font-size:14px;color:${top.col};flex-shrink:0"></i>
-            <span style="font-size:13px;color:var(--text);line-height:1.4">${top.msg}</span>
-          </div>
-          ${extra>0?`<div style="font-size:11px;color:var(--accent);margin-top:2px">+${extra} more insight${extra!==1?'s':''} — tap to expand</div>`:''}
-        </div>
-        <i class="ti ti-chevron-down" id="insights-chevron" style="font-size:16px;color:var(--muted);flex-shrink:0;transition:transform .2s"></i>
-      </div>
-      <div id="insights-expanded" style="display:none;margin-top:12px;border-top:0.5px solid var(--border);padding-top:10px">
-        ${signals.slice(1).map(s=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
-          <i class="ti ${s.icon}" style="font-size:15px;color:${s.col};flex-shrink:0;margin-top:1px"></i>
-          <span style="font-size:13px;line-height:1.5;color:var(--text)">${s.msg}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }
+  if(insight)fetchHubInsight();
 
   // ── Net Worth card ──
   const nwCard=document.getElementById('members-networth');
@@ -519,6 +569,7 @@ function renderMarketplace(){
       <div style="display:flex;justify-content:space-between">
         ${breakdown.map(b=>`<div style="text-align:center"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${b.col}">${fmt(b.val)}</div><div style="font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.04em">${b.label}</div></div>`).join('')}
       </div>
+      ${(C.debtPayments||0)>0?`<div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:12px;color:var(--muted)">Debt payments / period</div><div style="font-size:13px;font-weight:600;color:var(--red)">−${fmt(C.debtPayments)}</div></div>`:''}
     </div>`;
   }
 
@@ -569,8 +620,7 @@ function renderMarketplace(){
       {id:'markets',icon:'ti-chart-candle',color:'#3b82f6',bg:'#3b82f618',label:'Markets',sub:topStock?topStock.sym+' '+topStock.chg:'Stocks & crypto',subCol:topStock?(topStock.up?'var(--green)':'var(--red)'):'var(--muted)',badge:mktAge?mktAge+'m':null,badgeCol:'var(--muted)'},
       {id:'news',icon:'ti-news',color:'var(--accent)',bg:'#6366f118',label:'News',sub:liveNewsHeadline,subCol:'var(--muted)',badge:null},
       {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' unread':'All read',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
-      {id:'shop',icon:'ti-shopping-bag',color:'var(--amber)',bg:'#f59e0b18',label:'Shop',sub:'Templates & tools',subCol:'var(--muted)',badge:'NEW',badgeCol:'var(--amber)'},
-      {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:'4 partner offers',subCol:'var(--muted)',badge:'4',badgeCol:'#ec4899'},
+      {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
     ];
     hubCards.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
       ${tiles.map(t=>`<div onclick="showMembersView('${t.id}')" style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between">
@@ -634,13 +684,13 @@ function renderMarketplace(){
     </button>
   </div>`).join('');}
 
-  // ── Learn ──
+  // ── Learn (personalized order) ──
   const ln=document.getElementById('mkt-learn');
   const readLessons=getReadLessons();
-  if(ln)ln.innerHTML=MKT_LEARN.map((l,i)=>{const isRead=readLessons.includes(i);return`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid ${isRead?'var(--border)':'var(--border)'};padding:14px;margin-bottom:8px;cursor:pointer;opacity:${isRead?'0.8':'1'}">
+  if(ln)ln.innerHTML=sortedLessons().map(l=>{const i=l._orig;const isRead=readLessons.includes(i);return`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer;opacity:${isRead?'0.7':'1'}">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
       <div style="width:40px;height:40px;border-radius:10px;background:${isRead?'var(--card2)':'#6366f118'};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${isRead?'ti-check':l.icon}" style="font-size:20px;color:${isRead?'var(--muted)':'var(--accent)'}"></i></div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${isRead?'var(--muted)':'var(--text)'}">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isRead?'Read':'<i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> '+l.mins+' read'}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${isRead?'var(--muted)':'var(--text)'}">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isRead?'Read ✓':'<i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> '+l.mins+' read'}</div></div>
       <i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted);flex-shrink:0"></i>
     </div>
     <div style="font-size:13px;color:var(--muted);line-height:1.5">${l.body.substring(0,100)}…</div>
@@ -712,36 +762,116 @@ async function openMktChart(type,i){
 function openMktNews(i){
   const n=MKT_NEWS[i];
   if(n.url){window.open(n.url,'_blank');return;}
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f118;padding:3px 10px;border-radius:99px">${n.cat}</span>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <h3 style="margin-bottom:8px;line-height:1.35">${n.title}</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${n.src} · ${n.time}</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">${n.summary}</p>
-    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Close</button>
-  </div></div>`;
+  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f118;padding:3px 10px;border-radius:99px">'+n.cat+'</span><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><h3 style="margin-bottom:8px;line-height:1.35">'+n.title+'</h3><div style="font-size:12px;color:var(--muted);margin-bottom:16px">'+n.src+' · '+n.time+'</div><p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">'+n.summary+'</p><button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Close</button></div></div>';
 }
 
-function openMktLesson(i){markLessonRead(i);renderMarketplace();
-  const l=MKT_LEARN[i];
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <div style="width:48px;height:48px;border-radius:12px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${l.icon}" style="font-size:24px;color:var(--accent)"></i></div>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <h3 style="margin-bottom:6px;line-height:1.35">${l.title}</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px"><i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> ${l.mins} read</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:12px">${l.body}</p>
-    ${l.tip?`<div style="background:#6366f110;border:0.5px solid #6366f133;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start"><i class="ti ti-bulb" style="font-size:16px;color:var(--accent);flex-shrink:0;margin-top:1px"></i><span style="font-size:13px;line-height:1.5;color:var(--text)">${l.tip}</span></div>`:''}
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
-      ${l.url?`<button class="btn btn-primary" onclick="window.open('${l.url}','_blank')"><i class="ti ti-external-link" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i> Read more</button>`:''}
-    </div>
-  </div></div>`;
+// ── Hub AI insight ───────────────────────────────────────────────
+async function fetchHubInsight(){
+  var insightEl=document.getElementById('members-insight');
+  if(!insightEl)return;
+  insightEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><div style="font-size:13px;color:var(--muted)"><i class="ti ti-loader-2" style="font-size:13px;vertical-align:-1px;animation:spin 1s linear infinite"></i> Analyzing your budget…</div></div></div>';
+  var cached=getHubInsightCache();
+  if(cached){renderHubInsightText(cached);return;}
+  if(!gateFeature('advisor')){renderHubInsightFallback();return;}
+  try{
+    var ctx=buildFinancialContext();
+    var res=await fetch('/api/advisor',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:120,
+        system:'You are a financial advisor inside a budgeting app. Write exactly 2 sentences: one specific observation about the numbers and one concrete action tip. No disclaimers. No generic advice.',
+        messages:[{role:'user',content:'Here is my current financial snapshot:\n'+ctx+'\n\nGive me a 2-sentence insight about my budget right now.'}]
+      })
+    });
+    var data=await res.json();
+    var text=data&&data.content&&data.content[0]?data.content[0].text:null;
+    if(text){setHubInsightCache(text);renderHubInsightText(text);}
+    else renderHubInsightFallback();
+  }catch(e){renderHubInsightFallback();}
 }
 
+function renderHubInsightText(text){
+  var insightEl=document.getElementById('members-insight');
+  if(!insightEl)return;
+  insightEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px"><div style="display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+text+'</p><div style="font-size:11px;color:var(--muted);margin-top:8px"><span onclick="clearHubInsightCache();fetchHubInsight()" style="cursor:pointer;text-decoration:underline"><i class="ti ti-refresh" style="font-size:11px;vertical-align:-1px"></i> Refresh</span></div></div></div></div>';
+}
 
+function renderHubInsightFallback(){
+  var insightEl=document.getElementById('members-insight');
+  if(!insightEl)return;
+  var rem=remaining(),income=totalIncome();
+  var pct=income>0?Math.round((totalSpent()/income)*100):0;
+  var saved=(C.savings&&C.savings.perPaycheck||0)+currentExtraSavings();
+  var bills=totalBills()-paidBillsAmt();
+  var msg,col;
+  if(rem<0){msg='Over budget by '+fmt(Math.abs(rem))+' this period — review your top spending buckets to get back on track.';col='var(--red)';}
+  else if(pct>70){msg=pct+'% of income spent so far. You have '+fmt(rem)+' remaining — track carefully to avoid going over.';col='var(--amber)';}
+  else{msg='On track — '+pct+'% of income spent with '+fmt(rem)+' left this period'+(saved>0?', and '+fmt(saved)+' already saved':'; keep adding to savings')+'.';col='var(--green)';}
+  if(bills>0)msg+=' You have '+fmt(bills)+' in unpaid bills remaining.';
+  insightEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid '+col+';border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Budget Snapshot</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+msg+'</p></div></div>';
+}
 
+// ── Portfolio holdings ───────────────────────────────────────────
+function renderHoldings(){
+  var holdingsEl=document.getElementById('mkt-holdings');
+  if(!holdingsEl){
+    var stocksEl=document.getElementById('mkt-stocks');
+    if(!stocksEl)return;
+    holdingsEl=document.createElement('div');
+    holdingsEl.id='mkt-holdings';
+    stocksEl.parentNode.insertBefore(holdingsEl,stocksEl);
+  }
+  var holdings=getHoldings();
+  if(!holdings.length){
+    holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center"><i class="ti ti-briefcase" style="font-size:24px;color:var(--muted);margin-bottom:8px;display:block"></i><div style="font-size:13px;color:var(--muted);margin-bottom:12px">Track the value of your investments in one place</div><button onclick="openHoldingsEditor()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Add Holdings</button></div>';
+    return;
+  }
+  var totalValue=0;
+  var rows=holdings.map(function(h){
+    var sym=h.sym.toUpperCase();
+    var data=MKT_STOCKS.find(function(s){return s.sym===sym;})||MKT_CRYPTO.find(function(s){return s.sym===sym;});
+    var currentPrice=null;
+    if(data&&data.price){var p=parseFloat(data.price.replace(/[$,]/g,''));if(!isNaN(p))currentPrice=p;}
+    var value=currentPrice!==null?currentPrice*(h.shares||0):(h.value||0);
+    totalValue+=value;
+    return{sym:sym,shares:h.shares,value:value,chg:data?data.chg:null,isUp:data?data.up:null,name:data?data.name:sym};
+  });
+  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map(function(h){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>';}).join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Live prices · add tickers to watchlist for accurate values</div></div>';
+}
 
+function openHoldingsEditor(){
+  var holdings=getHoldings();
+  var rows=holdings.length?holdings.map(function(h,i){return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)"><div style="flex:1;font-size:13px;font-weight:600;color:var(--accent)">'+h.sym.toUpperCase()+'</div><div style="font-size:13px;color:var(--muted)">'+h.shares+' shares</div><button onclick="removeHolding('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:16px"></i></button></div>';}).join(''):'<div style="text-align:center;padding:16px;font-size:13px;color:var(--muted)">No holdings yet</div>';
+  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0">My Holdings</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Add tickers and share count. Values update with live market prices from your watchlist.</p><div id="holdings-rows">'+rows+'</div><div style="display:flex;gap:8px;margin-top:14px"><input id="holding-sym" placeholder="Ticker (e.g. AAPL)" style="flex:1;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"><input id="holding-shares" type="number" min="0" step="any" placeholder="Shares" style="width:90px;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"></div><div class="modal-btns" style="margin-top:12px"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-primary" onclick="addHolding()">Add</button></div></div></div>';
+}
+
+function addHolding(){
+  var symEl=document.getElementById('holding-sym');
+  var shrEl=document.getElementById('holding-shares');
+  var sym=symEl?symEl.value.trim().toUpperCase():'';
+  var shares=parseFloat(shrEl?shrEl.value:'0');
+  if(!sym||isNaN(shares)||shares<=0){showToast('Enter a ticker and number of shares');return;}
+  var holdings=getHoldings();
+  var idx=holdings.findIndex(function(h){return h.sym===sym;});
+  if(idx>=0)holdings[idx].shares=shares;
+  else holdings.push({sym:sym,shares:shares});
+  saveHoldings(holdings);
+  renderHoldings();
+  openHoldingsEditor();
+}
+
+function removeHolding(i){
+  var holdings=getHoldings();
+  holdings.splice(i,1);
+  saveHoldings(holdings);
+  renderHoldings();
+  openHoldingsEditor();
+}
+
+function openMktLesson(i){
+  markLessonRead(i);renderMarketplace();
+  var l=MKT_LEARN[i];
+  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div style="width:48px;height:48px;border-radius:12px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+l.icon+'" style="font-size:24px;color:var(--accent)"></i></div><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><h3 style="margin-bottom:6px;line-height:1.35">'+l.title+'</h3><div style="font-size:12px;color:var(--muted);margin-bottom:16px"><i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> '+l.mins+' read</div><p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:12px">'+l.body+'</p>'+(l.tip?'<div style="background:#6366f110;border:0.5px solid #6366f133;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start"><i class="ti ti-bulb" style="font-size:16px;color:var(--accent);flex-shrink:0;margin-top:1px"></i><span style="font-size:13px;line-height:1.5;color:var(--text)">'+l.tip+'</span></div>':'')+'<div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Close</button>'+(l.url?'<button class="btn btn-primary" onclick="window.open(\''+l.url+'\',\'_blank\')"><i class="ti ti-external-link" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i> Read more</button>':'')+'</div></div></div>';
+}
