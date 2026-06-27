@@ -1670,7 +1670,7 @@ function saveInv(idx){
     C.investments[idx].ticker=ticker;
     C.investments[idx].amount=amount;
     C.investments[idx].recurring=recurring;
-    if(goalIdx!==null)C.investments[idx].goalIdx=goalIdx;
+    C.investments[idx].goalIdx=goalIdx;
   }
   saveState();closeModal();render();
 }
@@ -2299,14 +2299,20 @@ function renderInvGoalsScreen(){
   const totalAllTime=inv.grand;
   const totalTarget=goals.reduce((s,g)=>s+(g.goal||0),0);
 
-  // Waterfall: pour all-time investments into goals in order
-  let remaining=totalAllTime;
-  const waterfall=goals.map(g=>{
+  // Split investments: tagged to a specific goal go directly; untagged form the waterfall pool
+  const taggedAmts={};let untaggedTotal=0;
+  [...STATE.history,C].forEach(cyc=>{(cyc.investments||[]).forEach(inv=>{const amt=inv.amount||0;if(inv.goalIdx!==null&&inv.goalIdx!==undefined&&goals[inv.goalIdx]){taggedAmts[inv.goalIdx]=(taggedAmts[inv.goalIdx]||0)+amt;}else{untaggedTotal+=amt;}});});
+
+  // Waterfall: tagged investments credited directly to their goal; untagged fill goals in order
+  let remaining=untaggedTotal;
+  const waterfall=goals.map((g,gi)=>{
     const cap=g.goal||0;
     const manual=g.saved||0;
-    const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-manual)):0;
-    const effective=cap>0?Math.min(manual+fromWaterfall,cap):manual;
-    remaining=Math.max(0,remaining-(cap>0?Math.min(remaining,Math.max(0,cap-manual)):0));
+    const tagged=taggedAmts[gi]||0;
+    const base=manual+tagged;
+    const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-base)):0;
+    const effective=cap>0?Math.min(base+fromWaterfall,cap):base;
+    remaining=Math.max(0,remaining-fromWaterfall);
     return{...g,effective,cap};
   });
   const totalAllocated=waterfall.reduce((s,g)=>s+(g.cap>0?Math.min(g.effective,g.cap):0),0);
