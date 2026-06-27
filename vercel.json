@@ -28,8 +28,7 @@
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/app", "destination": "/index.html" },
-    { "source": "/", "destination": "/landing.html" }
+    { "source": "/app", "destination": "/app.html" }
   ],
   "headers": [
     {
@@ -37,11 +36,7 @@
       "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
     },
     {
-      "source": "/index.html",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
-    },
-    {
-      "source": "/landing.html",
+      "source": "/app.html",
       "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
     },
     {
