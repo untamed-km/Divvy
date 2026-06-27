@@ -155,7 +155,7 @@ async function submitForgotPin(){
   const sb=getSB();
   if(sb){
     const resetEmail=email;
-    const {error:resetErr}=await sb.auth.resetPasswordForEmail(resetEmail,{redirectTo:'https://distrofi.org'});
+    const {error:resetErr}=await sb.auth.resetPasswordForEmail(resetEmail,{redirectTo:'https://distrofi.org/app'});
     if(resetErr){
       if(errEl){errEl.textContent='Something went wrong. Please try again.';errEl.style.display='block';}
       if(btn){btn.disabled=false;btn.textContent='Send reset link';}

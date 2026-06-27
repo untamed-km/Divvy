@@ -54,8 +54,8 @@ export default async function handler(req) {
     'subscription_data[trial_period_days]': '7',
     'subscription_data[metadata][tier]': tier,
     allow_promotion_codes: 'true',
-    success_url: `${origin}/?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/?stripe=cancel`,
+    success_url: `${origin}/app?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/app?stripe=cancel`,
   });
 
   const resp = await fetch('https://api.stripe.com/v1/checkout/sessions', {

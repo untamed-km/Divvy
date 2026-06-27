@@ -61,7 +61,7 @@ export default async function handler(req) {
   // Create Stripe billing portal session
   const params = new URLSearchParams({
     customer: customerId,
-    return_url: 'https://distrofi.org/',
+    return_url: 'https://distrofi.org/app',
   });
 
   const portalResp = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
