@@ -1,8 +1,8 @@
-// DistroFi Service Worker — v9
+// DistroFi Service Worker — v10
 // Network-first for all navigation; static assets cached after first load.
 // On every SW update, ALL old caches are wiped so stale HTML never survives.
 
-const CACHE_NAME = 'distrofi-v9';
+const CACHE_NAME = 'distrofi-v10';
 
 // Install: skip waiting immediately — take over as fast as possible
 self.addEventListener('install', event => {
@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
 
 // Activate: delete EVERY cache (including current), then claim all tabs.
 // This forces a clean network fetch after every SW update.
-self.addEventListener('activate', event => {
+self.addEventListener('activate', event => {h
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.map(k => caches.delete(k))))
