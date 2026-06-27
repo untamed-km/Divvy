@@ -4544,8 +4544,16 @@ function renderMarketplace(){
     const tier=isCouplePro()?'COUPLES':'PRO';
     const col=isCouplePro()?'#ec4899':'#6366f1';
     const _grade=calcBudgetGrade();
+    const firstName=getAuth()?.name?.split(' ')[0]||'there';
+    const startD=new Date(C.startDate+'T00:00:00'),endD=new Date(C.endDate+'T00:00:00'),now=new Date();
+    const totalDays=Math.max(1,Math.ceil((endD-startD)/(864e5)));
+    const elapsedDays=Math.max(0,Math.min(totalDays,Math.ceil((now-startD)/(864e5))));
+    const cyclePct=Math.round((elapsedDays/totalDays)*100);
   statsMini.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:16px;font-weight:700">Members</div>
+      <div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:2px">Hey ${firstName} 👋</div>
+        <div style="font-size:16px;font-weight:700">Members</div>
+      </div>
       <span style="background:${col};color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em">${tier}</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -4560,6 +4568,14 @@ function renderMarketplace(){
       <div style="flex:1;background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Days left</div>
         <div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:${diff<=3?'var(--amber)':'var(--text)'}">${diff>0?diff:0}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">
+        <span>Budget cycle</span><span>${elapsedDays} of ${totalDays} days</span>
+      </div>
+      <div style="height:4px;background:var(--card2);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${cyclePct}%;background:${cyclePct>85?'var(--amber)':'var(--accent)'};border-radius:99px;transition:width .4s ease"></div>
       </div>
     </div>
     <div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid ${_grade.col};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
@@ -4675,9 +4691,10 @@ function renderMarketplace(){
       {id:'markets',icon:'ti-chart-candle',color:'#3b82f6',bg:'#3b82f618',label:'Markets',sub:topStock?topStock.sym+' '+topStock.chg:'Stocks & crypto',subCol:topStock?(topStock.up?'var(--green)':'var(--red)'):'var(--muted)',badge:mktAge?mktAge+'m':null,badgeCol:'var(--muted)'},
       {id:'news',icon:'ti-news',color:'var(--accent)',bg:'#6366f118',label:'News',sub:liveNewsHeadline,subCol:'var(--muted)',badge:null},
       {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' unread':'All read',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
-      {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:'4 partner offers',subCol:'var(--muted)',badge:'4',badgeCol:'#ec4899'},
+      {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
     ];
-    hubCards.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
+    hubCards.innerHTML=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Explore</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
       ${tiles.map(t=>`<div onclick="showMembersView('${t.id}')" style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between">
         ${t.badge?`<span style="position:absolute;top:10px;right:10px;background:${t.badgeCol}22;color:${t.badgeCol};font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px">${t.badge}</span>`:''}
         <div style="width:40px;height:40px;border-radius:11px;background:${t.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
