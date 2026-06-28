@@ -6773,7 +6773,7 @@ function renderHubInsightText(text){
   const el=document.getElementById('members-insight');
   if(!el)return;
   let headline='',detail=text;
-  try{const p=JSON.parse(text);if(p&&p.headline){headline=p.headline;detail=p.detail||'';}}catch(e){}
+  try{const cleaned=text.trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');const p=JSON.parse(cleaned);if(p&&p.headline){headline=p.headline;detail=p.detail||'';}}catch(e){}
   const body=headline?'<div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p>':'<p style="font-size:14px;color:var(--text);line-height:1.7;margin:0">'+text+'</p>';
   el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Personalized to your budget</div></div><span onclick="clearHubInsightCache();fetchHubInsight()" style="margin-left:auto;cursor:pointer;color:var(--muted);padding:4px"><i class="ti ti-refresh" style="font-size:15px"></i></span></div>'+body+'</div>';
 }
