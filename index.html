@@ -693,10 +693,9 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="members-content" style="display:none">
       <!-- Hub view -->
       <div id="members-hub">
+        <div id="members-insight" style="margin-bottom:14px"></div>
         <div id="members-stats-mini" style="margin-bottom:14px"></div>
         <div id="members-hub-cards"></div>
-        <div style="height:1px;background:var(--border);margin:16px 0"></div>
-        <div id="members-insight" style="margin-bottom:8px"></div>
         <div id="members-poll" style="margin-bottom:8px"></div>
         <div id="members-networth" style="margin-bottom:8px"><div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:16px;padding:16px;margin-bottom:4px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Worth</div><div style="height:28px;background:var(--border);border-radius:8px;width:120px;opacity:.4"></div></div></div>
         <div id="members-couples" style="display:none;margin-bottom:8px"></div>
@@ -4423,11 +4422,9 @@ function toggleInsights(){
 }
 
 function showMembersView(view){
-  if(view==='markets')fetchLiveMarketData();
-  if(view==='news')fetchLiveNews();
   if(view==='merch')renderMarketplace();
   if(view==='community')renderCommunityView();
-  const views=['hub','markets','news','learn','shop','deals','merch','community'];
+  const views=['hub','learn','shop','deals','merch','community'];
   views.forEach(v=>{
     const el=document.getElementById('members-'+(v==='hub'?'hub':v));
     if(el)el.style.display=(v===view||(v==='hub'&&view==='hub'))?'block':'none';
@@ -4594,9 +4591,8 @@ function renderMarketplace(){
     </div>`;
   }
 
-  // ── AI Insight — async, session-cached ──
-  const insight=document.getElementById('members-insight');
-  if(insight)fetchHubInsight();
+  // ── AI Insight — hero card, async, session-cached ──
+  fetchHubInsight();
 
   // ── Community Poll mini card ──
   renderMiniPoll();
@@ -4697,11 +4693,9 @@ function renderMarketplace(){
     const liveNewsHeadline=(()=>{const c=getNewsCache();return c&&c[0]?c[0].headline:latestNews?latestNews.title:'Curated headlines';})();
     const mktAge=isMktCacheFresh()?Math.floor((Date.now()-(JSON.parse(sessionStorage.getItem('distrofi_mkt_cache')||'{}').ts||Date.now()))/60000)||'<1':null;
     const tiles=[
-      {id:'markets',icon:'ti-chart-candle',color:'#3b82f6',bg:'#3b82f618',label:'Markets',sub:topStock?topStock.sym+' '+topStock.chg:'Stocks & crypto',subCol:topStock?(topStock.up?'var(--green)':'var(--red)'):'var(--muted)',badge:mktAge?mktAge+'m':null,badgeCol:'var(--muted)'},
-      {id:'news',icon:'ti-news',color:'var(--accent)',bg:'#6366f118',label:'News',sub:liveNewsHeadline,subCol:'var(--muted)',badge:null},
-      {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' unread':'All read',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
+      {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' new lessons':'Financial lessons',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
       {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
-      {id:'community',icon:'ti-users-group',color:'#f59e0b',bg:'#f59e0b18',label:'Community',sub:'Vote on this week\'s poll',subCol:'var(--muted)',badge:'POLL',badgeCol:'#f59e0b'},
+      {id:'community',icon:'ti-users-group',color:'#f59e0b',bg:'#f59e0b18',label:'Community',sub:'Vote on this week's poll',subCol:'var(--muted)',badge:'POLL',badgeCol:'#f59e0b'},
     ];
     hubCards.innerHTML=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Explore</div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
@@ -6607,6 +6601,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
+  renderHoldings();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
@@ -6783,7 +6778,7 @@ async function fetchHubInsight(){
 function renderHubInsightText(text){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px"><div style="display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+text+'</p><div style="font-size:11px;color:var(--muted);margin-top:8px"><span onclick="clearHubInsightCache();fetchHubInsight()" style="cursor:pointer;text-decoration:underline"><i class="ti ti-refresh" style="font-size:11px;vertical-align:-1px"></i> Refresh</span></div></div></div></div>';
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Personalized to your budget</div></div><span onclick="clearHubInsightCache();fetchHubInsight()" style="margin-left:auto;cursor:pointer;color:var(--muted);padding:4px"><i class="ti ti-refresh" style="font-size:15px"></i></span></div><p style="font-size:14px;color:var(--text);line-height:1.7;margin:0">'+text+'</p></div>';
 }
 
 function renderHubInsightFallback(){
