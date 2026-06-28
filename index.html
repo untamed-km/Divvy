@@ -2908,7 +2908,8 @@ function showOnboarding(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
   _obStep=1;
   _obData={income:0,period:'biweekly',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
-  ov.style.cssText='position:fixed;inset:0;z-index:600;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);overflow-y:auto;max-width:none;margin:0;padding:0;';
+  if(ov.parentNode!==document.body)document.body.appendChild(ov);
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);overflow-y:auto;max-width:none;margin:0;padding:20px;';
   _renderObStep();
 }
 function _renderObStep(){
