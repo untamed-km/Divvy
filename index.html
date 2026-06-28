@@ -2902,40 +2902,132 @@ function selectFreq(f){
 // ── Onboarding ──
 const FORMSPREE_ID='xgobwbye';
 const ONBOARD_KEY='distrofi_onboarded';
-let _onboardSelected=new Set();
-const ONBOARD_OPTIONS=[
-  {icon:'ti-checklist',label:'Track my bills & due dates'},
-  {icon:'ti-wallet',label:'Manage my spending by category'},
-  {icon:'ti-pig-money',label:'Plan & grow my savings'},
-  {icon:'ti-trending-up',label:'Monitor my investments'},
-  {icon:'ti-chart-pie',label:'See my full financial picture'},
-  {icon:'ti-users',label:'Manage finances with a partner'},
-  {icon:'ti-home',label:'Save for a big goal (house, car, trip)'},
-  {icon:'ti-telescope',label:'Just exploring'},
-];
+let _obStep=1;
+let _obData={};
 function showOnboarding(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
-  _onboardSelected=new Set();
-  ov.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;padding-top:env(safe-area-inset-top)"><div style="width:52px;height:52px;border-radius:14px;background:#6366f118;border:1px solid #6366f133;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><i class="ti ti-sparkles" style="font-size:26px;color:var(--accent)"></i></div><h1 style="font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px;text-align:center">Welcome to DistroFi</h1><p style="font-size:14px;color:var(--muted);text-align:center;line-height:1.6;max-width:300px">What brings you here? Pick all that apply — this helps us improve the app.</p></div>
-    <div id="onboard-options">${ONBOARD_OPTIONS.map((o,i)=>`<button class="onboard-option" onclick="toggleOnboardOption(${i})" data-idx="${i}"><i class="ti ${o.icon}"></i><span>${o.label}</span></button>`).join('')}</div>
-    <button onclick="submitOnboarding()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:8px">Get started</button>
-    <button onclick="skipOnboarding()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;margin-top:4px">Skip</button>`;
+  _obStep=1;
+  _obData={income:0,period:'biweekly',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
+  _renderObStep();
   ov.style.display='flex';
 }
-function toggleOnboardOption(idx){
-  const btn=document.querySelector('[data-idx="'+idx+'"]');if(!btn)return;
-  if(_onboardSelected.has(idx)){_onboardSelected.delete(idx);btn.classList.remove('selected');}
-  else{_onboardSelected.add(idx);btn.classList.add('selected');}
+function _renderObStep(){
+  const ov=document.getElementById('onboard-overlay');if(!ov)return;
+  const steps=['Income','Bills','Budget','Goal'];
+  const prog='<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:28px">'+steps.map((s,i)=>{
+    const done=i+1<_obStep,active=i+1===_obStep;
+    const dot='<div style="width:26px;height:26px;border-radius:50%;border:2px solid '+(active||done?'var(--accent)':'var(--border)')+';background:'+(done?'var(--accent)':active?'#6366f120':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(done?'#fff':active?'var(--accent)':'var(--muted)')+'>'+(done?'&#10003;':(i+1))+'</div>';
+    const line=i<3?'<div style="flex:1;height:2px;background:'+(i+1<_obStep?'var(--accent)':'var(--border)')+';border-radius:1px"></div>':'';
+    return dot+line;
+  }).join('')+'</div>';
+  let body='';
+  if(_obStep===1)body=_renderOb1();
+  else if(_obStep===2)body=_renderOb2();
+  else if(_obStep===3)body=_renderOb3();
+  else body=_renderOb4();
+  ov.innerHTML='<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body;
 }
-function submitOnboarding(){
-  const choices=[..._onboardSelected].map(i=>ONBOARD_OPTIONS[i].label);
-  const payload={choices,timestamp:new Date().toISOString(),version:'v8'};
-  localStorage.setItem(ONBOARD_KEY,JSON.stringify(payload));
-  if(FORMSPREE_ID&&FORMSPREE_ID!=='YOUR_FORM_ID'){
-    fetch('https://formspree.io/f/'+FORMSPREE_ID,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({choices:choices.join(', '),timestamp:payload.timestamp})}).catch(()=>{});
-  }
+function _renderOb1(){
+  const periods=[['weekly','Weekly'],['biweekly','Bi-weekly'],['twicemonthly','Twice/month'],['monthly','Monthly']];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">What\'s your take-home pay?</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 20px">Enter the amount you receive each paycheck.</p>'+
+    '<div style="margin-bottom:16px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">Take-home amount</label>'+
+    '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px">$</span>'+
+    '<input id="ob-income" type="number" inputmode="decimal" placeholder="0" value="'+(_obData.income||'')+'" style="width:100%;padding:14px 14px 14px 28px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:18px;box-sizing:border-box;font-family:inherit"></div></div>'+
+    '<div style="margin-bottom:24px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">How often do you get paid?</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    periods.map(([p,l])=>'<button onclick="_obData.period=\''+p+'\';_renderObStep()" style="padding:12px 8px;border:2px solid '+(_obData.period===p?'var(--accent)':'var(--border)')+';border-radius:12px;background:'+(_obData.period===p?'#6366f118':'var(--card)')+';color:'+(_obData.period===p?'var(--accent)':'var(--text)')+';font-size:13px;font-weight:'+(_obData.period===p?'600':'400')+';cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
+    '</div></div>'+
+    '<button onclick="_obNext1()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>';
+}
+function _obNext1(){
+  const v=parseFloat(document.getElementById('ob-income')?.value||0);
+  if(!v||v<=0){alert('Please enter your take-home pay.');return;}
+  _obData.income=v;
+  _obData.food=Math.round(v*0.12);
+  _obData.gas=Math.round(v*0.06);
+  _obData.personal=Math.round(v*0.07);
+  _obStep=2;_renderObStep();
+}
+function _renderOb2(){
+  const list=_obData.bills.length===0
+    ?'<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">No bills added yet</div>'
+    :_obData.bills.map((b,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:6px"><span style="font-size:14px">'+b.name+'</span><div style="display:flex;align-items:center;gap:10px"><span style="font-weight:600;color:var(--text)">$'+b.amount+'</span><button onclick="_obRemoveBill('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;line-height:1"><i class="ti ti-x" style="font-size:14px"></i></button></div></div>').join('');
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Fixed bills</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 14px">Rent, utilities, subscriptions — monthly recurring costs.</p>'+
+    '<div id="ob-bills-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">'+list+'</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:24px">'+
+    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
+    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="$" style="width:72px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
+    '<button onclick="_obAddBill()" style="padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obStep=3;_renderObStep()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
+    '</div>';
+}
+function _obAddBill(){
+  const n=(document.getElementById('ob-bill-name')?.value||'').trim();
+  const a=parseFloat(document.getElementById('ob-bill-amt')?.value||0);
+  if(!n||!a||a<=0)return;
+  _obData.bills.push({name:n,amount:a});
+  _renderObStep();
+}
+function _obRemoveBill(i){_obData.bills.splice(i,1);_renderObStep();}
+function _renderOb3(){
+  const cats=[['food','ob-food','ti-shopping-cart','Food & Groceries'],['gas','ob-gas','ti-gas-station','Gas & Transport'],['personal','ob-personal','ti-user','Personal & Misc']];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Spending limits</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 20px">Set budgets for variable spending. We\'ve suggested amounts based on your income.</p>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">'+
+    cats.map(([key,id,icon,label])=>'<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:12px">'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+icon+'" style="font-size:17px;color:var(--accent)"></i></div>'+
+      '<span style="flex:1;font-size:14px;font-weight:500">'+label+'</span>'+
+      '<div style="position:relative"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px">$</span>'+
+      '<input id="'+id+'" type="number" inputmode="decimal" value="'+(_obData[key]||0)+'" style="width:85px;padding:9px 9px 9px 22px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;text-align:right"></div></div>').join('')+
+    '</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obNext3()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
+    '</div>';
+}
+function _obNext3(){
+  _obData.food=parseFloat(document.getElementById('ob-food')?.value||0)||0;
+  _obData.gas=parseFloat(document.getElementById('ob-gas')?.value||0)||0;
+  _obData.personal=parseFloat(document.getElementById('ob-personal')?.value||0)||0;
+  _obStep=4;_renderObStep();
+}
+function _renderOb4(){
+  const presets=['Emergency Fund','Vacation','New Car','Down Payment'];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">First savings goal</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 16px">Optional — you can always add more later.</p>'+
+    '<div style="margin-bottom:14px">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+
+    presets.map(p=>'<button onclick="document.getElementById(\'ob-goal-name\').value=\''+p+'\'" style="padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:var(--card);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit">'+p+'</button>').join('')+
+    '</div>'+
+    '<input id="ob-goal-name" type="text" placeholder="Goal name" value="'+(_obData.goalName||'')+'" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit;margin-bottom:10px">'+
+    '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)">$</span>'+
+    '<input id="ob-goal-target" type="number" inputmode="decimal" placeholder="Target amount" value="'+(_obData.goalTarget||'')+'" style="width:100%;padding:12px 12px 12px 24px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit"></div></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obComplete()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Set up my budget ✓</button>'+
+    '</div>'+
+    '<button onclick="skipOnboarding()" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Skip for now</button>';
+}
+function _obComplete(){
+  const gn=(document.getElementById('ob-goal-name')?.value||'').trim();
+  const gt=parseFloat(document.getElementById('ob-goal-target')?.value||0)||0;
+  C.income=[{id:'i'+Date.now(),source:'Job',amount:_obData.income,period:_obData.period}];
+  C.bills=_obData.bills.map((b,i)=>({id:'b'+(Date.now()+i),name:b.name,amount:b.amount,dueDate:'1',paid:false}));
+  if(C.buckets.food)C.buckets.food.budget=_obData.food;
+  if(C.buckets.gas)C.buckets.gas.budget=_obData.gas;
+  if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
+  if(gn&&gt>0){STATE.savingsBuckets=STATE.savingsBuckets||[];STATE.savingsBuckets.push({id:'s'+Date.now(),name:gn,goal:gt,saved:0});}
+  localStorage.setItem(ONBOARD_KEY,JSON.stringify({setup:true,timestamp:new Date().toISOString()}));
+  saveState();
   closeOnboarding();
+  render();
 }
+
 function skipOnboarding(){localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();}
 function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';}
 function openSettingsModal(){
