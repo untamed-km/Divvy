@@ -2908,8 +2908,8 @@ function showOnboarding(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
   _obStep=1;
   _obData={income:0,period:'biweekly',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
+  ov.style.cssText='position:fixed;inset:0;z-index:600;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);overflow-y:auto;max-width:none;margin:0;padding:0;';
   _renderObStep();
-  ov.style.display='flex';
 }
 function _renderObStep(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
@@ -2925,7 +2925,7 @@ function _renderObStep(){
   else if(_obStep===2)body=_renderOb2();
   else if(_obStep===3)body=_renderOb3();
   else body=_renderOb4();
-  ov.innerHTML='<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body;
+  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:calc(100% - 40px);max-width:440px;margin:auto;box-shadow:0 24px 80px rgba(0,0,0,0.4);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body;+'</div>'
 }
 function _renderOb1(){
   const periods=[['weekly','Weekly'],['biweekly','Bi-weekly'],['twicemonthly','Twice/month'],['monthly','Monthly']];
