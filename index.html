@@ -2509,28 +2509,25 @@ function buildFinancialContext(){
   const invested=totalInvested();
   const spent=totalSpent();
   const rem=remaining();
-  const invList=(C.investments||[]).map(i=>`${i.name}: $${i.amount||0}`).join(', ')||'None logged';
-  const savGoals=(STATE.savingsBuckets||[]).map(g=>`${g.name} (saved $${g.saved||0} of $${g.goal||0})`).join(', ')||'None set';
-  const invGoals=(STATE.invGoals||[]).map(g=>`${g.name} (saved $${g.saved||0} of $${g.goal||0})`).join(', ')||'None set';
-  const buckets=Object.values(C.buckets).map(b=>`${b.label}: $${bucketSpent(b.label.toLowerCase().replace(' ',''))||0} of $${b.budget||0}`);
-  return `FINANCIAL SNAPSHOT (current pay period):
-- Gross income: $${income.toFixed(2)}
-- Fixed bills: $${bills.toFixed(2)}
-- Savings this period: $${(savings+extraSav).toFixed(2)} ($${(C.savings.perPaycheck||0).toFixed(2)}/period + $${extraSav.toFixed(2)} extra)
-- Total invested this period: $${invested.toFixed(2)} (${invList})
-- Variable spending: $${spent.toFixed(2)} (${Object.values(C.buckets).map(b=>`${b.label} $${bucketSpent(Object.keys(C.buckets).find(k=>C.buckets[k]===b)||'')}`).join(', ')})
-- Remaining after all deductions: $${rem.toFixed(2)}
-- Savings goals: ${savGoals}
-- Investment goals: ${invGoals}
-- Pay periods tracked: ${[...STATE.history,C].length}
-- All-time savings: $${allTimeSavings().toFixed(2)}
-- All-time invested: $${allTimeInvestments().grand.toFixed(2)}`;
+  const savRate=income>0?Math.round(((savings+extraSav+invested)/income)*100):0;
+  const debts=C.debts||[];
+  const totalDebt=debts.reduce((s,d)=>s+(d.balance||0),0);
+  const hist=STATE.history||[];
+  const prevSpent=hist.length>0?Object.values(hist[hist.length-1].buckets||{}).reduce((s,b)=>s+(b.spent||0),0):null;
+  const spendDelta=prevSpent!==null&&prevSpent>0?Math.round(((spent-prevSpent)/prevSpent)*100):null;
+  const savGoals=(STATE.savingsBuckets||[]).map(g=>g.name+' '+Math.round((g.saved||0)/(g.goal||1)*100)+'% of $'+(g.goal||0)).join(', ')||'None set';
+  const buckets=Object.values(C.buckets).map(b=>b.label+' $'+(bucketSpent(b.label.toLowerCase().replace(' ',''))||0)+'/$'+(b.budget||0)).join(', ');
+  const invList=(C.investments||[]).map(i=>i.name+' $'+(i.amount||0)).join(', ')||'none';
+  return 'Income: $'+income.toFixed(0)+' | Bills: $'+bills.toFixed(0)+' | Spent: $'+spent.toFixed(0)+' | Remaining: $'+rem.toFixed(0)+'\n'+
+    'Savings rate: '+savRate+'% (saved $'+(savings+extraSav).toFixed(0)+', invested $'+invested.toFixed(0)+')\n'+
+    'Spending breakdown: '+buckets+'\n'+
+    (spendDelta!==null?'vs last period: spending '+(spendDelta>0?'+':'')+spendDelta+'%':'First tracked period')+'\n'+
+    'Total debt: $'+totalDebt.toFixed(0)+(debts.length>0?' ('+debts.map(d=>d.name+' $'+(d.balance||0)).join(', ')+')':'')+'\n'+
+    'Savings goals: '+savGoals+'\n'+
+    'Investments: '+invList+'\n'+
+    'All-time saved: $'+allTimeSavings().toFixed(0)+' | All-time invested: $'+allTimeInvestments().grand.toFixed(0)+'\n'+
+    'Periods tracked: '+[...hist,C].length;
 }
-
-// ── Proactive AI Insights ─────────────────────────────────────────────
-const INSIGHT_CHECK_KEY='distrofi_last_insight_check';
-const INSIGHT_DATA_KEY='distrofi_last_insight';
-
 function getLastInsightCheck(){return localStorage.getItem(INSIGHT_CHECK_KEY)||null;}
 function setLastInsightCheck(){localStorage.setItem(INSIGHT_CHECK_KEY,new Date().toDateString());}
 function getStoredInsight(){try{return JSON.parse(localStorage.getItem(INSIGHT_DATA_KEY)||'null');}catch(e){return null;}}
@@ -6760,42 +6757,40 @@ function clearHubInsightCache(){try{sessionStorage.removeItem(HUB_INSIGHT_CACHE_
 async function fetchHubInsight(){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><div style="font-size:13px;color:var(--muted)">Analyzing your budget…</div></div></div>';
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Analyzing your numbers…</div></div></div></div>';
   const cached=getHubInsightCache();
   if(cached){renderHubInsightText(cached);return;}
   if(!gateFeature('advisor')){renderHubInsightFallback();return;}
   try{
     const ctx=buildFinancialContext();
-    const res=await fetch('/api/advisor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:120,system:'You are a financial advisor inside a budgeting app. Write exactly 2 sentences: one specific observation about the numbers and one concrete action tip. No disclaimers.',messages:[{role:'user',content:'Financial snapshot:\n'+ctx+'\n\nGive a 2-sentence budget insight.'}]})});
+    const res=await fetch('/api/advisor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,system:'You are a financial analyst. Respond ONLY with valid JSON: {"headline":"key finding in 10 words or less","detail":"1 sentence with specific numbers — a projection, pattern, or trend. No advice. No you-should. State what the data shows."}',messages:[{role:'user',content:'Analyze this budget data:\n\n'+ctx}]})});
     const data=await res.json();
-    const text=data&&data.content&&data.content[0]?data.content[0].text:null;
-    if(text){setHubInsightCache(text);renderHubInsightText(text);}else renderHubInsightFallback();
+    const raw=data&&data.content&&data.content[0]?data.content[0].text:null;
+    if(raw){setHubInsightCache(raw);renderHubInsightText(raw);}else renderHubInsightFallback();
   }catch(e){renderHubInsightFallback();}
 }
-
 function renderHubInsightText(text){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Personalized to your budget</div></div><span onclick="clearHubInsightCache();fetchHubInsight()" style="margin-left:auto;cursor:pointer;color:var(--muted);padding:4px"><i class="ti ti-refresh" style="font-size:15px"></i></span></div><p style="font-size:14px;color:var(--text);line-height:1.7;margin:0">'+text+'</p></div>';
+  let headline='',detail=text;
+  try{const p=JSON.parse(text);if(p&&p.headline){headline=p.headline;detail=p.detail||'';}}catch(e){}
+  const body=headline?'<div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p>':'<p style="font-size:14px;color:var(--text);line-height:1.7;margin:0">'+text+'</p>';
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Personalized to your budget</div></div><span onclick="clearHubInsightCache();fetchHubInsight()" style="margin-left:auto;cursor:pointer;color:var(--muted);padding:4px"><i class="ti ti-refresh" style="font-size:15px"></i></span></div>'+body+'</div>';
 }
-
 function renderHubInsightFallback(){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  const _rem=remaining(),_inc=totalIncome();
-  const _pct=_inc>0?Math.round((totalSpent()/_inc)*100):0;
+  const _rem=remaining(),_inc=totalIncome(),_spent=totalSpent();
+  const _pct=_inc>0?Math.round((_spent/_inc)*100):0;
   const _saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
+  const _savRate=_inc>0?Math.round((_saved/_inc)*100):0;
   const _bills=totalBills()-paidBillsAmt();
-  let msg,col;
-  if(_rem<0){msg='Over budget by '+fmt(Math.abs(_rem))+' this period — review your top spending categories to get back on track.';col='var(--red)';}
-  else if(_pct>70){msg=_pct+'% of income spent so far. You have '+fmt(_rem)+' remaining — watch your spending carefully.';col='var(--amber)';}
-  else{msg='On track — '+_pct+'% of income spent with '+fmt(_rem)+' left this period'+(_saved>0?', and '+fmt(_saved)+' already saved':'')+'.';col='var(--green)';}
-  if(_bills>0)msg+=' '+fmt(_bills)+' in unpaid bills remaining.';
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid '+col+';border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Budget Snapshot</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+msg+'</p></div></div>';
+  let headline,detail,col;
+  if(_rem<0){headline='Over budget by '+fmt(Math.abs(_rem))+' this period';detail='Variable spending is '+_pct+'% of income'+(_bills>0?', with '+fmt(_bills)+' in unpaid bills still due':'')+'.';col='var(--red)';}
+  else if(_pct>70){headline=_pct+'% of income spent with '+fmt(_rem)+' left';detail='Savings rate this period: '+_savRate+'%'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--amber)';}
+  else{headline='Savings rate '+_savRate+'% — '+fmt(_saved)+' set aside this period';detail='Variable spend at '+_pct+'% of income with '+fmt(_rem)+' remaining'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--green)';}
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid '+col+'40;border-left:3px solid '+col+';border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:'+col+'20;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-chart-bar" style="font-size:20px;color:'+col+'"></i></div><div><div style="font-size:13px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.06em">Budget Snapshot</div><div style="font-size:11px;color:var(--muted)">Based on current period</div></div></div><div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p></div>';
 }
-
-// ── Portfolio holdings ───────────────────────────────────────────
-const HOLDINGS_KEY='distrofi_holdings';
 function getHoldings(){try{return JSON.parse(localStorage.getItem(HOLDINGS_KEY)||'[]');}catch(e){return[];}}
 function saveHoldings(h){localStorage.setItem(HOLDINGS_KEY,JSON.stringify(h));}
 
