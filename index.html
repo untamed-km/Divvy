@@ -2917,7 +2917,7 @@ function _renderObStep(){
   const steps=['Income','Bills','Budget','Goal'];
   const prog='<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:28px">'+steps.map((s,i)=>{
     const done=i+1<_obStep,active=i+1===_obStep;
-    const dot='<div style="width:26px;height:26px;border-radius:50%;border:2px solid '+(active||done?'var(--accent)':'var(--border)')+';background:'+(done?'var(--accent)':active?'#6366f120':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(done?'#fff':active?'var(--accent)':'var(--muted)')+'>'+(done?'&#10003;':(i+1))+'</div>';
+    const dot='<div style="width:26px;height:26px;border-radius:50%;border:2px solid '+(active||done?'var(--accent)':'var(--border)')+';background:'+(done?'var(--accent)':active?'#6366f120':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(done?'#fff':active?'var(--accent)':'var(--muted)')+'">'+(done?'&#10003;':(i+1))+'</div>';
     const line=i<3?'<div style="flex:1;height:2px;background:'+(i+1<_obStep?'var(--accent)':'var(--border)')+';border-radius:1px"></div>':'';
     return dot+line;
   }).join('')+'</div>';
