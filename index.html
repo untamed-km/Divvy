@@ -3023,6 +3023,10 @@ function _obComplete(){
   if(C.buckets.gas)C.buckets.gas.budget=_obData.gas;
   if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
   if(gn&&gt>0){STATE.savingsBuckets=STATE.savingsBuckets||[];STATE.savingsBuckets.push({id:'s'+Date.now(),name:gn,goal:gt,saved:0});}
+  setFreq(_obData.period);
+  const freshCycle=newCycleData();
+  C.startDate=freshCycle.startDate;
+  C.endDate=freshCycle.endDate;
   localStorage.setItem(ONBOARD_KEY,JSON.stringify({setup:true,timestamp:new Date().toISOString()}));
   saveState();
   closeOnboarding();
