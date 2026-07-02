@@ -199,6 +199,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 
 #df-toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#1e2d3d;color:#e2e8f0;font-size:13px;font-weight:500;padding:10px 18px;border-radius:99px;border:0.5px solid #2a3d52;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:280px;text-align:center}
 #df-toast.show{opacity:1}
+.poll-card{padding:0 0 4px;}.poll-q{font-size:.85rem;font-weight:600;color:var(--text);margin:0 0 10px;line-height:1.4;}.poll-opts{display:flex;flex-direction:column;gap:6px;}.poll-btn{background:var(--surface2,#f1f5f9);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.8rem;color:var(--text);text-align:left;cursor:pointer;transition:background .15s;}.poll-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}.poll-bar-row{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);}.poll-opt-label{flex:0 0 auto;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.poll-bar-wrap{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}.poll-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s;}.poll-pct{flex:0 0 30px;text-align:right;font-size:.75rem;}.poll-footer{font-size:.72rem;color:var(--muted);margin:6px 0 0;text-align:right;}
 </style>
 </head>
 <body>
@@ -693,10 +694,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="members-content" style="display:none">
       <!-- Hub view -->
       <div id="members-hub">
+        <div id="members-insight" style="margin-bottom:14px"></div>
         <div id="members-stats-mini" style="margin-bottom:14px"></div>
         <div id="members-hub-cards"></div>
-        <div style="height:1px;background:var(--border);margin:16px 0"></div>
-        <div id="members-insight" style="margin-bottom:8px"></div>
+        <div id="members-poll" style="margin-bottom:8px"></div>
         <div id="members-networth" style="margin-bottom:8px"><div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:16px;padding:16px;margin-bottom:4px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Worth</div><div style="height:28px;background:var(--border);border-radius:8px;width:120px;opacity:.4"></div></div></div>
         <div id="members-couples" style="display:none;margin-bottom:8px"></div>
       </div>
@@ -734,6 +735,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <!-- Merch sub-view -->
       <div id="members-merch" style="display:none">
         <div id="mkt-merch"></div>
+      </div>
+      <!-- Community sub-view -->
+      <div id="members-community" style="display:none">
+        <div id="mkt-community"></div>
       </div>
     </div>
   </div>
@@ -1670,7 +1675,7 @@ function saveInv(idx){
     C.investments[idx].ticker=ticker;
     C.investments[idx].amount=amount;
     C.investments[idx].recurring=recurring;
-    if(goalIdx!==null)C.investments[idx].goalIdx=goalIdx;
+    C.investments[idx].goalIdx=goalIdx;
   }
   saveState();closeModal();render();
 }
@@ -2299,14 +2304,20 @@ function renderInvGoalsScreen(){
   const totalAllTime=inv.grand;
   const totalTarget=goals.reduce((s,g)=>s+(g.goal||0),0);
 
-  // Waterfall: pour all-time investments into goals in order
-  let remaining=totalAllTime;
-  const waterfall=goals.map(g=>{
+  // Split investments: tagged to a specific goal go directly; untagged form the waterfall pool
+  const taggedAmts={};let untaggedTotal=0;
+  [...STATE.history,C].forEach(cyc=>{(cyc.investments||[]).forEach(inv=>{const amt=inv.amount||0;if(inv.goalIdx!==null&&inv.goalIdx!==undefined&&goals[inv.goalIdx]){taggedAmts[inv.goalIdx]=(taggedAmts[inv.goalIdx]||0)+amt;}else{untaggedTotal+=amt;}});});
+
+  // Waterfall: tagged investments credited directly to their goal; untagged fill goals in order
+  let remaining=untaggedTotal;
+  const waterfall=goals.map((g,gi)=>{
     const cap=g.goal||0;
     const manual=g.saved||0;
-    const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-manual)):0;
-    const effective=cap>0?Math.min(manual+fromWaterfall,cap):manual;
-    remaining=Math.max(0,remaining-(cap>0?Math.min(remaining,Math.max(0,cap-manual)):0));
+    const tagged=taggedAmts[gi]||0;
+    const base=manual+tagged;
+    const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-base)):0;
+    const effective=cap>0?Math.min(base+fromWaterfall,cap):base;
+    remaining=Math.max(0,remaining-fromWaterfall);
     return{...g,effective,cap};
   });
   const totalAllocated=waterfall.reduce((s,g)=>s+(g.cap>0?Math.min(g.effective,g.cap):0),0);
@@ -2499,28 +2510,25 @@ function buildFinancialContext(){
   const invested=totalInvested();
   const spent=totalSpent();
   const rem=remaining();
-  const invList=(C.investments||[]).map(i=>`${i.name}: $${i.amount||0}`).join(', ')||'None logged';
-  const savGoals=(STATE.savingsBuckets||[]).map(g=>`${g.name} (saved $${g.saved||0} of $${g.goal||0})`).join(', ')||'None set';
-  const invGoals=(STATE.invGoals||[]).map(g=>`${g.name} (saved $${g.saved||0} of $${g.goal||0})`).join(', ')||'None set';
-  const buckets=Object.values(C.buckets).map(b=>`${b.label}: $${bucketSpent(b.label.toLowerCase().replace(' ',''))||0} of $${b.budget||0}`);
-  return `FINANCIAL SNAPSHOT (current pay period):
-- Gross income: $${income.toFixed(2)}
-- Fixed bills: $${bills.toFixed(2)}
-- Savings this period: $${(savings+extraSav).toFixed(2)} ($${(C.savings.perPaycheck||0).toFixed(2)}/period + $${extraSav.toFixed(2)} extra)
-- Total invested this period: $${invested.toFixed(2)} (${invList})
-- Variable spending: $${spent.toFixed(2)} (${Object.values(C.buckets).map(b=>`${b.label} $${bucketSpent(Object.keys(C.buckets).find(k=>C.buckets[k]===b)||'')}`).join(', ')})
-- Remaining after all deductions: $${rem.toFixed(2)}
-- Savings goals: ${savGoals}
-- Investment goals: ${invGoals}
-- Pay periods tracked: ${[...STATE.history,C].length}
-- All-time savings: $${allTimeSavings().toFixed(2)}
-- All-time invested: $${allTimeInvestments().grand.toFixed(2)}`;
+  const savRate=income>0?Math.round(((savings+extraSav+invested)/income)*100):0;
+  const debts=C.debts||[];
+  const totalDebt=debts.reduce((s,d)=>s+(d.balance||0),0);
+  const hist=STATE.history||[];
+  const prevSpent=hist.length>0?Object.values(hist[hist.length-1].buckets||{}).reduce((s,b)=>s+(b.spent||0),0):null;
+  const spendDelta=prevSpent!==null&&prevSpent>0?Math.round(((spent-prevSpent)/prevSpent)*100):null;
+  const savGoals=(STATE.savingsBuckets||[]).map(g=>g.name+' '+Math.round((g.saved||0)/(g.goal||1)*100)+'% of $'+(g.goal||0)).join(', ')||'None set';
+  const buckets=Object.values(C.buckets).map(b=>b.label+' $'+(bucketSpent(b.label.toLowerCase().replace(' ',''))||0)+'/$'+(b.budget||0)).join(', ');
+  const invList=(C.investments||[]).map(i=>i.name+' $'+(i.amount||0)).join(', ')||'none';
+  return 'Income: $'+income.toFixed(0)+' | Bills: $'+bills.toFixed(0)+' | Spent: $'+spent.toFixed(0)+' | Remaining: $'+rem.toFixed(0)+'\n'+
+    'Savings rate: '+savRate+'% (saved $'+(savings+extraSav).toFixed(0)+', invested $'+invested.toFixed(0)+')\n'+
+    'Spending breakdown: '+buckets+'\n'+
+    (spendDelta!==null?'vs last period: spending '+(spendDelta>0?'+':'')+spendDelta+'%':'First tracked period')+'\n'+
+    'Total debt: $'+totalDebt.toFixed(0)+(debts.length>0?' ('+debts.map(d=>d.name+' $'+(d.balance||0)).join(', ')+')':'')+'\n'+
+    'Savings goals: '+savGoals+'\n'+
+    'Investments: '+invList+'\n'+
+    'All-time saved: $'+allTimeSavings().toFixed(0)+' | All-time invested: $'+allTimeInvestments().grand.toFixed(0)+'\n'+
+    'Periods tracked: '+[...hist,C].length;
 }
-
-// ── Proactive AI Insights ─────────────────────────────────────────────
-const INSIGHT_CHECK_KEY='distrofi_last_insight_check';
-const INSIGHT_DATA_KEY='distrofi_last_insight';
-
 function getLastInsightCheck(){return localStorage.getItem(INSIGHT_CHECK_KEY)||null;}
 function setLastInsightCheck(){localStorage.setItem(INSIGHT_CHECK_KEY,new Date().toDateString());}
 function getStoredInsight(){try{return JSON.parse(localStorage.getItem(INSIGHT_DATA_KEY)||'null');}catch(e){return null;}}
@@ -2895,40 +2903,137 @@ function selectFreq(f){
 // ── Onboarding ──
 const FORMSPREE_ID='xgobwbye';
 const ONBOARD_KEY='distrofi_onboarded';
-let _onboardSelected=new Set();
-const ONBOARD_OPTIONS=[
-  {icon:'ti-checklist',label:'Track my bills & due dates'},
-  {icon:'ti-wallet',label:'Manage my spending by category'},
-  {icon:'ti-pig-money',label:'Plan & grow my savings'},
-  {icon:'ti-trending-up',label:'Monitor my investments'},
-  {icon:'ti-chart-pie',label:'See my full financial picture'},
-  {icon:'ti-users',label:'Manage finances with a partner'},
-  {icon:'ti-home',label:'Save for a big goal (house, car, trip)'},
-  {icon:'ti-telescope',label:'Just exploring'},
-];
+let _obStep=1;
+let _obData={};
 function showOnboarding(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
-  _onboardSelected=new Set();
-  ov.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;padding-top:env(safe-area-inset-top)"><div style="width:52px;height:52px;border-radius:14px;background:#6366f118;border:1px solid #6366f133;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><i class="ti ti-sparkles" style="font-size:26px;color:var(--accent)"></i></div><h1 style="font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px;text-align:center">Welcome to DistroFi</h1><p style="font-size:14px;color:var(--muted);text-align:center;line-height:1.6;max-width:300px">What brings you here? Pick all that apply — this helps us improve the app.</p></div>
-    <div id="onboard-options">${ONBOARD_OPTIONS.map((o,i)=>`<button class="onboard-option" onclick="toggleOnboardOption(${i})" data-idx="${i}"><i class="ti ${o.icon}"></i><span>${o.label}</span></button>`).join('')}</div>
-    <button onclick="submitOnboarding()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:8px">Get started</button>
-    <button onclick="skipOnboarding()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;margin-top:4px">Skip</button>`;
-  ov.style.display='flex';
+  _obStep=1;
+  _obData={income:0,period:'biweekly',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
+  if(ov.parentNode!==document.body)document.body.appendChild(ov);
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);overflow-y:auto;max-width:none;margin:0;padding:20px;';
+  _renderObStep();
 }
-function toggleOnboardOption(idx){
-  const btn=document.querySelector('[data-idx="'+idx+'"]');if(!btn)return;
-  if(_onboardSelected.has(idx)){_onboardSelected.delete(idx);btn.classList.remove('selected');}
-  else{_onboardSelected.add(idx);btn.classList.add('selected');}
+function _renderObStep(){
+  const ov=document.getElementById('onboard-overlay');if(!ov)return;
+  const steps=['Income','Bills','Budget','Goal'];
+  const prog='<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:28px">'+steps.map((s,i)=>{
+    const done=i+1<_obStep,active=i+1===_obStep;
+    const dot='<div style="width:26px;height:26px;border-radius:50%;border:2px solid '+(active||done?'var(--accent)':'var(--border)')+';background:'+(done?'var(--accent)':active?'#6366f120':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(done?'#fff':active?'var(--accent)':'var(--muted)')+'">'+(done?'&#10003;':(i+1))+'</div>';
+    const line=i<3?'<div style="flex:1;height:2px;background:'+(i+1<_obStep?'var(--accent)':'var(--border)')+';border-radius:1px"></div>':'';
+    return dot+line;
+  }).join('')+'</div>';
+  let body='';
+  if(_obStep===1)body=_renderOb1();
+  else if(_obStep===2)body=_renderOb2();
+  else if(_obStep===3)body=_renderOb3();
+  else body=_renderOb4();
+  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:min(440px,calc(100vw - 40px));flex-shrink:0;box-shadow:0 24px 80px rgba(0,0,0,0.5);border:1px solid var(--border);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body;+'</div>'
 }
-function submitOnboarding(){
-  const choices=[..._onboardSelected].map(i=>ONBOARD_OPTIONS[i].label);
-  const payload={choices,timestamp:new Date().toISOString(),version:'v8'};
-  localStorage.setItem(ONBOARD_KEY,JSON.stringify(payload));
-  if(FORMSPREE_ID&&FORMSPREE_ID!=='YOUR_FORM_ID'){
-    fetch('https://formspree.io/f/'+FORMSPREE_ID,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({choices:choices.join(', '),timestamp:payload.timestamp})}).catch(()=>{});
-  }
+function _renderOb1(){
+  const periods=[['weekly','Weekly'],['biweekly','Bi-weekly'],['twicemonthly','Twice/month'],['monthly','Monthly']];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">What\'s your take-home pay?</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 20px">Enter the amount you receive each paycheck.</p>'+
+    '<div style="margin-bottom:16px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">Take-home amount</label>'+
+    '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px">$</span>'+
+    '<input id="ob-income" type="number" inputmode="decimal" placeholder="0" value="'+(_obData.income||'')+'" style="width:100%;padding:14px 14px 14px 28px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:18px;box-sizing:border-box;font-family:inherit"></div></div>'+
+    '<div style="margin-bottom:24px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">How often do you get paid?</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    periods.map(([p,l])=>'<button onclick="_obData.period=\''+p+'\';_renderObStep()" style="padding:12px 8px;border:2px solid '+(_obData.period===p?'var(--accent)':'var(--border)')+';border-radius:12px;background:'+(_obData.period===p?'#6366f118':'var(--card)')+';color:'+(_obData.period===p?'var(--accent)':'var(--text)')+';font-size:13px;font-weight:'+(_obData.period===p?'600':'400')+';cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
+    '</div></div>'+
+    '<button onclick="_obNext1()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>';
+}
+function _obNext1(){
+  const v=parseFloat(document.getElementById('ob-income')?.value||0);
+  if(!v||v<=0){alert('Please enter your take-home pay.');return;}
+  _obData.income=v;
+  _obData.food=Math.round(v*0.12);
+  _obData.gas=Math.round(v*0.06);
+  _obData.personal=Math.round(v*0.07);
+  _obStep=2;_renderObStep();
+}
+function _renderOb2(){
+  const list=_obData.bills.length===0
+    ?'<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">No bills added yet</div>'
+    :_obData.bills.map((b,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:6px"><span style="font-size:14px">'+b.name+'</span><div style="display:flex;align-items:center;gap:10px"><span style="font-weight:600;color:var(--text)">$'+b.amount+'</span><button onclick="_obRemoveBill('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;line-height:1"><i class="ti ti-x" style="font-size:14px"></i></button></div></div>').join('');
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Fixed bills</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 14px">Rent, utilities, subscriptions — monthly recurring costs.</p>'+
+    '<div id="ob-bills-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">'+list+'</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:24px">'+
+    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
+    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="$" style="width:72px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
+    '<button onclick="_obAddBill()" style="padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obStep=3;_renderObStep()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
+    '</div>';
+}
+function _obAddBill(){
+  const n=(document.getElementById('ob-bill-name')?.value||'').trim();
+  const a=parseFloat(document.getElementById('ob-bill-amt')?.value||0);
+  if(!n||!a||a<=0)return;
+  _obData.bills.push({name:n,amount:a});
+  _renderObStep();
+}
+function _obRemoveBill(i){_obData.bills.splice(i,1);_renderObStep();}
+function _renderOb3(){
+  const cats=[['food','ob-food','ti-shopping-cart','Food & Groceries'],['gas','ob-gas','ti-gas-station','Gas & Transport'],['personal','ob-personal','ti-user','Personal & Misc']];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Spending limits</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 20px">Set budgets for variable spending. We\'ve suggested amounts based on your income.</p>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">'+
+    cats.map(([key,id,icon,label])=>'<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:12px">'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+icon+'" style="font-size:17px;color:var(--accent)"></i></div>'+
+      '<span style="flex:1;font-size:14px;font-weight:500">'+label+'</span>'+
+      '<div style="position:relative"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px">$</span>'+
+      '<input id="'+id+'" type="number" inputmode="decimal" value="'+(_obData[key]||0)+'" style="width:85px;padding:9px 9px 9px 22px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;text-align:right"></div></div>').join('')+
+    '</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obNext3()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
+    '</div>';
+}
+function _obNext3(){
+  _obData.food=parseFloat(document.getElementById('ob-food')?.value||0)||0;
+  _obData.gas=parseFloat(document.getElementById('ob-gas')?.value||0)||0;
+  _obData.personal=parseFloat(document.getElementById('ob-personal')?.value||0)||0;
+  _obStep=4;_renderObStep();
+}
+function _renderOb4(){
+  const presets=['Emergency Fund','Vacation','New Car','Down Payment'];
+  return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">First savings goal</h2>'+
+    '<p style="font-size:13px;color:var(--muted);margin:0 0 16px">Optional — you can always add more later.</p>'+
+    '<div style="margin-bottom:14px">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+
+    presets.map(p=>'<button onclick="document.getElementById(\'ob-goal-name\').value=\''+p+'\'" style="padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:var(--card);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit">'+p+'</button>').join('')+
+    '</div>'+
+    '<input id="ob-goal-name" type="text" placeholder="Goal name" value="'+(_obData.goalName||'')+'" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit;margin-bottom:10px">'+
+    '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)">$</span>'+
+    '<input id="ob-goal-target" type="number" inputmode="decimal" placeholder="Target amount" value="'+(_obData.goalTarget||'')+'" style="width:100%;padding:12px 12px 12px 24px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit"></div></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+    '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
+    '<button onclick="_obComplete()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Set up my budget ✓</button>'+
+    '</div>'+
+    '<button onclick="skipOnboarding()" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Skip for now</button>';
+}
+function _obComplete(){
+  const gn=(document.getElementById('ob-goal-name')?.value||'').trim();
+  const gt=parseFloat(document.getElementById('ob-goal-target')?.value||0)||0;
+  C.income=[{id:'i'+Date.now(),source:'Job',amount:_obData.income,period:_obData.period}];
+  C.bills=_obData.bills.map((b,i)=>({id:'b'+(Date.now()+i),name:b.name,amount:b.amount,dueDate:'1',paid:false}));
+  if(C.buckets.food)C.buckets.food.budget=_obData.food;
+  if(C.buckets.gas)C.buckets.gas.budget=_obData.gas;
+  if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
+  if(gn&&gt>0){STATE.savingsBuckets=STATE.savingsBuckets||[];STATE.savingsBuckets.push({id:'s'+Date.now(),name:gn,goal:gt,saved:0});}
+  setFreq(_obData.period);
+  const freshCycle=newCycleData();
+  C.startDate=freshCycle.startDate;
+  C.endDate=freshCycle.endDate;
+  localStorage.setItem(ONBOARD_KEY,JSON.stringify({setup:true,timestamp:new Date().toISOString()}));
+  saveState();
   closeOnboarding();
+  render();
 }
+
 function skipOnboarding(){localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();}
 function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';}
 function openSettingsModal(){
@@ -3021,6 +3126,10 @@ function openSettingsModal(){
       ${getAuth()?.username&&getAuth()?.method!=='guest'?`<div onclick="closeModal();setTimeout(openReferralModal,50)" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-gift" style="font-size:20px;color:var(--green)"></i><div><div style="font-size:15px;font-weight:500">Refer a friend</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Give 14 days free · Earn 1 free month</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
+      </div>`:''}
+      ${isPollAdmin()?`<div onclick="closeModal();setTimeout(showPollAdmin,50)" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <i class="ti ti-chart-bar" style="font-size:20px;color:var(--accent)"></i>
+        <div><div style="font-size:15px;font-weight:500">Poll Admin</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Create &amp; manage community polls</div></div>
       </div>`:''}
       <div onclick="confirmLogout();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-logout" style="font-size:20px;color:var(--muted)"></i>
@@ -4401,7 +4510,7 @@ function sparkSVG(data,up){
 }
 
 
-const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop'};
+const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop',community:'Community'};
 function toggleInsights(){
   const exp=document.getElementById('insights-expanded');
   const chev=document.getElementById('insights-chevron');
@@ -4412,10 +4521,8 @@ function toggleInsights(){
 }
 
 function showMembersView(view){
-  if(view==='markets')fetchLiveMarketData();
-  if(view==='news')fetchLiveNews();
   if(view==='merch')renderMarketplace();
-  const views=['hub','markets','news','learn','shop','deals','merch'];
+  const views=['hub','learn','shop','deals','merch'];
   views.forEach(v=>{
     const el=document.getElementById('members-'+(v==='hub'?'hub':v));
     if(el)el.style.display=(v===view||(v==='hub'&&view==='hub'))?'block':'none';
@@ -4537,9 +4644,17 @@ function renderMarketplace(){
     const diff=Math.ceil((new Date(C.endDate+'T00:00:00')-new Date())/(864e5));
     const tier=isCouplePro()?'COUPLES':'PRO';
     const col=isCouplePro()?'#ec4899':'#6366f1';
-    const grade=calcBudgetGrade();
-    statsMini.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:16px;font-weight:700">Members</div>
+    const _grade=calcBudgetGrade();
+    const firstName=getAuth()?.name?.split(' ')[0]||'there';
+    const startD=new Date(C.startDate+'T00:00:00'),endD=new Date(C.endDate+'T00:00:00'),now=new Date();
+    const totalDays=Math.max(1,Math.ceil((endD-startD)/(864e5)));
+    const elapsedDays=Math.max(0,Math.min(totalDays,Math.ceil((now-startD)/(864e5))));
+    const cyclePct=Math.round((elapsedDays/totalDays)*100);
+  statsMini.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:2px">Hey ${firstName} 👋</div>
+        <div style="font-size:16px;font-weight:700">Members</div>
+      </div>
       <span style="background:${col};color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em">${tier}</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -4556,19 +4671,29 @@ function renderMarketplace(){
         <div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:${diff<=3?'var(--amber)':'var(--text)'}">${diff>0?diff:0}</div>
       </div>
     </div>
-    <div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid ${grade.col};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-      <div style="font-size:32px;font-weight:900;color:${grade.col};line-height:1;min-width:40px;text-align:center">${grade.grade}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:${grade.col}">${grade.label} Budget Health</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${grade.detail}</div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">
+        <span>Budget cycle</span><span>${elapsedDays} of ${totalDays} days</span>
       </div>
-      <div style="font-size:11px;color:var(--muted);flex-shrink:0">${grade.score}/100</div>
+      <div style="height:4px;background:var(--card2);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${cyclePct}%;background:${cyclePct>85?'var(--amber)':'var(--accent)'};border-radius:99px;transition:width .4s ease"></div>
+      </div>
+    </div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid ${_grade.col};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:32px;font-weight:900;color:${_grade.col};line-height:1;min-width:40px;text-align:center">${_grade.grade}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:${_grade.col}">${_grade.label} Budget Health</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_grade.detail}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);flex-shrink:0">${_grade.score}/100</div>
     </div>`;
   }
 
-  // ── AI Insight — async, session-cached ──
-  const insight=document.getElementById('members-insight');
-  if(insight)fetchHubInsight();
+  // ──   // ── AI Insight — hero card, async, session-cached ──
+  fetchHubInsight();
+
+  // ── Community Poll mini card ──
+  renderMiniPoll();
 
   // ── Net Worth card ──
   const nwCard=document.getElementById('members-networth');
@@ -4666,13 +4791,11 @@ function renderMarketplace(){
     const liveNewsHeadline=(()=>{const c=getNewsCache();return c&&c[0]?c[0].headline:latestNews?latestNews.title:'Curated headlines';})();
     const mktAge=isMktCacheFresh()?Math.floor((Date.now()-(JSON.parse(sessionStorage.getItem('distrofi_mkt_cache')||'{}').ts||Date.now()))/60000)||'<1':null;
     const tiles=[
-      {id:'markets',icon:'ti-chart-candle',color:'#3b82f6',bg:'#3b82f618',label:'Markets',sub:topStock?topStock.sym+' '+topStock.chg:'Stocks & crypto',subCol:topStock?(topStock.up?'var(--green)':'var(--red)'):'var(--muted)',badge:mktAge?mktAge+'m':null,badgeCol:'var(--muted)'},
-      {id:'news',icon:'ti-news',color:'var(--accent)',bg:'#6366f118',label:'News',sub:liveNewsHeadline,subCol:'var(--muted)',badge:null},
-      {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' unread':'All read',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
+      {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' new lessons':'Financial lessons',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
       {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
-      {id:'merch',icon:'ti-shirt',color:'#a855f7',bg:'#a855f718',label:'Merch',sub:'DistroFi gear',subCol:'var(--muted)',badge:'NEW',badgeCol:'#a855f7'},
     ];
-    hubCards.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
+    hubCards.innerHTML=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Explore</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
       ${tiles.map(t=>`<div onclick="showMembersView('${t.id}')" style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between">
         ${t.badge?`<span style="position:absolute;top:10px;right:10px;background:${t.badgeCol}22;color:${t.badgeCol};font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px">${t.badge}</span>`:''}
         <div style="width:40px;height:40px;border-radius:11px;background:${t.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
@@ -4734,13 +4857,13 @@ function renderMarketplace(){
     </button>
   </div>`).join('');}
 
-  // ── Learn (personalized order) ──
+  // ── Learn ──
   const ln=document.getElementById('mkt-learn');
   const readLessons=getReadLessons();
-  if(ln)ln.innerHTML=sortedLessons().map(l=>{const i=l._orig;const isRead=readLessons.includes(i);return`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer;opacity:${isRead?'0.7':'1'}">
+  if(ln)ln.innerHTML=sortedLessons().map(l=>{const i=l._orig;const isRead=readLessons.includes(i);return`<div onclick="openMktLesson(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid ${isRead?'var(--border)':'var(--border)'};padding:14px;margin-bottom:8px;cursor:pointer;opacity:${isRead?'0.8':'1'}">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
       <div style="width:40px;height:40px;border-radius:10px;background:${isRead?'var(--card2)':'#6366f118'};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${isRead?'ti-check':l.icon}" style="font-size:20px;color:${isRead?'var(--muted)':'var(--accent)'}"></i></div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${isRead?'var(--muted)':'var(--text)'}">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isRead?'Read ✓':'<i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> '+l.mins+' read'}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${isRead?'var(--muted)':'var(--text)'}">${l.title}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${isRead?'Read':'<i class="ti ti-clock" style="font-size:11px;vertical-align:-1px"></i> '+l.mins+' read'}</div></div>
       <i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted);flex-shrink:0"></i>
     </div>
     <div style="font-size:13px;color:var(--muted);line-height:1.5">${l.body.substring(0,100)}…</div>
@@ -4927,6 +5050,9 @@ let authMode='login';
 
 // Local session cache (fast access without async)
 function getAuth(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null');}catch(e){return null;}}
+// ── Poll Admin gating (Task #14) ──────────────────────────────
+const POLL_ADMIN_IDS=['25be4a45-d04a-4f3b-a308-abd3d0c7ee55'];
+function isPollAdmin(){const a=getAuth();return !!(a&&a.user_id&&POLL_ADMIN_IDS.includes(a.user_id));}
 function setAuth(a){localStorage.setItem(AUTH_KEY,JSON.stringify(a));}
 function clearAuth(){localStorage.removeItem(AUTH_KEY);}
 function isLoggedIn(){const a=getAuth();return a&&a.loggedIn===true;}
@@ -6575,6 +6701,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
+  renderHoldings();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
@@ -6732,103 +6859,251 @@ function getHubInsightCache(){try{const c=JSON.parse(sessionStorage.getItem(HUB_
 function setHubInsightCache(text){try{sessionStorage.setItem(HUB_INSIGHT_CACHE_KEY,JSON.stringify({text}));}catch(e){}}
 function clearHubInsightCache(){try{sessionStorage.removeItem(HUB_INSIGHT_CACHE_KEY);}catch(e){}}
 
+
+
 async function fetchHubInsight(){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><div style="font-size:13px;color:var(--muted)"><i class="ti ti-loader-2" style="font-size:13px;vertical-align:-1px;animation:spin 1s linear infinite"></i> Analyzing your budget…</div></div></div>';
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Analyzing your numbers…</div></div></div></div>';
   const cached=getHubInsightCache();
   if(cached){renderHubInsightText(cached);return;}
   if(!gateFeature('advisor')){renderHubInsightFallback();return;}
   try{
     const ctx=buildFinancialContext();
-    const res=await fetch('/api/advisor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:120,system:'You are a financial advisor inside a budgeting app. Write exactly 2 sentences: one specific observation about the numbers and one concrete action tip. No disclaimers. No generic advice.',messages:[{role:'user',content:'Here is my current financial snapshot:\n'+ctx+'\n\nGive me a 2-sentence insight about my budget right now.'}]})});
+    const res=await fetch('/api/advisor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,system:'You are a financial analyst. Respond ONLY with valid JSON: {"headline":"key finding in 10 words or less","detail":"1 sentence with specific numbers — a projection, pattern, or trend. No advice. No you-should. State what the data shows."}',messages:[{role:'user',content:'Analyze this budget data:\n\n'+ctx}]})});
     const data=await res.json();
-    const text=data&&data.content&&data.content[0]?data.content[0].text:null;
-    if(text){setHubInsightCache(text);renderHubInsightText(text);}
-    else renderHubInsightFallback();
+    const raw=data&&data.content&&data.content[0]?data.content[0].text:null;
+    if(raw){setHubInsightCache(raw);renderHubInsightText(raw);}else renderHubInsightFallback();
   }catch(e){renderHubInsightFallback();}
 }
-
 function renderHubInsightText(text){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:10px"><div style="display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">AI Insight</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+text+'</p><div style="font-size:11px;color:var(--muted);margin-top:8px"><span onclick="clearHubInsightCache();fetchHubInsight()" style="cursor:pointer;text-decoration:underline"><i class="ti ti-refresh" style="font-size:11px;vertical-align:-1px"></i> Refresh</span></div></div></div></div>';
+  let headline='',detail=text;
+  try{const cleaned=text.trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');const p=JSON.parse(cleaned);if(p&&p.headline){headline=p.headline;detail=p.detail||'';}}catch(e){}
+  const body=headline?'<div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p>':'<p style="font-size:14px;color:var(--text);line-height:1.7;margin:0">'+text+'</p>';
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid #6366f130;border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:#6366f120;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:20px;color:var(--accent)"></i></div><div><div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">AI Insight</div><div style="font-size:11px;color:var(--muted)">Personalized to your budget</div></div><span onclick="clearHubInsightCache();fetchHubInsight()" style="margin-left:auto;cursor:pointer;color:var(--muted);padding:4px"><i class="ti ti-refresh" style="font-size:15px"></i></span></div>'+body+'</div>';
 }
-
 function renderHubInsightFallback(){
   const el=document.getElementById('members-insight');
   if(!el)return;
-  const rem=remaining(),income=totalIncome();
-  const pct=income>0?Math.round((totalSpent()/income)*100):0;
-  const saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
-  const bills=totalBills()-paidBillsAmt();
-  let msg,col;
-  if(rem<0){msg='Over budget by '+fmt(Math.abs(rem))+' this period — review your top spending buckets to get back on track.';col='var(--red)';}
-  else if(pct>70){msg=pct+'% of income spent so far. You have '+fmt(rem)+' remaining — track carefully to avoid going over.';col='var(--amber)';}
-  else{msg='On track — '+pct+'% of income spent with '+fmt(rem)+' left this period'+(saved>0?', and '+fmt(saved)+' already saved':'; keep adding to savings')+'.';col='var(--green)';}
-  if(bills>0)msg+=' You have '+fmt(bills)+' in unpaid bills remaining.';
-  el.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid '+col+';border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#6366f118;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-sparkles" style="font-size:18px;color:var(--accent)"></i></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Budget Snapshot</div><p style="font-size:13px;color:var(--text);line-height:1.6;margin:0">'+msg+'</p></div></div>';
+  const _rem=remaining(),_inc=totalIncome(),_spent=totalSpent();
+  const _pct=_inc>0?Math.round((_spent/_inc)*100):0;
+  const _saved=(C.savings?.perPaycheck||0)+currentExtraSavings();
+  const _savRate=_inc>0?Math.round((_saved/_inc)*100):0;
+  const _bills=totalBills()-paidBillsAmt();
+  let headline,detail,col;
+  if(_rem<0){headline='Over budget by '+fmt(Math.abs(_rem))+' this period';detail='Variable spending is '+_pct+'% of income'+(_bills>0?', with '+fmt(_bills)+' in unpaid bills still due':'')+'.';col='var(--red)';}
+  else if(_pct>70){headline=_pct+'% of income spent with '+fmt(_rem)+' left';detail='Savings rate this period: '+_savRate+'%'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--amber)';}
+  else{headline='Savings rate '+_savRate+'% — '+fmt(_saved)+' set aside this period';detail='Variable spend at '+_pct+'% of income with '+fmt(_rem)+' remaining'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--green)';}
+  el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid '+col+'40;border-left:3px solid '+col+';border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:'+col+'20;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-chart-bar" style="font-size:20px;color:'+col+'"></i></div><div><div style="font-size:13px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.06em">Budget Snapshot</div><div style="font-size:11px;color:var(--muted)">Based on current period</div></div></div><div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p></div>';
 }
-
-// ── Portfolio holdings ───────────────────────────────────────────
-const HOLDINGS_KEY='distrofi_holdings';
 function getHoldings(){try{return JSON.parse(localStorage.getItem(HOLDINGS_KEY)||'[]');}catch(e){return[];}}
 function saveHoldings(h){localStorage.setItem(HOLDINGS_KEY,JSON.stringify(h));}
 
 function renderHoldings(){
-  var holdingsEl=document.getElementById('mkt-holdings');
+  let holdingsEl=document.getElementById('mkt-holdings');
   if(!holdingsEl){
-    var stocksEl=document.getElementById('mkt-stocks');
+    const stocksEl=document.getElementById('mkt-stocks');
     if(!stocksEl)return;
     holdingsEl=document.createElement('div');
     holdingsEl.id='mkt-holdings';
     stocksEl.parentNode.insertBefore(holdingsEl,stocksEl);
   }
-  var holdings=getHoldings();
+  const holdings=getHoldings();
   if(!holdings.length){
     holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center"><i class="ti ti-briefcase" style="font-size:24px;color:var(--muted);margin-bottom:8px;display:block"></i><div style="font-size:13px;color:var(--muted);margin-bottom:12px">Track the value of your investments in one place</div><button onclick="openHoldingsEditor()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Add Holdings</button></div>';
     return;
   }
-  var totalValue=0;
-  var rows=holdings.map(function(h){
-    var sym=h.sym.toUpperCase();
-    var data=MKT_STOCKS.find(function(s){return s.sym===sym;})||MKT_CRYPTO.find(function(s){return s.sym===sym;});
-    var currentPrice=null;
-    if(data&&data.price){var p=parseFloat(data.price.replace(/[$,]/g,''));if(!isNaN(p))currentPrice=p;}
-    var value=currentPrice!==null?currentPrice*(h.shares||0):(h.value||0);
+  let totalValue=0;
+  const rows=holdings.map(h=>{
+    const sym=h.sym.toUpperCase();
+    const data=MKT_STOCKS.find(s=>s.sym===sym)||MKT_CRYPTO.find(s=>s.sym===sym);
+    let value=h.value||0;
+    if(data&&data.price){const p=parseFloat(data.price.replace(/[$,]/g,''));if(!isNaN(p))value=p*(h.shares||0);}
     totalValue+=value;
-    return{sym:sym,shares:h.shares,value:value,chg:data?data.chg:null,isUp:data?data.up:null,name:data?data.name:sym};
+    return{sym,shares:h.shares,value,chg:data?data.chg:null,isUp:data?data.up:null,name:data?data.name:sym};
   });
-  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map(function(h){return'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>';}).join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Live prices · add tickers to watchlist for accurate values</div></div>';
+  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map(h=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>').join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Prices update with watchlist data</div></div>';
 }
 
 function openHoldingsEditor(){
-  var holdings=getHoldings();
-  var rows=holdings.length?holdings.map(function(h,i){return'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)"><div style="flex:1;font-size:13px;font-weight:600;color:var(--accent)">'+h.sym.toUpperCase()+'</div><div style="font-size:13px;color:var(--muted)">'+h.shares+' shares</div><button onclick="removeHolding('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:16px"></i></button></div>';}).join(''):'<div style="text-align:center;padding:16px;font-size:13px;color:var(--muted)">No holdings yet</div>';
-  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0">My Holdings</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Add tickers and share count. Values update with live market prices from your watchlist.</p><div id="holdings-rows">'+rows+'</div><div style="display:flex;gap:8px;margin-top:14px"><input id="holding-sym" placeholder="Ticker (e.g. AAPL)" style="flex:1;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"><input id="holding-shares" type="number" min="0" step="any" placeholder="Shares" style="width:90px;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"></div><div class="modal-btns" style="margin-top:12px"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-primary" onclick="addHolding()">Add</button></div></div></div>';
+  const holdings=getHoldings();
+  const rows=holdings.length?holdings.map((h,i)=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)"><div style="flex:1;font-size:13px;font-weight:600;color:var(--accent)">'+h.sym.toUpperCase()+'</div><div style="font-size:13px;color:var(--muted)">'+h.shares+' shares</div><button onclick="removeHolding('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:16px"></i></button></div>').join(''):'<div style="text-align:center;padding:16px;font-size:13px;color:var(--muted)">No holdings yet</div>';
+  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0">My Holdings</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Add tickers and share counts. Values update with live prices from your watchlist.</p><div id="holdings-rows">'+rows+'</div><div style="display:flex;gap:8px;margin-top:14px"><input id="holding-sym" placeholder="Ticker (e.g. AAPL)" style="flex:1;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"><input id="holding-shares" type="number" min="0" step="any" placeholder="Shares" style="width:90px;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"></div><div class="modal-btns" style="margin-top:12px"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-primary" onclick="addHolding()">Add</button></div></div></div>';
 }
 
 function addHolding(){
-  var symEl=document.getElementById('holding-sym');
-  var shrEl=document.getElementById('holding-shares');
-  var sym=symEl?symEl.value.trim().toUpperCase():'';
-  var shares=parseFloat(shrEl?shrEl.value:'0');
+  const symEl=document.getElementById('holding-sym');
+  const shrEl=document.getElementById('holding-shares');
+  const sym=symEl?symEl.value.trim().toUpperCase():'';
+  const shares=parseFloat(shrEl?shrEl.value:'0');
   if(!sym||isNaN(shares)||shares<=0){showToast('Enter a ticker and number of shares');return;}
-  var holdings=getHoldings();
-  var idx=holdings.findIndex(function(h){return h.sym===sym;});
-  if(idx>=0)holdings[idx].shares=shares;
-  else holdings.push({sym:sym,shares:shares});
+  const holdings=getHoldings();
+  const idx=holdings.findIndex(h=>h.sym===sym);
+  if(idx>=0)holdings[idx].shares=shares;else holdings.push({sym,shares});
   saveHoldings(holdings);
   renderHoldings();
   openHoldingsEditor();
 }
 
 function removeHolding(i){
-  var holdings=getHoldings();
+  const holdings=getHoldings();
   holdings.splice(i,1);
   saveHoldings(holdings);
   renderHoldings();
   openHoldingsEditor();
+}
+
+
+// ── Community Polls ──────────────────────────────────────────────────────────
+function getPollUserId(){let uid=localStorage.getItem('distrofi_poll_uid');if(!uid){uid=crypto.randomUUID();localStorage.setItem('distrofi_poll_uid',uid);}return getAuth()?.user_id||uid;}
+
+async function fetchActivePoll(){try{const r=await fetch(SUPA_URL+'/rest/v1/polls?is_active=eq.true&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();return polls[0]||null;}catch(e){return null;}}
+
+async function fetchPollResults(pollId){try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&select=option_id',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();const counts={};(Array.isArray(votes)?votes:[]).forEach(v=>{counts[v.option_id]=(counts[v.option_id]||0)+1;});return counts;}catch(e){return {};}}
+
+async function checkUserVoted(pollId){const userId=getPollUserId();try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&user_id=eq.'+encodeURIComponent(userId)+'&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();return Array.isArray(votes)&&votes.length?votes[0].option_id:null;}catch(e){return null;}}
+
+async function submitPollVote(pollId,optionId){const userId=getPollUserId();try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes',{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({poll_id:pollId,user_id:userId,option_id:optionId})});return r.ok||r.status===409;}catch(e){return false;}}
+
+async function renderMiniPoll(){
+  const el=document.getElementById('members-poll');
+  if(!el)return;
+  const poll=await fetchActivePoll();
+  if(!poll){el.innerHTML='';return;}
+  const COLS=['#6366f1','#3b82f6','#22c55e','#f59e0b'];
+  const [votedOption,results]=await Promise.all([checkUserVoted(poll.id),fetchPollResults(poll.id)]);
+  const totalVotes=Object.values(results).reduce((a,v)=>a+v,0);
+  const opts=poll.options||[];
+  if(votedOption){
+    const bars=opts.map((o,i)=>{const c=results[o.id]||0;const p=totalVotes>0?Math.round((c/totalVotes)*100):0;const chosen=o.id===votedOption;return`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:${chosen?700:400};color:${chosen?COLS[i%COLS.length]:'var(--text)'};">${chosen?'✓ ':''}${o.text||o.label}</span><span style="color:var(--muted)">${p}%</span></div><div style="height:6px;background:var(--card2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p}%;background:${COLS[i%COLS.length]};border-radius:99px"></div></div></div>`;}).join('');
+    el.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #f59e0b;border-radius:16px;padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b">Community Poll</div><span style="font-size:10px;color:var(--muted)">${totalVotes} vote${totalVotes!==1?'s':''}</span></div><div style="font-size:13px;font-weight:600;margin-bottom:12px;line-height:1.4">${poll.question}</div>${bars}<button onclick="showMembersView('community')" style="width:100%;margin-top:8px;padding:8px;background:none;border:0.5px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">See full results →</button></div>`;
+  }else{
+    const btns=opts.map((o,i)=>`<button onclick="castPollVote('${poll.id}','${o.id}')" style="width:100%;text-align:left;padding:11px 14px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:7px">${o.text||o.label}</button>`).join('');
+    el.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #f59e0b;border-radius:16px;padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b">Community Poll</div><span style="font-size:10px;color:var(--muted)">${totalVotes} vote${totalVotes!==1?'s':''}</span></div><div style="font-size:13px;font-weight:600;margin-bottom:12px;line-height:1.4">${poll.question}</div>${btns}</div>`;
+  }
+}
+
+async function castPollVote(pollId,optionId){
+  await submitPollVote(pollId,optionId);
+  renderMiniPoll();
+  const cv=document.getElementById('mkt-community');
+  if(cv&&cv.innerHTML)renderCommunityView();
+}
+
+async function renderCommunityView(){
+  const el=document.getElementById('mkt-community');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Loading…</div>';
+  const poll=await fetchActivePoll();
+  if(!poll){el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">No active poll right now — check back soon!</div>';return;}
+  const COLS=['#6366f1','#3b82f6','#22c55e','#f59e0b'];
+  const [votedOption,results]=await Promise.all([checkUserVoted(poll.id),fetchPollResults(poll.id)]);
+  const totalVotes=Object.values(results).reduce((a,v)=>a+v,0);
+  const opts=poll.options||[];
+  let html=`<div style="background:var(--card);border:0.5px solid #f59e0b44;border-left:3px solid #f59e0b;border-radius:16px;padding:18px;margin-bottom:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#f59e0b;margin-bottom:10px">This week's poll</div><div style="font-size:16px;font-weight:700;line-height:1.4;margin-bottom:14px">${poll.question}</div>`;
+  if(votedOption){
+    html+=opts.map((o,i)=>{const c=results[o.id]||0;const p=totalVotes>0?Math.round((c/totalVotes)*100):0;const chosen=o.id===votedOption;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:13px;font-weight:${chosen?700:400};color:${chosen?COLS[i%COLS.length]:'var(--text)'}">${chosen?'<i class=\"ti ti-circle-check\" style=\"font-size:13px;vertical-align:-1px;margin-right:4px\"></i>':''}${o.text||o.label}</span><span style="font-size:12px;color:var(--muted)">${p}% · ${c} vote${c!==1?'s':''}</span></div><div style="height:8px;background:var(--card2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p}%;background:${COLS[i%COLS.length]};border-radius:99px;opacity:${chosen?1:0.6}"></div></div></div>`;}).join('');
+    html+=`<div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">${totalVotes} total vote${totalVotes!==1?'s':''} · Thanks for participating!</div>`;
+  }else{
+    html+=opts.map((o,i)=>`<button onclick="castPollVote('${poll.id}','${o.id}')" style="width:100%;text-align:left;padding:13px 16px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:8px;background:${COLS[i%COLS.length]}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:${COLS[i%COLS.length]}">${String.fromCharCode(65+i)}</div>${o.text||o.label}</button>`).join('');
+    html+=`<div style="font-size:11px;color:var(--muted);text-align:center">${totalVotes} vote${totalVotes!==1?'s':''} so far</div>`;
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ── Poll Admin Panel (Task #14) ──────────────────────────────────────────────
+async function showPollAdmin(){
+  if(!isPollAdmin()){showToast('Not authorized');return;}
+  let ov=document.getElementById('poll-admin-overlay');
+  if(!ov){ov=document.createElement('div');ov.id='poll-admin-overlay';document.body.appendChild(ov);}
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--app-bg);overflow-y:auto;';
+  ov.innerHTML=`<div style="max-width:480px;margin:0 auto;padding:20px 18px 60px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="margin:0;font-size:20px">Poll Admin</h2>
+      <button onclick="closePollAdmin()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;display:flex"><i class="ti ti-x" style="font-size:22px"></i></button>
+    </div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:16px;margin-bottom:22px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Create a poll</div>
+      <input id="pa-question" placeholder="Poll question" style="width:100%;box-sizing:border-box;padding:11px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;margin-bottom:10px">
+      <input id="pa-opt-a" placeholder="Option 1" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
+      <input id="pa-opt-b" placeholder="Option 2" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
+      <input id="pa-opt-c" placeholder="Option 3 (optional)" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
+      <input id="pa-opt-d" placeholder="Option 4 (optional)" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:14px">
+      <button onclick="_pollAdminCreate()" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Publish poll</button>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">All polls</div>
+    <div id="pa-list"><div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Loading…</div></div>
+  </div>`;
+  _pollAdminRenderList();
+}
+function closePollAdmin(){const ov=document.getElementById('poll-admin-overlay');if(ov)ov.remove();}
+async function _pollAdminCreate(){
+  const q=(document.getElementById('pa-question').value||'').trim();
+  const opts=[];
+  ['a','b','c','d'].forEach(function(id){const el=document.getElementById('pa-opt-'+id);const v=el?(el.value||'').trim():'';if(v)opts.push({id:id,text:v});});
+  if(!q){showToast('Enter a question');return;}
+  if(opts.length<2){showToast('Add at least 2 options');return;}
+  const sb=getSB();
+  const {error}=await sb.from('polls').insert({question:q,options:opts,is_active:true});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Poll published');
+  document.getElementById('pa-question').value='';
+  ['a','b','c','d'].forEach(function(id){const el=document.getElementById('pa-opt-'+id);if(el)el.value='';});
+  _pollAdminRenderList();
+  if(typeof renderMiniPoll==='function')renderMiniPoll();
+}
+async function _pollAdminRenderList(){
+  const wrap=document.getElementById('pa-list');
+  if(!wrap)return;
+  const sb=getSB();
+  const {data:polls,error}=await sb.from('polls').select('*').order('created_at',{ascending:false});
+  if(error){wrap.innerHTML='<div style="color:var(--red);font-size:13px;padding:8px">Error loading polls: '+error.message+'</div>';return;}
+  if(!polls||!polls.length){wrap.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No polls yet</div>';return;}
+  const {data:votes}=await sb.from('poll_votes').select('poll_id,option_id');
+  const countMap={};
+  (votes||[]).forEach(function(v){if(!countMap[v.poll_id])countMap[v.poll_id]={};countMap[v.poll_id][v.option_id]=(countMap[v.poll_id][v.option_id]||0)+1;});
+  wrap.innerHTML=polls.map(function(p){
+    const counts=countMap[p.id]||{};
+    const total=Object.values(counts).reduce(function(a,b){return a+b;},0);
+    const rows=(p.options||[]).map(function(o){
+      const c=counts[o.id]||0;
+      const pct=total>0?Math.round(c/total*100):0;
+      return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:3px 0"><span>'+(o.text||o.label||o.id)+'</span><span style="font-variant-numeric:tabular-nums">'+c+' · '+pct+'%</span></div>';
+    }).join('');
+    return '<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">'
+      +'<div style="font-size:14px;font-weight:600;line-height:1.35">'+p.question+'</div>'
+      +'<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+(p.is_active?'var(--green)22':'var(--border)')+';color:'+(p.is_active?'var(--green)':'var(--muted)')+'">'+(p.is_active?'ACTIVE':'INACTIVE')+'</span>'
+      +'</div>'+rows
+      +'<div style="font-size:11px;color:var(--muted);margin-top:6px">'+total+' total vote'+(total!==1?'s':'')+'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px">'
+      +'<button onclick="_pollAdminToggle(\''+p.id+'\','+(p.is_active?'true':'false')+')" style="flex:1;padding:8px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">'+(p.is_active?'Deactivate':'Activate')+'</button>'
+      +'<button onclick="_pollAdminDelete(\''+p.id+'\')" style="flex:1;padding:8px;background:none;border:0.5px solid var(--red);border-radius:10px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Delete</button>'
+      +'</div></div>';
+  }).join('');
+}
+async function _pollAdminToggle(id,isActive){
+  const sb=getSB();
+  if(isActive){
+    await sb.from('polls').update({is_active:false}).eq('id',id);
+  }else{
+    await sb.from('polls').update({is_active:false}).neq('id',id);
+    await sb.from('polls').update({is_active:true}).eq('id',id);
+  }
+  _pollAdminRenderList();
+  if(typeof renderMiniPoll==='function')renderMiniPoll();
+}
+async function _pollAdminDelete(id){
+  if(!confirm('Delete this poll and all its votes? This cannot be undone.'))return;
+  const sb=getSB();
+  const {error}=await sb.from('polls').delete().eq('id',id);
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Poll deleted');
+  _pollAdminRenderList();
+  if(typeof renderMiniPoll==='function')renderMiniPoll();
 }
 </script>
 </body>
