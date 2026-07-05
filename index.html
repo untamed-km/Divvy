@@ -1333,15 +1333,37 @@ function saveIncome(){
 }
 
 function openSavingsModal(){
+  const _recurringSav=C.savings.recurring!==false;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Edit savings</h3>
     <span class="modal-label">Amount saved ${savingsFreqLabel()}</span>
     <input type="number" id="sav-input" value="${C.savings.perPaycheck||''}" inputmode="decimal" step="0.01" min="0" placeholder="0.00"/>
+    <div onclick="toggleRecurringSav()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-bottom:8px;cursor:pointer">
+      <div>
+        <div style="font-size:15px;font-weight:500">Recurring</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Carries forward each pay period</div>
+      </div>
+      <div id="recurring-sav-toggle" style="width:44px;height:26px;border-radius:99px;background:${_recurringSav?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;flex-shrink:0">
+        <div id="recurring-sav-knob" style="position:absolute;top:3px;left:${_recurringSav?'21px':'3px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+      </div>
+    </div>
     <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSavings()">Save</button></div>
   </div></div>`;
   setTimeout(()=>document.getElementById('sav-input').focus(),100);
 }
-function saveSavings(){C.savings.perPaycheck=parseFloat(document.getElementById('sav-input').value)||0;saveState();closeModal();render();}
+function toggleRecurringSav(){
+  const t=document.getElementById('recurring-sav-toggle');
+  const k=document.getElementById('recurring-sav-knob');
+  const on=k.style.left==='3px';
+  k.style.left=on?'21px':'3px';
+  t.style.background=on?'var(--accent)':'var(--border)';
+}
+function saveSavings(){
+  C.savings.perPaycheck=parseFloat(document.getElementById('sav-input').value)||0;
+  const knob=document.getElementById('recurring-sav-knob');
+  C.savings.recurring=knob?knob.style.left==='21px':true;
+  saveState();closeModal();render();
+}
 
 
 function openBillHistory(billName){
@@ -2080,6 +2102,7 @@ function confirmNewCycle(leftoverAction){
   const recurringIncome=C.income.filter(l=>l.recurring!==false).map(l=>({...l,depositDate:''}));
   const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
   const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
+  const recurringSav=(C.savings&&C.savings.recurring!==false&&(C.savings.perPaycheck||0)>0)?(C.savings.perPaycheck||0):0;
   const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
   const carryDebts=JSON.parse(JSON.stringify(C.debts||[]));
   const leftoverAmt=remaining(); // capture before resetting
@@ -2098,6 +2121,7 @@ function confirmNewCycle(leftoverAction){
   }
   if(recurringBills.length) C.bills=recurringBills;
   if(recurringInvs.length) C.investments=recurringInvs;
+  if(recurringSav>0){C.savings.perPaycheck=recurringSav;C.savings.recurring=true;}
   if(recurring401k) C.k401=recurring401k;
   C.debtExtraPayments=0; // reset per-cycle debt payment tracking
   saveState();closeModal();render();
