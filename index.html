@@ -6959,7 +6959,7 @@ function removeHolding(i){
 // ── Community Polls ──────────────────────────────────────────────────────────
 function getPollUserId(){let uid=localStorage.getItem('distrofi_poll_uid');if(!uid){uid=crypto.randomUUID();localStorage.setItem('distrofi_poll_uid',uid);}return getAuth()?.user_id||uid;}
 
-async function fetchActivePoll(){try{const r=await fetch(SUPA_URL+'/rest/v1/polls?is_active=eq.true&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();return polls[0]||null;}catch(e){return null;}}
+async function fetchActivePoll(){try{const _now=new Date().toISOString();const r=await fetch(SUPA_URL+'/rest/v1/polls?is_active=eq.true&or=(expires_at.is.null,expires_at.gt.'+encodeURIComponent(_now)+')&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();return polls[0]||null;}catch(e){return null;}}
 
 async function fetchPollResults(pollId){try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&select=option_id',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();const counts={};(Array.isArray(votes)?votes:[]).forEach(v=>{counts[v.option_id]=(counts[v.option_id]||0)+1;});return counts;}catch(e){return {};}}
 
@@ -7031,7 +7031,8 @@ async function showPollAdmin(){
       <input id="pa-opt-a" placeholder="Option 1" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
       <input id="pa-opt-b" placeholder="Option 2" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
       <input id="pa-opt-c" placeholder="Option 3 (optional)" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:8px">
-      <input id="pa-opt-d" placeholder="Option 4 (optional)" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:14px">
+      <input id="pa-opt-d" placeholder="Option 4 (optional)" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:10px">
+      <select id="pa-expiry" style="width:100%;box-sizing:border-box;padding:10px 13px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;margin-bottom:14px"><option value="0">No expiry</option><option value="1">Expires in 1 day</option><option value="3">Expires in 3 days</option><option value="7">Expires in 7 days</option><option value="14">Expires in 14 days</option><option value="30">Expires in 30 days</option></select>
       <button onclick="_pollAdminCreate()" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Publish poll</button>
     </div>
     <div style="font-size:13px;font-weight:700;margin-bottom:12px">All polls</div>
@@ -7046,12 +7047,16 @@ async function _pollAdminCreate(){
   ['a','b','c','d'].forEach(function(id){const el=document.getElementById('pa-opt-'+id);const v=el?(el.value||'').trim():'';if(v)opts.push({id:id,text:v});});
   if(!q){showToast('Enter a question');return;}
   if(opts.length<2){showToast('Add at least 2 options');return;}
+  const _expSel=document.getElementById('pa-expiry');
+  const _expDays=_expSel?parseInt(_expSel.value,10):0;
+  const _expiresAt=_expDays>0?new Date(Date.now()+_expDays*86400000).toISOString():null;
   const sb=getSB();
-  const {error}=await sb.from('polls').insert({question:q,options:opts,is_active:true});
+  const {error}=await sb.from('polls').insert({question:q,options:opts,is_active:true,expires_at:_expiresAt});
   if(error){showToast('Error: '+error.message);return;}
   showToast('Poll published');
   document.getElementById('pa-question').value='';
   ['a','b','c','d'].forEach(function(id){const el=document.getElementById('pa-opt-'+id);if(el)el.value='';});
+  if(_expSel)_expSel.value='0';
   _pollAdminRenderList();
   if(typeof renderMiniPoll==='function')renderMiniPoll();
 }
@@ -7068,6 +7073,7 @@ async function _pollAdminRenderList(){
   wrap.innerHTML=polls.map(function(p){
     const counts=countMap[p.id]||{};
     const total=Object.values(counts).reduce(function(a,b){return a+b;},0);
+    const expired=!!(p.expires_at&&new Date(p.expires_at)<new Date());
     const rows=(p.options||[]).map(function(o){
       const c=counts[o.id]||0;
       const pct=total>0?Math.round(c/total*100):0;
@@ -7076,9 +7082,9 @@ async function _pollAdminRenderList(){
     return '<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">'
       +'<div style="font-size:14px;font-weight:600;line-height:1.35">'+p.question+'</div>'
-      +'<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+(p.is_active?'var(--green)22':'var(--border)')+';color:'+(p.is_active?'var(--green)':'var(--muted)')+'">'+(p.is_active?'ACTIVE':'INACTIVE')+'</span>'
+      +'<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+(expired?'var(--amber)22':(p.is_active?'var(--green)22':'var(--border)'))+';color:'+(expired?'var(--amber)':(p.is_active?'var(--green)':'var(--muted)'))+'">'+(expired?'EXPIRED':(p.is_active?'ACTIVE':'INACTIVE'))+'</span>'
       +'</div>'+rows
-      +'<div style="font-size:11px;color:var(--muted);margin-top:6px">'+total+' total vote'+(total!==1?'s':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:6px">'+total+' total vote'+(total!==1?'s':'')+(p.expires_at?' · '+(expired?'expired ':'expires ')+new Date(p.expires_at).toLocaleDateString():'')+'</div>'
       +'<div style="display:flex;gap:8px;margin-top:10px">'
       +'<button onclick="_pollAdminToggle(\''+p.id+'\','+(p.is_active?'true':'false')+')" style="flex:1;padding:8px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">'+(p.is_active?'Deactivate':'Activate')+'</button>'
       +'<button onclick="_pollAdminDelete(\''+p.id+'\')" style="flex:1;padding:8px;background:none;border:0.5px solid var(--red);border-radius:10px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Delete</button>'
