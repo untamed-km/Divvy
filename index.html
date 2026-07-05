@@ -5527,6 +5527,10 @@ async function checkAuthGate(){
 
 
 function render401K(){
+  const meEl=document.getElementById('invest-401k-me');
+  const empEl=document.getElementById('invest-401k-emp');
+  if(meEl)meEl.textContent=fmt(C.k401?.me||0);
+  if(empEl)empEl.textContent=fmt(C.k401?.emp||0);
   const totals=document.getElementById('k401-totals');
   const histEl=document.getElementById('k401-history');
   if(!totals||!histEl)return;
