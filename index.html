@@ -1088,7 +1088,7 @@ function paidBillsAmt(){return C.bills.filter(b=>b.paid).reduce((a,b)=>a+billAmt
 function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
-function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings()-(C.debtExtraPayments||0);}
+function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings()-(C.debtExtraPayments||0)-(C.goalContrib||0);}
 function allTimeSavings(){return[...STATE.history,C].reduce((s,cyc)=>s+((cyc.savings?.perPaycheck||0))+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0)),0);}
 function currentExtraSavings(){return(C.savings.extra||[]).reduce((s,e)=>s+(e.amount||0),0);}
 function allTime401K(){const all=[...STATE.history,C];const me=all.reduce((s,cyc)=>s+(cyc.k401?.me||0),0);const emp=all.reduce((s,cyc)=>s+(cyc.k401?.emp||0),0);return{me,emp,total:me+emp,periods:all.length};}
@@ -1863,6 +1863,15 @@ function addToSavingsBucket(idx){
     <h3>Add to ${bkt.name}</h3>
     <span class="modal-label">Amount to add</span>
     <input type="number" id="sadd-amt" placeholder="0.00" inputmode="decimal" step="0.01" min="0"/>
+    <div onclick="toggleGoalPaycheck()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-top:4px;cursor:pointer">
+      <div>
+        <div style="font-size:15px;font-weight:500">From this paycheck</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Take it out of this period's remaining</div>
+      </div>
+      <div id="gp-fromcheck-toggle" style="width:44px;height:26px;border-radius:99px;background:var(--accent);position:relative;transition:background .2s;flex-shrink:0">
+        <div id="gp-fromcheck-knob" style="position:absolute;top:3px;left:21px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmAddToSavings(${idx})">Add</button>
@@ -1874,7 +1883,16 @@ function confirmAddToSavings(idx){
   const amt=parseFloat(document.getElementById('sadd-amt').value)||0;
   if(!amt)return;
   STATE.savingsBuckets[idx].saved=(STATE.savingsBuckets[idx].saved||0)+amt;
-  saveState();closeModal();renderSavingsScreen();
+  const knob=document.getElementById('gp-fromcheck-knob');
+  if(!knob||knob.style.left==='21px'){C.goalContrib=(C.goalContrib||0)+amt;}
+  saveState();closeModal();render();
+}
+function toggleGoalPaycheck(){
+  const t=document.getElementById('gp-fromcheck-toggle');
+  const k=document.getElementById('gp-fromcheck-knob');
+  const on=k.style.left==='3px';
+  k.style.left=on?'21px':'3px';
+  t.style.background=on?'var(--accent)':'var(--border)';
 }
 
 function openWaterfallDetail(){
@@ -1930,7 +1948,8 @@ function renderSnapshot(){
   const debtPmts=C.debtExtraPayments||0;
   const rows=[['Income',income,''],['Bills',bills,'sub'],['Savings',savings,'sub'],['Investments',invested,'sub'],
     ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub']),
-    ...(debtPmts>0?[['Debt payments',debtPmts,'sub']]:[])];
+    ...(debtPmts>0?[['Debt payments',debtPmts,'sub']]:[]),
+    ...((C.goalContrib||0)>0?[['To goals (from paycheck)',C.goalContrib||0,'sub']]:[])];
   tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${l}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
   `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<Math.max(200,income*0.1)?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
   const allCycles=[...STATE.history,C];
@@ -2309,6 +2328,15 @@ function addToInvGoal(idx){
     <h3>Add to ${g.name}</h3>
     <span class="modal-label">Amount to add</span>
     <input type="number" id="igadd-amt" placeholder="0.00" inputmode="decimal" step="0.01" min="0"/>
+    <div onclick="toggleGoalPaycheck()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-top:4px;cursor:pointer">
+      <div>
+        <div style="font-size:15px;font-weight:500">From this paycheck</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Take it out of this period's remaining</div>
+      </div>
+      <div id="gp-fromcheck-toggle" style="width:44px;height:26px;border-radius:99px;background:var(--accent);position:relative;transition:background .2s;flex-shrink:0">
+        <div id="gp-fromcheck-knob" style="position:absolute;top:3px;left:21px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmAddToInvGoal(${idx})">Add</button>
@@ -2320,7 +2348,9 @@ function confirmAddToInvGoal(idx){
   const amt=parseFloat(document.getElementById('igadd-amt').value)||0;
   if(!amt)return;
   STATE.invGoals[idx].saved=(STATE.invGoals[idx].saved||0)+amt;
-  saveState();closeModal();renderInvGoalsScreen();
+  const knob=document.getElementById('gp-fromcheck-knob');
+  if(!knob||knob.style.left==='21px'){C.goalContrib=(C.goalContrib||0)+amt;}
+  saveState();closeModal();render();
 }
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
