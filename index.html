@@ -2332,6 +2332,27 @@ function renderInvGoalsScreen(){
   if(tu)tu.textContent=fmt(unallocated);
   if(tt)tt.textContent=fmt(totalTarget);
 
+  // ── This period's investments (tap a row to edit) ──
+  const il=document.getElementById('invest-list');
+  if(il){
+    const invs=C.investments||[];
+    if(!invs.length){
+      il.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0 4px">No investments this period yet — tap "Add investment" below.</div>';
+    } else {
+      il.innerHTML=invs.map(function(iv,ii){
+        const gName=(iv.goalIdx!==null&&iv.goalIdx!==undefined&&goals[iv.goalIdx])?goals[iv.goalIdx].name:null;
+        return '<div onclick="openInvModal('+ii+')" style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">'
+          +'<div style="display:flex;align-items:center;gap:10px;min-width:0">'
+          +'<div style="width:32px;height:32px;border-radius:50%;background:#a855f718;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trending-up" style="font-size:15px;color:var(--purple)"></i></div>'
+          +'<div style="min-width:0"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(iv.name||'Investment')+(iv.ticker?' · '+iv.ticker:'')+'</div>'
+          +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(iv.recurring!==false?'Recurring':'One-time')+(gName?' · '+gName:'')+'</div></div>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--purple)">'+fmt(iv.amount||0)+'</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted)"></i></div>'
+          +'</div>';
+      }).join('');
+    }
+  }
+
   // ── Investment growth chart ──
   const chartEl=document.getElementById('invgoal-chart');
   if(chartEl){
@@ -6924,7 +6945,7 @@ function renderHoldings(){
     totalValue+=value;
     return{sym,shares:h.shares,value,chg:data?data.chg:null,isUp:data?data.up:null,name:data?data.name:sym};
   });
-  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map(h=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>').join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Prices update with watchlist data</div></div>';
+  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map((h,i)=>'<div onclick="openHoldingEdit('+i+')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>').join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Prices update with watchlist data</div></div>';
 }
 
 function openHoldingsEditor(){
@@ -6953,6 +6974,39 @@ function removeHolding(i){
   saveHoldings(holdings);
   renderHoldings();
   openHoldingsEditor();
+}
+function openHoldingEdit(i){
+  const holdings=getHoldings();
+  const h=holdings[i];
+  if(!h)return;
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Edit ${h.sym.toUpperCase()}</h3>
+    <span class="modal-label">Shares</span>
+    <input type="number" id="hold-edit-shares" value="${h.shares}" inputmode="decimal" step="any" min="0" autocomplete="off"/>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="deleteHolding(${i})"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveHoldingEdit(${i})">Save</button>
+    </div>
+  </div></div>`;
+  setTimeout(()=>{const el=document.getElementById('hold-edit-shares');if(el)el.focus();},100);
+}
+function saveHoldingEdit(i){
+  const shares=parseFloat(document.getElementById('hold-edit-shares').value);
+  if(isNaN(shares)||shares<=0){showToast('Enter a valid number of shares');return;}
+  const holdings=getHoldings();
+  if(!holdings[i])return;
+  holdings[i].shares=shares;
+  saveHoldings(holdings);
+  closeModal();
+  renderHoldings();
+}
+function deleteHolding(i){
+  const holdings=getHoldings();
+  holdings.splice(i,1);
+  saveHoldings(holdings);
+  closeModal();
+  renderHoldings();
 }
 
 
