@@ -1607,8 +1607,6 @@ function saveBill(idx){
   const linkedDebtId=dlSel?dlSel.value||null:null;
   if(idx===null||idx==='null')C.bills.push({name,amount,paid:false,dueDay:_selectedDay,recurring:cat==='subscription'?true:_recurringBill,priority:_priorityHigh?'high':null,sortOrder:Date.now(),category:cat,frequency:freq,linkedDebtId:linkedDebtId||null});
   else{
-    const cat=_billCategory||'bill';
-    const freq=_billFreq||'monthly';
     C.bills[idx].name=name;C.bills[idx].amount=amount;C.bills[idx].dueDay=_selectedDay;
     C.bills[idx].recurring=cat==='subscription'?true:_recurringBill;
     C.bills[idx].priority=_priorityHigh?'high':null;
@@ -3064,7 +3062,7 @@ function _renderObStep(){
   else if(_obStep===2)body=_renderOb2();
   else if(_obStep===3)body=_renderOb3();
   else body=_renderOb4();
-  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:min(440px,calc(100vw - 40px));flex-shrink:0;box-shadow:0 24px 80px rgba(0,0,0,0.5);border:1px solid var(--border);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body;+'</div>'
+  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:min(440px,calc(100vw - 40px));flex-shrink:0;box-shadow:0 24px 80px rgba(0,0,0,0.5);border:1px solid var(--border);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body+'</div>';
 }
 function _renderOb1(){
   const periods=[['weekly','Weekly'],['biweekly','Bi-weekly'],['twicemonthly','Twice/month'],['monthly','Monthly']];
@@ -4497,7 +4495,6 @@ const MKT_LEARN=[
    tip:'Enter your net pay into DistroFi\'s income tracking tool each pay period so your spending buckets and savings goals are always based on money you actually have.',
    url:'https://www.investopedia.com/articles/personal-finance/070215/how-decode-your-pay-stub.asp'},
 ];
-const MKT_AFFILIATE=[];
 
 // ── Merch Shop ─────────────────────────────────────────────────────────────
 const MERCH_PRODUCTS=[
@@ -4772,6 +4769,10 @@ function openMerchProduct(i){
 function renderMarketplace(){
   const dot=document.getElementById('members-lock-dot');
   if(dot)dot.style.display=isPro()?'none':'block';
+  // Perf: only rebuild the Members hub (and fire its network fetches) when visible.
+  // showScreen('marketplace') marks it active before calling render().
+  const _mkScr=document.getElementById('screen-marketplace');
+  if(_mkScr&&!_mkScr.classList.contains('active'))return;
   const gate=document.getElementById('members-gate');
   const content=document.getElementById('members-content');
   if(!isPro()){if(gate)gate.style.display='flex';if(content)content.style.display='none';return;}
@@ -5142,7 +5143,7 @@ function openMktNews(i){
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
     <h3 style="margin-bottom:8px;line-height:1.35">${n.title}</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${n.src} · ${n.time}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${n.src}</div>
     <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">${n.summary}</p>
     <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Close</button>
   </div></div>`;
@@ -5166,23 +5167,6 @@ function openMktLesson(i){markLessonRead(i);renderMarketplace();
   </div></div>`;
 }
 
-function openMktAffiliate(i){
-  const a=MKT_AFFILIATE[i];
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <div style="width:48px;height:48px;border-radius:12px;background:${a.color}18;display:flex;align-items:center;justify-content:center"><i class="ti ${a.icon}" style="font-size:24px;color:${a.color}"></i></div>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <h3 style="margin-bottom:6px;line-height:1.35">${a.title}</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${a.sub}</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">    <div style="text-align:center;padding:20px 0 8px">
-      <i class="ti ti-clock" style="font-size:36px;color:var(--accent);opacity:.6"></i>
-      <div style="font-size:15px;font-weight:600;margin-top:12px;margin-bottom:8px">Coming soon</div>
-      <p style="font-size:14px;color:var(--muted);line-height:1.6">Curated partner offers are coming — products and rates matched to your real financial situation, not generic ads.</p>
-    </div></p>
-    <button class="btn btn-primary" style="width:100%" onclick="closeModal()">Got it</button>
-  </div></div>`;
-}
 
 
 // ── AUTH — Supabase ───────────────────────────────────────────────
@@ -5703,7 +5687,6 @@ function render401K(){
         <svg width="100%" viewBox="0 0 ${W} ${H+16}" style="overflow:visible">
           ${bars}
           <path d="${linePoints}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-opacity=".6" stroke-linejoin="round"/>
-          ${linePoints?`<path d="${linePoints}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-opacity=".6" stroke-dasharray="none"/>`:'' }
           ${labels}
         </svg>
       </div>`;
@@ -7139,7 +7122,8 @@ function deleteHolding(i){
 // ── Community Polls ──────────────────────────────────────────────────────────
 function getPollUserId(){let uid=localStorage.getItem('distrofi_poll_uid');if(!uid){uid=crypto.randomUUID();localStorage.setItem('distrofi_poll_uid',uid);}return getAuth()?.user_id||uid;}
 
-async function fetchActivePoll(){try{const _now=new Date().toISOString();const r=await fetch(SUPA_URL+'/rest/v1/polls?is_active=eq.true&or=(expires_at.is.null,expires_at.gt.'+encodeURIComponent(_now)+')&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();return polls[0]||null;}catch(e){return null;}}
+let _pollCacheTs=0,_pollCacheVal=null;
+async function fetchActivePoll(){if(Date.now()-_pollCacheTs<60000)return _pollCacheVal;try{const _now=new Date().toISOString();const r=await fetch(SUPA_URL+'/rest/v1/polls?is_active=eq.true&or=(expires_at.is.null,expires_at.gt.'+encodeURIComponent(_now)+')&order=created_at.desc&limit=1',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const polls=await r.json();_pollCacheVal=polls[0]||null;_pollCacheTs=Date.now();return _pollCacheVal;}catch(e){return null;}}
 
 async function fetchPollResults(pollId){try{const r=await fetch(SUPA_URL+'/rest/v1/poll_votes?poll_id=eq.'+pollId+'&select=option_id',{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});const votes=await r.json();const counts={};(Array.isArray(votes)?votes:[]).forEach(v=>{counts[v.option_id]=(counts[v.option_id]||0)+1;});return counts;}catch(e){return {};}}
 
@@ -7238,7 +7222,7 @@ async function _pollAdminCreate(){
   ['a','b','c','d'].forEach(function(id){const el=document.getElementById('pa-opt-'+id);if(el)el.value='';});
   if(_expSel)_expSel.value='0';
   _pollAdminRenderList();
-  if(typeof renderMiniPoll==='function')renderMiniPoll();
+  _pollCacheTs=0;if(typeof renderMiniPoll==='function')renderMiniPoll();
 }
 async function _pollAdminRenderList(){
   const wrap=document.getElementById('pa-list');
@@ -7280,7 +7264,7 @@ async function _pollAdminToggle(id,isActive){
     await sb.from('polls').update({is_active:true}).eq('id',id);
   }
   _pollAdminRenderList();
-  if(typeof renderMiniPoll==='function')renderMiniPoll();
+  _pollCacheTs=0;if(typeof renderMiniPoll==='function')renderMiniPoll();
 }
 async function _pollAdminDelete(id){
   if(!confirm('Delete this poll and all its votes? This cannot be undone.'))return;
@@ -7289,7 +7273,7 @@ async function _pollAdminDelete(id){
   if(error){showToast('Error: '+error.message);return;}
   showToast('Poll deleted');
   _pollAdminRenderList();
-  if(typeof renderMiniPoll==='function')renderMiniPoll();
+  _pollCacheTs=0;if(typeof renderMiniPoll==='function')renderMiniPoll();
 }
 </script>
 </body>
