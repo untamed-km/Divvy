@@ -2604,6 +2604,8 @@ function buildFinancialContext(){
     'All-time saved: $'+allTimeSavings().toFixed(0)+' | All-time invested: $'+allTimeInvestments().grand.toFixed(0)+'\n'+
     'Periods tracked: '+[...hist,C].length;
 }
+const INSIGHT_CHECK_KEY='distrofi_insight_check';
+const INSIGHT_DATA_KEY='distrofi_insight_data';
 function getLastInsightCheck(){return localStorage.getItem(INSIGHT_CHECK_KEY)||null;}
 function setLastInsightCheck(){localStorage.setItem(INSIGHT_CHECK_KEY,new Date().toDateString());}
 function getStoredInsight(){try{return JSON.parse(localStorage.getItem(INSIGHT_DATA_KEY)||'null');}catch(e){return null;}}
@@ -2719,7 +2721,7 @@ function openInsightInAdvisor(){
   const insight=getStoredInsight();
   dismissInsight();
   const msg=insight?`I noticed: "${insight.headline}" — ${insight.body} Can you give me more detail and specific suggestions?`:'Tell me about any spending anomalies this period.';
-  showScreen('advisor',document.querySelectorAll('.nav-btn')[4]);
+  showScreen('invest',document.querySelectorAll('.nav-btn')[3]);
   setTimeout(()=>{
     const inp=document.getElementById('ai-input');
     if(inp){inp.value=msg;sendToAdvisor();}
@@ -3152,7 +3154,7 @@ function openSettingsModal(){
         <i class="ti ti-refresh" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">New pay period</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Archive current cycle and start fresh</div></div>
       </div>
-      <div onclick="showScreen('history',document.querySelectorAll('.nav-btn')[4]);closeModal();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div onclick="showScreen('history',null);closeModal();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-clock" style="font-size:20px;color:var(--blue)"></i>
         <div><div style="font-size:15px;font-weight:500">Pay period history</div><div style="font-size:12px;color:var(--muted);margin-top:2px">View all past cycles</div></div>
       </div>
@@ -4196,6 +4198,7 @@ function membersBack(){
 
 const MKT_CACHE_KEY='distrofi_mkt_cache';
 const MKT_CACHE_TTL=60000; // 60 seconds
+const FINNHUB_KEY='d8i8tqhr01qm63bamvqgd8i8tqhr01qm63bamvr0';
 
 // CoinGecko ID map
 const COINGECKO_IDS={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',AVAX:'avalanche-2',LINK:'chainlink',MATIC:'matic-network',DOT:'polkadot'};
@@ -6388,7 +6391,7 @@ function renderHome(){
   }
   const hb=document.getElementById('home-buckets');hb.innerHTML='';
   Object.keys(C.buckets).forEach(k=>{
-    const b=C.buckets[k],sp=bucketSpent(k),pct=Math.min(sp/b.budget,1),col=bucketColor(sp/b.budget);
+    const b=C.buckets[k],sp=bucketSpent(k),_ratio=(b.budget||0)>0?sp/b.budget:(sp>0?1:0),pct=Math.min(_ratio,1),col=bucketColor(_ratio);
     const rem=Math.max(0,b.budget-sp);
     const over=sp>b.budget;
     const pctDisplay=Math.round(pct*100);
@@ -6735,7 +6738,7 @@ function renderSpend(){
   const c=document.getElementById('spend-buckets');c.innerHTML='';
   if(!Object.keys(C.buckets).length){c.innerHTML='<div style="text-align:center;padding:48px 16px"><i class="ti ti-wallet-off" style="font-size:48px;color:var(--muted);opacity:.4"></i><div style="font-size:15px;font-weight:500;color:var(--text);margin-top:14px">No spending categories yet</div><div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5">Add a budget to start tracking where your money goes.</div><button onclick="openNewBucketModal()" class="btn btn-primary" style="margin-top:20px;display:inline-flex;gap:6px;align-items:center"><i class="ti ti-plus"></i> Add budget</button></div>';return;}
   Object.keys(C.buckets).forEach(k=>{
-    const b=C.buckets[k],spent=bucketSpent(k),pct=spent/b.budget,col=bucketColor(pct);
+    const b=C.buckets[k],spent=bucketSpent(k),pct=(b.budget||0)>0?spent/b.budget:(spent>0?1:0),col=bucketColor(pct);
     const isExpanded=!!_bucketExpanded[k];
     const lastTxn=b.transactions.length?b.transactions[b.transactions.length-1]:null;
     const card=document.createElement('div');card.className='bucket-card';card.dataset.bucketKey=k;card.style.paddingBottom=isExpanded?'16px':'12px';
@@ -6977,6 +6980,7 @@ function renderHubInsightFallback(){
   else{headline='Savings rate '+_savRate+'% — '+fmt(_saved)+' set aside this period';detail='Variable spend at '+_pct+'% of income with '+fmt(_rem)+' remaining'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--green)';}
   el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid '+col+'40;border-left:3px solid '+col+';border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:'+col+'20;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-chart-bar" style="font-size:20px;color:'+col+'"></i></div><div><div style="font-size:13px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.06em">Budget Snapshot</div><div style="font-size:11px;color:var(--muted)">Based on current period</div></div></div><div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p></div>';
 }
+const HOLDINGS_KEY='distrofi_holdings';
 function getHoldings(){try{return JSON.parse(localStorage.getItem(HOLDINGS_KEY)||'[]');}catch(e){return[];}}
 function saveHoldings(h){localStorage.setItem(HOLDINGS_KEY,JSON.stringify(h));}
 

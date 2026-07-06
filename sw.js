@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
 
 // Activate: delete EVERY cache (including current), then claim all tabs.
 // This forces a clean network fetch after every SW update.
-self.addEventListener('activate', event => {h
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.map(k => caches.delete(k))))
