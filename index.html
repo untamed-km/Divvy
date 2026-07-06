@@ -867,7 +867,7 @@ async function acceptInviteCode(code){
   if(ue)return{ok:false,msg:'Could not link accounts. Try again.'};
   setHouseholdId(hh.id);
   // Push current state as shared state
-  await sb.from('app_state').upsert({user_id:user.id,household_id:hh.id,state_json:STATE,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  await sb.from('app_state').upsert({user_id:user.id,household_id:hh.id,state_json:buildSyncPayload(),updated_at:new Date().toISOString()},{onConflict:'user_id'});
   subscribeRealtime(hh.id);
   return{ok:true};
 }
@@ -893,7 +893,7 @@ function subscribeRealtime(householdId){
       // Only apply if newer than our local state
       const cur=JSON.parse(localStorage.getItem('distrofi_app')||'{}');
       if(cur.lastUpdated&&incoming.lastUpdated<=cur.lastUpdated)return;
-      if(incoming.syncMode==='bills'&&STATE.syncMode==='bills'){
+      if(incoming.syncMode==='bills'){
         // Bills-only: merge just bills and buckets into current cycle
         if(incoming.current){
           STATE.current.bills=incoming.current.bills||STATE.current.bills;
@@ -941,16 +941,39 @@ function setSyncMode(mode){
 }
 
 function buildSyncPayload(){
-  // Bills-only mode: only share bills and spending buckets, not income/debts
+  // Bills-only mode: upload ONLY bills + spending buckets. Income, debts,
+  // savings, 401k, goals and history never leave the device in this mode.
   if(STATE.syncMode==='bills'){
     return{
-      ...STATE,
-      current:{...STATE.current,bills:STATE.current.bills,buckets:STATE.current.buckets},
       syncMode:'bills',
+      partners:STATE.partners||null,
+      current:{
+        startDate:STATE.current.startDate,
+        endDate:STATE.current.endDate,
+        bills:STATE.current.bills,
+        buckets:STATE.current.buckets,
+      },
       lastUpdated:new Date().toISOString(),
     };
   }
   return{...STATE,lastUpdated:new Date().toISOString()};
+}
+
+// Apply a pulled cloud state. Bills-only payloads merge into local state
+// (shared fields only) instead of replacing it.
+function applyCloudState(_cs){
+  if(!_cs)return;
+  if(_cs.syncMode==='bills'){
+    if(_cs.current){
+      STATE.current.bills=_cs.current.bills||STATE.current.bills;
+      STATE.current.buckets=_cs.current.buckets||STATE.current.buckets;
+    }
+    STATE.syncMode='bills';
+  }else{
+    STATE=_cs;
+  }
+  C=STATE.current;
+  try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
 }
 
 function scheduleSyncPush(){
@@ -984,8 +1007,14 @@ async function initHousehold(userId){
     const sb=getSB();
     const{data}=await sb.from('app_state').select('state_json').eq('household_id',hid).order('updated_at',{ascending:false}).limit(1).maybeSingle();
     if(data?.state_json){
-      Object.assign(STATE,data.state_json);
-      try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+      const _in=data.state_json;
+      if(_in.syncMode==='bills'){
+        applyCloudState(_in);
+      }else{
+        Object.assign(STATE,_in);
+        C=STATE.current;
+        try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+      }
     }
     subscribeRealtime(hid);
   }
@@ -1067,18 +1096,22 @@ function fmt(n){
   return c.code==='EUR'||c.code==='CHF'?num+' '+c.symbol:c.symbol+num;
 }
 function fmtD(s){return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function bucketColor(p){return p>=1?'var(--red)':p>=.75?'var(--amber)':'var(--green)';}
 function totalIncome(){return(C.income||[]).reduce((s,l)=>s+(l.amount||0),0);}
-function billInPeriod(b){
+function billInPeriod(b){return billInPeriodFor(b,C);}
+function billInPeriodFor(b,cyc){
   if(b.paid) return true;
   if(!b.dueDay) return true;
-  if(!C.startDate||!C.endDate) return true;
-  const start=new Date(C.startDate+'T00:00:00');
-  const end=new Date(C.endDate+'T00:00:00');
+  if(!cyc||!cyc.startDate||!cyc.endDate) return true;
+  const start=new Date(cyc.startDate+'T00:00:00');
+  const end=new Date(cyc.endDate+'T00:00:00');
+  const _last=(y,m)=>new Date(y,m+1,0).getDate();
+  const _clamp=(y,m,d)=>new Date(y,m,Math.min(d,_last(y,m)));
   const d=b.dueDay;
-  const dueInStartMonth=new Date(start.getFullYear(),start.getMonth(),d);
+  const dueInStartMonth=_clamp(start.getFullYear(),start.getMonth(),d);
   if(dueInStartMonth>=start&&dueInStartMonth<=end) return true;
-  const dueInEndMonth=new Date(end.getFullYear(),end.getMonth(),d);
+  const dueInEndMonth=_clamp(end.getFullYear(),end.getMonth(),d);
   if(dueInEndMonth>=start&&dueInEndMonth<=end) return true;
   return false;
 }
@@ -1089,6 +1122,15 @@ function bucketSpent(k){return C.buckets[k]?(C.buckets[k].transactions||[]).redu
 function totalSpent(){return Object.keys(C.buckets).reduce((a,k)=>a+bucketSpent(k),0);}
 function totalInvested(){return(C.investments||[]).reduce((s,i)=>s+(i.amount||0),0);}
 function remaining(){return totalIncome()-totalBills()-(C.savings.perPaycheck)-totalSpent()-totalInvested()-currentExtraSavings()-(C.debtExtraPayments||0)-(C.goalContrib||0);}
+function cycleStats(cyc){
+  const income=Array.isArray(cyc.income)?cyc.income.reduce((a,l)=>a+(l.amount||0),0):((cyc.income?.week1||0)+(cyc.income?.week2||0)+(cyc.income?.extra||0));
+  const bills=(cyc.bills||[]).reduce((a,b)=>a+(billInPeriodFor(b,cyc)?billAmt(b):0),0);
+  const savings=(cyc.savings?.perPaycheck||0)+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0));
+  const spent=Object.keys(cyc.buckets||{}).reduce((a,k)=>a+((cyc.buckets[k].transactions||[]).reduce((s,t)=>s+(t.amount||0),0)),0);
+  const invested=(cyc.investments||[]).reduce((s,i)=>s+(i.amount||0),0);
+  const rem=income-bills-savings-spent-invested-(cyc.debtExtraPayments||0)-(cyc.goalContrib||0);
+  return{income,bills,savings,spent,invested,rem};
+}
 function allTimeSavings(){return[...STATE.history,C].reduce((s,cyc)=>s+((cyc.savings?.perPaycheck||0))+((cyc.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0)),0);}
 function currentExtraSavings(){return(C.savings.extra||[]).reduce((s,e)=>s+(e.amount||0),0);}
 function allTime401K(){const all=[...STATE.history,C];const me=all.reduce((s,cyc)=>s+(cyc.k401?.me||0),0);const emp=all.reduce((s,cyc)=>s+(cyc.k401?.emp||0),0);return{me,emp,total:me+emp,periods:all.length};}
@@ -1122,7 +1164,7 @@ function showScreen(name,btn){
 function openQuickAdd(){
   const bucketKeys=Object.keys(C.buckets);
   if(!bucketKeys.length){showToast('Add a spending bucket first');return;}
-  const opts=bucketKeys.map(k=>`<option value="${k}">${C.buckets[k].label}</option>`).join('');
+  const opts=bucketKeys.map(k=>`<option value="${k}">${esc(C.buckets[k].label)}</option>`).join('');
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Log expense</h3>
     <label class="modal-label">Category</label>
@@ -1229,9 +1271,9 @@ function saveNewBucket(){
 function openBucketModal(key){
   const b=C.buckets[key];selectedIcon=b.icon||'ti-star';
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Edit ${b.label}</h3>
+    <h3>Edit ${esc(b.label)}</h3>
     <span class="modal-label">Category name</span>
-    <input type="text" id="bucket-label-input" value="${b.label}" autocomplete="off"/>
+    <input type="text" id="bucket-label-input" value="${esc(b.label)}" autocomplete="off"/>
     <span class="modal-label">Budget amount</span>
     <input type="number" id="bucket-budget-input" value="${b.budget||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Icon</span>
@@ -1252,7 +1294,12 @@ function saveBucket(key){
   C.buckets[key].label=label;C.buckets[key].budget=budget;C.buckets[key].icon=selectedIcon;
   saveState();closeModal();render();
 }
-function deleteBucket(key){delete C.buckets[key];saveState();closeModal();render();}
+function deleteBucket(key){
+  const _b=C.buckets[key];
+  const _n=_b&&_b.transactions?_b.transactions.length:0;
+  if(!confirm('Delete "'+(_b?_b.label:'this category')+'"'+(_n?' and its '+_n+' logged expense'+(_n!==1?'s':''):'')+'? This cannot be undone.'))return;
+  delete C.buckets[key];saveState();closeModal();render();
+}
 
 function openIncomeModal(){
   renderIncomeModal();
@@ -1269,7 +1316,7 @@ function renderIncomeModal(){
         <button onclick="removeIncomeLine(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:2px"><i class="ti ti-trash" style="font-size:16px"></i></button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input type="text" value="${l.label}" placeholder="e.g. Primary job" autocomplete="off"
+        <input type="text" value="${esc(l.label)}" placeholder="e.g. Primary job" autocomplete="off"
           oninput="updateIncomeLabel(${i},this.value)"
           style="flex:1;padding:12px;background:var(--app-bg);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none"/>
         <input type="number" value="${l.amount||''}" placeholder="0.00" inputmode="decimal" step="0.01" min="0"
@@ -1378,7 +1425,7 @@ function openBillHistory(billName){
   }).filter(Boolean);
 
   if(!entries.length){
-    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${billName}</h3><p style="color:var(--muted);font-size:14px">No history found.</p><button class="btn btn-ghost" style="width:100%;margin-top:12px" onclick="closeModal()">Close</button></div></div>`;
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${esc(billName)}</h3><p style="color:var(--muted);font-size:14px">No history found.</p><button class="btn btn-ghost" style="width:100%;margin-top:12px" onclick="closeModal()">Close</button></div></div>`;
     return;
   }
 
@@ -1395,7 +1442,7 @@ function openBillHistory(billName){
         </div>
         <div>
           <div style="font-size:13px;font-weight:500">${e.label}${e.isCurrent?'<span style="font-size:10px;background:#6366f118;color:var(--accent);padding:1px 6px;border-radius:99px;margin-left:6px;font-weight:600">Now</span>':''}</div>
-          ${e.paidBy&&getPartners().p2?`<div style="font-size:10px;color:var(--muted);margin-top:1px">Paid by ${e.paidBy==='p1'?p1Name():p2Name()}</div>`:''}
+          ${e.paidBy&&getPartners().p2?`<div style="font-size:10px;color:var(--muted);margin-top:1px">Paid by ${esc(e.paidBy==='p1'?p1Name():p2Name())}</div>`:''}
         </div>
       </div>
       <div style="text-align:right">
@@ -1406,7 +1453,7 @@ function openBillHistory(billName){
 
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h3 style="margin:0">${billName}</h3>
+      <h3 style="margin:0">${esc(billName)}</h3>
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
@@ -1434,7 +1481,7 @@ function openBillModal(idx,defaultCategory){
   const isEdit=idx!==undefined,bill=isEdit?C.bills[idx]:{name:'',amount:0,paid:false,dueDay:null};
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'><h3 style='margin:0'>${isEdit?(bill.category==='subscription'?'Edit subscription':'Edit bill'):(defaultCategory==='subscription'?'Add subscription':'Add bill')}</h3><button onclick='closeModal()' style='background:none;border:none;color:var(--muted);cursor:pointer;padding:4px'><i class='ti ti-x' style='font-size:20px'></i></button></div><div style='display:flex;gap:8px;margin-bottom:14px'><button id='cat-bill-btn' onclick="setBillCategory('bill')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Bill</button><button id='cat-sub-btn' onclick="setBillCategory('subscription')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Subscription</button></div><div id='freq-row' style='display:none;margin-bottom:14px'><div style='font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px'>Billing frequency</div><div style='display:flex;gap:8px'><button id='freq-monthly-btn' onclick="setBillFreq('monthly')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Monthly</button><button id='freq-annual-btn' onclick="setBillFreq('annual')" style='flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit'>Annual</button></div><div id='freq-hint' style='font-size:11px;color:var(--muted);margin-top:6px;display:none'></div></div><span class="modal-label">Bill name</span>
-    <input type="text" id="bill-name-input" placeholder="e.g. Rent, Netflix" value="${bill.name}" autocomplete="off"/>
+    <input type="text" id="bill-name-input" placeholder="e.g. Rent, Netflix" value="${esc(bill.name)}" autocomplete="off"/>
     <span class="modal-label">Amount</span>
     <input type="number" id="bill-amount-input" placeholder="0.00 (leave blank if unknown)" value="${bill.amount||''}" inputmode="decimal" step="0.01" min="0" oninput="if(_billFreq==='annual'){const h=document.getElementById('freq-hint');if(h&&this.value){h.textContent='≈ $'+(parseFloat(this.value)/12).toFixed(2)+'/mo toward your budget';h.style.display='block';}else if(h)h.style.display='none';}"/>
     <span class="modal-label">Due date (day of month)</span>
@@ -1569,7 +1616,10 @@ function saveBill(idx){
   }
   saveState();closeModal();render();syncBillRemindersIfEnabled();
 }
-function deleteBill(idx){C.bills.splice(idx,1);saveState();closeModal();render();syncBillRemindersIfEnabled();}
+function deleteBill(idx){
+  if(!confirm('Delete "'+((C.bills[idx]&&C.bills[idx].name)||'this bill')+'"?'))return;
+  C.bills.splice(idx,1);saveState();closeModal();render();syncBillRemindersIfEnabled();
+}
 let _justPaidBill=null;
 
 // Auto-log a debt payment when a linked bill is marked paid
@@ -1608,17 +1658,17 @@ function toggleBill(i){
   const bill=C.bills[i];
   if(!bill.paid&&getPartners().p2){
     // Ask who paid when marking as paid
-    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this){C.bills[${i}].paid=true;saveState();closeModal();render();}"><div class="modal" style="padding-bottom:20px">
-      <h3 style="margin-bottom:6px">Who paid ${bill.name}?</h3>
+    document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="padding-bottom:20px">
+      <h3 style="margin-bottom:6px">Who paid ${esc(bill.name)}?</h3>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Tap to record who covered this bill.</p>
       <div style="display:flex;gap:12px;margin-bottom:14px">
         <button onclick="markBillPaid(${i},'p1')" style="flex:1;padding:20px 16px;border-radius:16px;border:none;background:#6366f118;border:1.5px solid #6366f144;cursor:pointer;font-family:inherit;transition:background .15s" onmouseenter="this.style.background='#6366f130'" onmouseleave="this.style.background='#6366f118'">
           <div style="width:44px;height:44px;border-radius:50%;background:#6366f133;display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><span style="font-size:20px;font-weight:800;color:#6366f1">${p1Name().charAt(0).toUpperCase()}</span></div>
-          <div style="font-size:15px;font-weight:600;color:var(--text)">${p1Name()}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)">${esc(p1Name())}</div>
         </button>
         <button onclick="markBillPaid(${i},'p2')" style="flex:1;padding:20px 16px;border-radius:16px;border:none;background:#ec489918;border:1.5px solid #ec489944;cursor:pointer;font-family:inherit;transition:background .15s" onmouseenter="this.style.background='#ec489930'" onmouseleave="this.style.background='#ec489918'">
           <div style="width:44px;height:44px;border-radius:50%;background:#ec489933;display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><span style="font-size:20px;font-weight:800;color:#ec4899">${p2Name().charAt(0).toUpperCase()}</span></div>
-          <div style="font-size:15px;font-weight:600;color:var(--text)">${p2Name()}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)">${esc(p2Name())}</div>
         </button>
       </div>
       <button onclick="markBillPaid(${i},null)" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">
@@ -1648,12 +1698,12 @@ function openInvModal(idx){
     <span class="modal-label">Allocate to goal (optional)</span>
     <select id="inv-goal-select" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;appearance:none">
       <option value="">— No goal —</option>
-      ${goals.map((g,gi)=>`<option value="${gi}" ${inv.goalIdx===gi?'selected':''}>${g.name}${g.goal?' ('+fmt(g.saved||0)+' / '+fmt(g.goal)+')':''}</option>`).join('')}
+      ${goals.map((g,gi)=>`<option value="${gi}" ${inv.goalIdx===gi?'selected':''}>${esc(g.name)}${g.goal?' ('+fmt(g.saved||0)+' / '+fmt(g.goal)+')':''}</option>`).join('')}
     </select>`:'';
   let _recurringInv=inv.recurring!==false;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isEdit?'Edit investment':'Add investment'}</h3>
-    <input type="text" id="inv-name-input" placeholder="Name (e.g. Robinhood, Fidelity)" value="${inv.name}" autocomplete="off"/>
+    <input type="text" id="inv-name-input" placeholder="Name (e.g. Robinhood, Fidelity)" value="${esc(inv.name)}" autocomplete="off"/>
     <input type="text" id="inv-ticker-input" placeholder="Ticker symbol (e.g. AAPL, BTC — optional)" value="${inv.ticker||''}" autocomplete="off" style="text-transform:uppercase"/>
     <input type="number" id="inv-amount-input" placeholder="Amount this period" value="${inv.amount||''}" inputmode="decimal" step="0.01" min="0"/>
     ${goalOpts}
@@ -1703,6 +1753,7 @@ function saveInv(idx){
 }
 function deleteInv(idx){
   const inv=C.investments[idx];
+  if(!confirm('Delete "'+((inv&&inv.name)||'this investment')+'"?'))return;
   if(inv&&inv.goalIdx!=null&&STATE.invGoals&&STATE.invGoals[inv.goalIdx]){
     STATE.invGoals[inv.goalIdx].saved=Math.max(0,(STATE.invGoals[inv.goalIdx].saved||0)-(inv.amount||0));
   }
@@ -1715,9 +1766,9 @@ function openEditTxnModal(bk, idx){
   if(!t)return;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Edit expense</h3>
-    <input type="text" id="etxn-label" placeholder="Label (e.g. Publix)" value="${t.label||''}" autocomplete="off"/>
+    <input type="text" id="etxn-label" placeholder="Label (e.g. Publix)" value="${esc(t.label||'')}" autocomplete="off"/>
     <input type="number" id="etxn-amount" placeholder="Amount" value="${t.amount||''}" inputmode="decimal" step="0.01" min="0"/>
-    <input type="text" id="etxn-notes" placeholder="Notes (optional)" value="${t.notes||''}" autocomplete="off"/>
+    <input type="text" id="etxn-notes" placeholder="Notes (optional)" value="${esc(t.notes||'')}" autocomplete="off"/>
     <div class="modal-btns">
       <button class="btn btn-danger" onclick="deleteTransaction('${bk}',${idx})"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1752,11 +1803,11 @@ function openAllTransactions(bk){
         const actualIdx=b.transactions.length-1-ri;
         return `<div onclick="openEditTxnModal('${bk}',${actualIdx});setTimeout(()=>openAllTransactions('${bk}'),50)" style="display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .15s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background=''">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:14px;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.label||'Purchase'}</span>
+            <span style="font-size:14px;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.label||'Purchase')}</span>
             <span style="font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;padding-left:12px;flex-shrink:0;display:flex;align-items:center;gap:6px">${fmt(t.amount)}<i class="ti ti-pencil" style="font-size:11px;color:var(--muted);opacity:.6"></i></span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--muted)">${t.date||''}${t.notes?` · ${t.notes}`:''}</span>
+            <span style="font-size:11px;color:var(--muted)">${t.date||''}${t.notes?` · ${esc(t.notes)}`:''}</span>
           </div>
         </div>`;
       }).join('')
@@ -1765,7 +1816,7 @@ function openAllTransactions(bk){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="padding:0;max-height:88vh;display:flex;flex-direction:column">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 18px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
       <div>
-        <h3 style="margin:0;font-size:17px"><i class="ti ${b.icon}" style="font-size:17px;vertical-align:-2px;margin-right:8px;color:var(--accent)"></i>${b.label}</h3>
+        <h3 style="margin:0;font-size:17px"><i class="ti ${b.icon}" style="font-size:17px;vertical-align:-2px;margin-right:8px;color:var(--accent)"></i>${esc(b.label)}</h3>
         <div style="font-size:12px;color:var(--muted);margin-top:3px">${allTxns.length} transaction${allTxns.length!==1?'s':''} · ${fmt(total)} total</div>
       </div>
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button>
@@ -1780,7 +1831,7 @@ function openAllTransactions(bk){
 function openAddModal(bk){
   const b=C.buckets[bk];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Log ${b.label} expense</h3>
+    <h3>Log ${esc(b.label)} expense</h3>
     <input type="text" id="modal-label" placeholder="Label (e.g. Publix)" autocomplete="off"/>
     <input type="number" id="modal-amount" placeholder="Amount" inputmode="decimal" step="0.01" min="0"/>
     <input type="text" id="modal-notes" placeholder="Notes (optional)" autocomplete="off"/>
@@ -1814,7 +1865,7 @@ function openSavingsBucketModal(idx){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isEdit?'Edit goal':'New savings goal'}</h3>
     <span class="modal-label">Goal name</span>
-    <input type="text" id="sbkt-name" placeholder="e.g. Emergency fund, Vacation" value="${bkt.name}" autocomplete="off"/>
+    <input type="text" id="sbkt-name" placeholder="e.g. Emergency fund, Vacation" value="${esc(bkt.name)}" autocomplete="off"/>
     <span class="modal-label">Goal amount</span>
     <input type="number" id="sbkt-goal" placeholder="0.00" value="${bkt.goal||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Amount saved so far</span>
@@ -1854,13 +1905,15 @@ function saveSavingsBucket(idx){
   saveState();closeModal();renderSavingsScreen();
 }
 function deleteSavingsBucket(idx){
+  const _g=STATE.savingsBuckets[idx];
+  if(!confirm('Delete the goal "'+((_g&&_g.name)||'this goal')+'"? Its progress tracking will be lost.'))return;
   STATE.savingsBuckets.splice(idx,1);
   saveState();closeModal();renderSavingsScreen();
 }
 function addToSavingsBucket(idx){
   const bkt=STATE.savingsBuckets[idx];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Add to ${bkt.name}</h3>
+    <h3>Add to ${esc(bkt.name)}</h3>
     <span class="modal-label">Amount to add</span>
     <input type="number" id="sadd-amt" placeholder="0.00" inputmode="decimal" step="0.01" min="0"/>
     <div onclick="toggleGoalPaycheck()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-top:4px;cursor:pointer">
@@ -1922,7 +1975,7 @@ function openWaterfallDetail(){
     ${rows.map((r,i)=>`
       <div style="margin-bottom:12px;padding:12px;background:var(--card2);border-radius:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:14px;font-weight:500">${i+1}. ${r.name}</span>
+          <span style="font-size:14px;font-weight:500">${i+1}. ${esc(r.name)}</span>
           <span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums">${fmt(r.effective)} / ${r.cap?fmt(r.cap):'∞'}</span>
         </div>
         ${r.cap?`<div style="height:7px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px">
@@ -1942,7 +1995,7 @@ function renderSnapshot(){
   const income=totalIncome(),bills=totalBills()-paidBillsAmt(),savings=C.savings.perPaycheck+currentExtraSavings(),spent=totalSpent(),invested=totalInvested(),rem=remaining();
   const ic=document.getElementById('income-card');
   const incLines=C.income||[];
-  ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${r.label}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
+  ic.innerHTML=incLines.map((r,i)=>`<div class="income-row" style="${i===incLines.length-1?'border-bottom:none':''}"><span class="income-label" style="display:flex;flex-direction:column;gap:2px">${esc(r.label)}${r.owner&&getPartners().p2?partnerAvatar(r.owner,16):''}${r.depositDate?`<span style="font-size:11px;color:var(--muted)">${new Date(r.depositDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`:''}</span><span class="income-value">${r.amount?fmt(r.amount):'—'}</span></div>`).join('');
   document.getElementById('income-total-display').textContent=fmt(income);
   const tbl=document.getElementById('snapshot-table');
   const debtPmts=C.debtExtraPayments||0;
@@ -1950,7 +2003,7 @@ function renderSnapshot(){
     ...Object.keys(C.buckets).map(k=>[C.buckets[k].label,bucketSpent(k),'sub']),
     ...(debtPmts>0?[['Debt payments',debtPmts,'sub']]:[]),
     ...((C.goalContrib||0)>0?[['To goals (from paycheck)',C.goalContrib||0,'sub']]:[])];
-  tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${l}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
+  tbl.innerHTML=rows.map(([l,v,t])=>`<div class="snapshot-row"><span style="color:${t?'var(--muted)':'var(--text)'}">${t?'─ ':''} ${esc(l)}</span><span style="font-variant-numeric:tabular-nums;color:${t?'var(--muted)':'var(--text)'}">${t?'– ':''} ${fmt(v)}</span></div>`).join('')+
   `<div class="snapshot-row total" style="border-top:0.5px solid var(--border)"><span>Remaining</span><span style="color:${rem<0?'var(--red)':rem<Math.max(200,income*0.1)?'var(--amber)':'var(--green)'};font-variant-numeric:tabular-nums">${fmt(rem)}</span></div>`;
   const allCycles=[...STATE.history,C];
   document.getElementById('alltime-savings').textContent=fmt(allTimeSavings());
@@ -1997,12 +2050,12 @@ function openCycleDetail(idx){
   const k401me=cycle.k401?.me||0,k401emp=cycle.k401?.emp||0;
   const bucketKeys=Object.keys(cycle.buckets||{});
   const spent=bucketKeys.reduce((a,k)=>a+(cycle.buckets[k].transactions||[]).reduce((b,t)=>b+(t.amount||0),0),0);
-  const rem=incAmt-billsAmt-savings-spent;
+  const rem=cycleStats(cycle).rem;
   const bucketRows=bucketKeys.map(k=>{
     const b=cycle.buckets[k],s=(b.transactions||[]).reduce((a,t)=>a+(t.amount||0),0),pct=b.budget>0?Math.min(s/b.budget,1):0,col=bucketColor(pct);
-    return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)"><i class="ti ${b.icon}" style="vertical-align:-2px;margin-right:4px"></i>${b.label}</span><span style="font-variant-numeric:tabular-nums;color:${col}">${fmt(s)} <span style="color:var(--muted)">/ ${fmt(b.budget)}</span></span></div><div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(pct*100)}%;background:${col};border-radius:99px"></div></div></div>`;
+    return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)"><i class="ti ${b.icon}" style="vertical-align:-2px;margin-right:4px"></i>${esc(b.label)}</span><span style="font-variant-numeric:tabular-nums;color:${col}">${fmt(s)} <span style="color:var(--muted)">/ ${fmt(b.budget)}</span></span></div><div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(pct*100)}%;background:${col};border-radius:99px"></div></div></div>`;
   }).join('');
-  const billRows=cycle.bills.map(b=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border)"><span style="${b.paid?'text-decoration:line-through;color:var(--muted)':'color:var(--text)'}">${b.name}</span><span style="font-variant-numeric:tabular-nums;color:${b.paid?'var(--green)':'var(--muted)'}">${b.paid?'<i class="ti ti-check" style="font-size:12px"></i> ':''}${fmt(b.amount)}</span></div>`).join('');
+  const billRows=cycle.bills.map(b=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border)"><span style="${b.paid?'text-decoration:line-through;color:var(--muted)':'color:var(--text)'}">${esc(b.name)}</span><span style="font-variant-numeric:tabular-nums;color:${b.paid?'var(--green)':'var(--muted)'}">${b.paid?'<i class="ti ti-check" style="font-size:12px"></i> ':''}${fmt(b.amount)}</span></div>`).join('');
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0">${fmtD(cycle.startDate)} – ${fmtD(cycle.endDate)}</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
@@ -2029,12 +2082,8 @@ function renderHistory(){
     </div>`;
   }
   histToShow.slice().reverse().forEach(cycle=>{
-    const inc=Array.isArray(cycle.income)?cycle.income.reduce((s,l)=>s+(l.amount||0),0):((cycle.income.week1||0)+(cycle.income.week2||0)+(cycle.income.extra||0));
-    const bills=cycle.bills.reduce((a,b)=>a+(b.amount||0),0);
-    const savings=(cycle.savings?.perPaycheck||0)+(cycle.savings?.extra||[]).reduce((a,e)=>a+(e.amount||0),0);
-    const spent=Object.keys(cycle.buckets).reduce((a,k)=>a+cycle.buckets[k].transactions.reduce((b,t)=>b+(t.amount||0),0),0);
-    const debtPmts2=cycle.debtExtraPayments||0;
-    const rem=inc-bills-savings-spent-debtPmts2;
+    const _st=cycleStats(cycle);
+    const inc=_st.income,spent=_st.spent,rem=_st.rem;
     const d=document.createElement('div');d.className='cycle-card';
     const cycleIdx=STATE.history.indexOf(cycle);
     d.style.cursor='pointer';d.onclick=()=>openCycleDetail(cycleIdx);
@@ -2131,8 +2180,14 @@ function confirmNewCycle(leftoverAction){
   // Apply leftover action
   if(leftoverAmt>0.01){
     if(leftoverAction==='savings'){
-      if(!C.savings.extra)C.savings.extra=[];
-      C.savings.extra.push({amount:leftoverAmt,label:'Carried over from last period',date:new Date().toISOString().slice(0,10)});
+      // Record on the just-archived cycle so all-time savings counts it
+      // without dragging the NEW period's Remaining negative.
+      const _arch=STATE.history[STATE.history.length-1];
+      if(_arch){
+        if(!_arch.savings)_arch.savings={perPaycheck:0};
+        if(!_arch.savings.extra)_arch.savings.extra=[];
+        _arch.savings.extra.push({amount:leftoverAmt,label:'Leftover moved to savings',date:new Date().toISOString().slice(0,10)});
+      }
     } else if(leftoverAction==='buffer'){
       C.income.push({label:'Carried over from last period',amount:leftoverAmt,recurring:false});
     }
@@ -2219,7 +2274,7 @@ function renderSavingsScreen(){
           </div>
           <div>
             <div style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              ${b.name}
+              ${esc(b.name)}
               ${isComplete?`<span style="font-size:10px;background:${c.bg};color:${c.fg};padding:2px 8px;border-radius:99px;font-weight:600">FULL</span>`:''}
               ${isCurrent&&!isComplete?`<span style="font-size:10px;background:${c.bg};color:${c.fg};padding:2px 8px;border-radius:99px;font-weight:600">ACTIVE</span>`:''}
               ${(()=>{
@@ -2279,7 +2334,7 @@ function openInvGoalModal(idx){
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isEdit?'Edit goal':'New investment goal'}</h3>
     <span class="modal-label">Goal name</span>
-    <input type="text" id="ig-name" placeholder="e.g. Retirement, House down payment" value="${g.name}" autocomplete="off"/>
+    <input type="text" id="ig-name" placeholder="e.g. Retirement, House down payment" value="${esc(g.name)}" autocomplete="off"/>
     <span class="modal-label">Target amount</span>
     <input type="number" id="ig-goal" placeholder="0.00" value="${g.goal||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Amount invested so far</span>
@@ -2319,13 +2374,15 @@ function saveInvGoal(idx){
   saveState();closeModal();renderInvGoalsScreen();
 }
 function deleteInvGoal(idx){
+  const _g=STATE.invGoals[idx];
+  if(!confirm('Delete the goal "'+((_g&&_g.name)||'this goal')+'"? Its progress tracking will be lost.'))return;
   STATE.invGoals.splice(idx,1);
   saveState();closeModal();renderInvGoalsScreen();
 }
 function addToInvGoal(idx){
   const g=STATE.invGoals[idx];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Add to ${g.name}</h3>
+    <h3>Add to ${esc(g.name)}</h3>
     <span class="modal-label">Amount to add</span>
     <input type="number" id="igadd-amt" placeholder="0.00" inputmode="decimal" step="0.01" min="0"/>
     <div onclick="toggleGoalPaycheck()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-top:4px;cursor:pointer">
@@ -2398,8 +2455,8 @@ function renderInvGoalsScreen(){
         return '<div onclick="openInvModal('+ii+')" style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">'
           +'<div style="display:flex;align-items:center;gap:10px;min-width:0">'
           +'<div style="width:32px;height:32px;border-radius:50%;background:#a855f718;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trending-up" style="font-size:15px;color:var(--purple)"></i></div>'
-          +'<div style="min-width:0"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(iv.name||'Investment')+(iv.ticker?' · '+iv.ticker:'')+'</div>'
-          +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(iv.recurring!==false?'Recurring':'One-time')+(gName?' · '+gName:'')+'</div></div>'
+          +'<div style="min-width:0"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(iv.name||'Investment')+(iv.ticker?' · '+esc(iv.ticker):'')+'</div>'
+          +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(iv.recurring!==false?'Recurring':'One-time')+(gName?' · '+esc(gName):'')+'</div></div>'
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--purple)">'+fmt(iv.amount||0)+'</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted)"></i></div>'
           +'</div>';
@@ -2475,7 +2532,7 @@ function renderInvGoalsScreen(){
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;border-radius:50%;background:#a855f718;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trending-up" style="font-size:15px;color:var(--purple)"></i></div>
-              <span style="font-size:14px;font-weight:500">${n}</span>
+              <span style="font-size:14px;font-weight:500">${esc(n)}</span>
             </div>
             <span style="font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--purple)">${fmt(inv.totals[n])}</span>
           </div>
@@ -2516,7 +2573,7 @@ function renderInvGoalsScreen(){
           </div>
           <div>
             <div style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:6px">
-              ${g.name}
+              ${esc(g.name)}
               ${isComplete?`<span style="font-size:10px;background:${c.bg};color:${c.fg};padding:2px 8px;border-radius:99px;font-weight:600">FULL</span>`:''}
               ${isCurrent?`<span style="font-size:10px;background:${c.bg};color:${c.fg};padding:2px 8px;border-radius:99px;font-weight:600">ACTIVE</span>`:''}
             </div>
@@ -2835,12 +2892,12 @@ function openPartnerSetup(){
       <h3>Finance together</h3>
       <div style="background:linear-gradient(135deg,#ec489912,#6366f112);border:0.5px solid #ec489944;border-radius:14px;padding:16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
         <i class="ti ti-users" style="font-size:24px;color:#ec4899;flex-shrink:0"></i>
-        <div><div style="font-size:15px;font-weight:600">${p.p1||'You'} & ${p.p2||'Partner'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Budgeting together · Live sync active</div></div>
+        <div><div style="font-size:15px;font-weight:600">${esc(p.p1||'You')} & ${esc(p.p2||'Partner')}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Budgeting together · Live sync active</div></div>
       </div>
       <label class="modal-label">Your display name</label>
-      <input type="text" id="p1-name" value="${p.p1||'You'}" placeholder="Your name" autocomplete="off" style="margin-bottom:12px"/>
+      <input type="text" id="p1-name" value="${esc(p.p1||'You')}" placeholder="Your name" autocomplete="off" style="margin-bottom:12px"/>
       <label class="modal-label">Partner's display name</label>
-      <input type="text" id="p2-name" value="${p.p2||''}" placeholder="Partner's name" autocomplete="off" style="margin-bottom:16px"/>
+      <input type="text" id="p2-name" value="${esc(p.p2||'')}" placeholder="Partner's name" autocomplete="off" style="margin-bottom:16px"/>
       <label class="modal-label">Sync mode</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
         <button id="sync-mode-full" onclick="setSyncMode('full')" style="padding:10px;border-radius:10px;border:1.5px solid ${(STATE.syncMode||'full')==='full'?'var(--accent)':'var(--border)'};background:${(STATE.syncMode||'full')==='full'?'#7c3aed18':'var(--card2)'};color:${(STATE.syncMode||'full')==='full'?'var(--accent)':'var(--muted)'};font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">
@@ -2931,7 +2988,7 @@ async function submitJoinCode(){
     <div style="text-align:center;margin-bottom:20px"><i class="ti ti-users" style="font-size:48px;color:var(--accent)"></i></div>
     <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.5;text-align:center">Your budget is now shared. Add display names so you know who's who.</p>
     <label class="modal-label">Your name</label>
-    <input type="text" id="p1-name" value="${getPartners().p1||'You'}" autocomplete="off"/>
+    <input type="text" id="p1-name" value="${esc(getPartners().p1||'You')}" autocomplete="off"/>
     <label class="modal-label">Partner's name</label>
     <input type="text" id="p2-name" value="" placeholder="Partner's name" autocomplete="off"/>
     <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="savePartners()">Let's go</button>
@@ -3139,7 +3196,7 @@ function openSettingsModal(){
         </div>
       </div>
       <div onclick="openPartnerSetup()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
-        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getHouseholdId()&&getPartners().p2?'<span style="color:var(--green)">⬤</span> '+p1Name()+' & '+p2Name()+' · Live sync':getPartners().p2?p1Name()+' & '+p2Name():'Tap to connect with partner'}</div></div></div>
+        <div style="display:flex;align-items:center;gap:14px"><i class="ti ti-users" style="font-size:20px;color:var(--accent)"></i><div><div style="font-size:15px;font-weight:500">Finance together</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="partner-setting-sub">${getHouseholdId()&&getPartners().p2?'<span style="color:var(--green)">⬤</span> '+esc(p1Name())+' & '+esc(p2Name())+' · Live sync':getPartners().p2?esc(p1Name())+' & '+esc(p2Name()):'Tap to connect with partner'}</div></div></div>
         <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted)"></i>
       </div>
       <div onclick="openCurrencyPicker();" style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
@@ -3387,7 +3444,7 @@ function exportPDF(){
 
   const billRows=(C.bills||[]).map(b=>`
     <tr>
-      <td>${b.name}</td><td>${fmt(b.amount||0)}</td>
+      <td>${esc(b.name)}</td><td>${fmt(b.amount||0)}</td>
       <td>${b.dueDay?b.dueDay+'th':'—'}</td>
       <td><span class="badge ${b.paid?'paid':'unpaid'}">${b.paid?'Paid':'Unpaid'}</span></td>
       <td>${b.category||'bill'}</td>
@@ -3396,15 +3453,15 @@ function exportPDF(){
   const txRows=Object.keys(C.buckets||{}).flatMap(k=>{
     const bkt=C.buckets[k];
     return (bkt.transactions||[]).map(t=>`
-      <tr><td>${bkt.label}</td><td>${t.label||'—'}</td><td>${fmt(t.amount||0)}</td><td>${t.date||'—'}</td><td>${t.notes||''}</td></tr>`);
+      <tr><td>${esc(bkt.label)}</td><td>${esc(t.label||'—')}</td><td>${fmt(t.amount||0)}</td><td>${t.date||'—'}</td><td>${esc(t.notes||'')}</td></tr>`);
   }).join('');
 
   const debtRows=(C.debts||[]).map(d=>`
-    <tr><td>${d.name}</td><td>${d.type||'—'}</td><td>${fmt(d.balance||0)}</td><td>${d.apr?d.apr+'%':'—'}</td><td>${d.minPayment?fmt(d.minPayment):'—'}</td></tr>`).join('');
+    <tr><td>${esc(d.name)}</td><td>${d.type||'—'}</td><td>${fmt(d.balance||0)}</td><td>${d.apr?d.apr+'%':'—'}</td><td>${d.minPayment?fmt(d.minPayment):'—'}</td></tr>`).join('');
 
   const goalRows=(STATE.invGoals||[]).map(g=>{
     const pct=g.goal>0?Math.round(((g.saved||0)/g.goal)*100):0;
-    return`<tr><td>${g.name}</td><td>${fmt(g.goal||0)}</td><td>${fmt(g.saved||0)}</td><td>${pct}%</td></tr>`;
+    return`<tr><td>${esc(g.name)}</td><td>${fmt(g.goal||0)}</td><td>${fmt(g.saved||0)}</td><td>${pct}%</td></tr>`;
   }).join('');
 
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -3540,7 +3597,7 @@ function openAccountModal(){
     <h3>Account</h3>
     <div style="display:flex;flex-direction:column;align-items:center;padding:16px 0 20px">
       <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;margin-bottom:12px;letter-spacing:-.5px">${initials}</div>
-      <div style="font-size:18px;font-weight:700;color:var(--text)">${name}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)">${esc(name)}</div>
       ${username?`<div style="font-size:13px;color:var(--muted);margin-top:2px">@${username}</div>`:''}
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
         <div style="background:${tierBg};color:${tierColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em">${tierLabel}</div>
@@ -4351,8 +4408,8 @@ function renderNewsWithData(articles){
       <span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f114;padding:3px 8px;border-radius:99px">Markets</span>
       <span style="font-size:11px;color:var(--muted)">${a.source} · ${timeAgo(a.datetime)}</span>
     </div>
-    <div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${a.headline}</div>
-    ${a.summary?`<div style="font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${a.summary}</div>`:''}
+    <div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${esc(a.headline)}</div>
+    ${a.summary?`<div style="font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(a.summary)}</div>`:''}
     <div style="font-size:11px;color:var(--accent);margin-top:8px;display:flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:12px"></i> Read article</div>
   </div>`).join('');
 }
@@ -4730,7 +4787,7 @@ function renderMarketplace(){
     const cyclePct=Math.round((elapsedDays/totalDays)*100);
   statsMini.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:2px">Hey ${firstName} 👋</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:2px">Hey ${esc(firstName)} 👋</div>
         <div style="font-size:16px;font-weight:700">Members</div>
       </div>
       <span style="background:${col};color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em">${tier}</span>
@@ -4836,7 +4893,7 @@ function renderMarketplace(){
         <div style="background:linear-gradient(135deg,#ec489912,#f43f5e0a);border:0.5px solid #ec489933;border-radius:14px;padding:16px;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:${linked?'12px':'0'}">
             <i class="ti ti-users" style="font-size:20px;color:#ec4899;flex-shrink:0"></i>
-            <div style="flex:1"><div style="font-size:14px;font-weight:600">${linked?p.p1+' & '+p.p2:'Partner sync'}</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:600">${linked?esc(p.p1)+' & '+esc(p.p2):'Partner sync'}</div>
             <div style="font-size:12px;color:${linked?'var(--green)':'var(--muted)'}">
               ${linked?'<i class="ti ti-circle-check" style="font-size:12px;vertical-align:-1px"></i> Live sync active':'Not linked yet — connect in Settings'}
             </div></div>
@@ -5368,10 +5425,7 @@ async function submitAuth(){
       // Pull cloud state
       if(data.user){
         const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',data.user.id).maybeSingle();
-        if(cloudState?.state_json){
-          STATE=cloudState.state_json;C=STATE.current;
-          try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
-        }
+        applyCloudState(cloudState?.state_json);
         const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier').eq('id',data.user.id).maybeSingle();
         setAuth({loggedIn:true,name:profile?.display_name||usernameVal,username:usernameVal,user_id:data.user.id,pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
         if(profile?.pro_tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:profile.pro_tier,since:new Date().toISOString()}));}
@@ -5543,7 +5597,7 @@ async function checkAuthGate(){
       if(!isLoggedIn()){
         // Restore from Supabase session
         const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',session.user.id).maybeSingle();
-        if(cloudState?.state_json){STATE=cloudState.state_json;C=STATE.current;try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}}
+        applyCloudState(cloudState?.state_json);
         const {data:profile}=await sb.from('profiles').select('display_name,username,pro_tier').eq('id',session.user.id).maybeSingle();
         setAuth({loggedIn:true,name:profile?.display_name||'User',username:profile?.username||'',pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
         await initHousehold(session.user.id);
@@ -5835,7 +5889,7 @@ function renderDebtList(){
       ${[..._pmts].reverse().map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <div>
           <div style="font-size:13px;color:${p.isInterest?'#f87171':'var(--text)'}">${p.isInterest?'':'+'}$${p.amount.toLocaleString()}</div>
-          ${p.note?`<div style="font-size:11px;color:var(--muted)">${p.note}</div>`:''}
+          ${p.note?`<div style="font-size:11px;color:var(--muted)">${esc(p.note)}</div>`:''}
         </div>
         <div style="font-size:11px;color:var(--muted)">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
       </div>`).join('')}
@@ -5847,7 +5901,7 @@ function renderDebtList(){
             <i class="ti ${isPaid?'ti-circle-check':debtTypeIcon(d.type)}" style="font-size:16px;color:${isPaid?'#4ade80':'#a5b4fc'}"></i>
           </div>
           <div>
-            <div style="font-size:14px;font-weight:600;color:var(--text)">${d.name}${isPaid?' <span style="font-size:10px;font-weight:700;background:#22c55e18;color:#4ade80;padding:2px 6px;border-radius:5px;vertical-align:middle">Paid off</span>':''}${dueBadge?' <span style="font-size:10px;font-weight:700;background:#f59e0b18;color:#fbbf24;padding:2px 6px;border-radius:5px;vertical-align:middle">Due</span>':''}</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(d.name)}${isPaid?' <span style="font-size:10px;font-weight:700;background:#22c55e18;color:#4ade80;padding:2px 6px;border-radius:5px;vertical-align:middle">Paid off</span>':''}${dueBadge?' <span style="font-size:10px;font-weight:700;background:#f59e0b18;color:#fbbf24;padding:2px 6px;border-radius:5px;vertical-align:middle">Due</span>':''}</div>
             <div style="font-size:11px;color:var(--muted)">${debtTypeLabel(d.type)}${isPaid?'':' · '+d.apr+'% APR · Min $'+(d.minPayment||0).toLocaleString()+'/mo'}</div>
           </div>
         </div>
@@ -5918,7 +5972,7 @@ function openPaymentModal(idx){
       <h3 style="margin:0">Make a payment</h3>
       <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${d.name} · $${(d.balance||0).toLocaleString()} remaining</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${esc(d.name)} · $${(d.balance||0).toLocaleString()} remaining</div>
     <div id="pmt-error" style="display:none;background:#ef444418;border:0.5px solid #ef444444;color:var(--red);font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;text-align:center"></div>
     <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Amount paid</div>
     <input type="number" id="pmt-amount" placeholder="${d.minPayment||0}" inputmode="decimal" style="margin-bottom:12px;font-size:22px;font-weight:600"/>
@@ -6016,7 +6070,7 @@ function renderDebtPlanner(){
       <div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Debt</div>
         <select id="lump-debt-sel" onchange="updateLumpSim()" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;font-family:inherit">
-          ${debts.filter(d=>d.balance>0).map(d=>`<option value="${debts.indexOf(d)}">${d.name}</option>`).join('')}
+          ${debts.filter(d=>d.balance>0).map(d=>`<option value="${debts.indexOf(d)}">${esc(d.name)}</option>`).join('')}
         </select>
       </div>
       <div>
@@ -6033,7 +6087,7 @@ function renderDebtPlanner(){
     <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Payoff order</div>
     ${orderDebts.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'#6366f1':'var(--card2)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${i===0?'#fff':'var(--muted)'};flex-shrink:0">${i+1}</div>
-      <div style="flex:1;font-size:13px;color:var(--text)">${d.name}</div>
+      <div style="flex:1;font-size:13px;color:var(--text)">${esc(d.name)}</div>
       <div style="font-size:11px;color:var(--muted)">${strategy==='avalanche'?d.apr+'% APR':'$'+d.balance.toLocaleString()}</div>
     </div>`).join('')}`:'<div style="text-align:center;padding:20px 0;font-size:13px;color:var(--muted)">Add debts to see your payoff order.</div>'}
   `;
@@ -6113,7 +6167,7 @@ function openDebtModal(idx){
     </div>
     <input type="hidden" id="debt-selected-type" value="${d.type||'credit_card'}"/>
     <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Nickname</div>
-    <input type="text" id="debt-name" placeholder="e.g. Chase Sapphire" value="${d.name||''}" style="margin-bottom:12px"/>
+    <input type="text" id="debt-name" placeholder="e.g. Chase Sapphire" value="${esc(d.name||'')}" style="margin-bottom:12px"/>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Balance</div>
@@ -6237,12 +6291,16 @@ function renderHome(){
   // Upcoming bills banner
   const ubb=document.getElementById('upcoming-bills-banner');
   if(ubb){
-    const now=new Date(),today=now.getDate();
-    const inThree=new Date(now.getFullYear(),now.getMonth(),today+3).getDate();
-    const upcoming=(C.bills||[]).filter(b=>!b.paid&&b.dueDay&&(b.dueDay===today||b.dueDay===inThree));
+    const now=new Date();now.setHours(0,0,0,0);
+    const _lastDay=(y,m)=>new Date(y,m+1,0).getDate();
+    const upcoming=(C.bills||[]).filter(b=>!b.paid&&b.dueDay).map(b=>{
+      let due=new Date(now.getFullYear(),now.getMonth(),Math.min(b.dueDay,_lastDay(now.getFullYear(),now.getMonth())));
+      if(due<now)due=new Date(now.getFullYear(),now.getMonth()+1,Math.min(b.dueDay,_lastDay(now.getFullYear(),now.getMonth()+1)));
+      return{...b,_dueDiff:Math.round((due-now)/864e5)};
+    }).filter(b=>b._dueDiff<=3).sort((a,b)=>a._dueDiff-b._dueDiff);
     if(upcoming.length){
       const items=upcoming.map(b=>{
-        const daysLeft=b.dueDay===today?0:b.dueDay>today?b.dueDay-today:3;
+        const daysLeft=b._dueDiff;
         const label=daysLeft===0?'Due today':`Due in ${daysLeft} day${daysLeft===1?'':'s'}`;
         return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${upcoming.indexOf(b)<upcoming.length-1?'border-bottom:0.5px solid #ffffff08':''}">
           <div style="font-size:13px;font-weight:500;color:var(--text)">${b.name}</div>
@@ -6378,11 +6436,11 @@ function renderHome(){
       ps.innerHTML=`<div class="split-card" style="margin-bottom:4px">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-users" style="font-size:13px"></i> Finance together</div>
         <div class="split-row">
-          <div style="display:flex;align-items:center;gap:8px">${partnerAvatar('p1',20)}<span style="font-size:14px;font-weight:500">${p.p1}</span></div>
+          <div style="display:flex;align-items:center;gap:8px">${partnerAvatar('p1',20)}<span style="font-size:14px;font-weight:500">${esc(p.p1)}</span></div>
           <div style="text-align:right"><div style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#6366f1">${fmt(p1Income)}</div><div style="font-size:11px;color:var(--muted)">income · ${fmt(p1Bills)} bills paid</div></div>
         </div>
         <div class="split-row">
-          <div style="display:flex;align-items:center;gap:8px">${partnerAvatar('p2',20)}<span style="font-size:14px;font-weight:500">${p.p2}</span></div>
+          <div style="display:flex;align-items:center;gap:8px">${partnerAvatar('p2',20)}<span style="font-size:14px;font-weight:500">${esc(p.p2)}</span></div>
           <div style="text-align:right"><div style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#ec4899">${fmt(p2Income)}</div><div style="font-size:11px;color:var(--muted)">income · ${fmt(p2Bills)} bills paid</div></div>
         </div>
         ${unpaidBills>0?`<div style="font-size:12px;color:var(--muted);padding-top:8px;text-align:center">${fmt(unpaidBills)} in unpaid bills remaining</div>`:''}
@@ -6402,7 +6460,7 @@ function renderHome(){
     d.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px">
-          <i class="ti ${b.icon}" style="font-size:18px;color:${col}"></i>${b.label}
+          <i class="ti ${b.icon}" style="font-size:18px;color:${col}"></i>${esc(b.label)}
         </span>
         <div style="text-align:right">
           <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:${col}">${fmt(sp)}<span style="font-size:12px;font-weight:400;color:var(--muted)"> / ${fmt(b.budget)}</span></div>
@@ -6415,7 +6473,7 @@ function renderHome(){
         <span style="font-size:11px;color:${col};font-weight:600">${pctDisplay}% used</span>
         <span style="font-size:11px;color:${over?'var(--red)':'var(--muted)'};font-variant-numeric:tabular-nums">${over?'Over by '+fmt(sp-b.budget):fmt(rem)+' left'}</span>
       </div>
-      ${lastTxn?`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">Last: ${lastTxn.label||'Purchase'}</span><span style="font-variant-numeric:tabular-nums;padding-left:8px;flex-shrink:0">${fmt(lastTxn.amount)}</span></div>`:''}`;
+      ${lastTxn?`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">Last: ${esc(lastTxn.label||'Purchase')}</span><span style="font-variant-numeric:tabular-nums;padding-left:8px;flex-shrink:0">${fmt(lastTxn.amount)}</span></div>`:''}`;
     d.onclick=(()=>{const _k=k;return()=>showScreenAndScrollToBucket('spend',_k);})();
     hb.appendChild(d);
   });
@@ -6510,7 +6568,7 @@ function renderNextBillBanner(){
     </div>
     <div style="flex:1;min-width:0">
       <div style="font-size:11px;color:${textCol};text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:3px">${label}</div>
-      <div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${next.name}</div>
+      <div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(next.name)}</div>
       <div style="font-size:12px;color:var(--muted);margin-top:2px">${next.amount?fmt(next.amount):'Amount TBD'}${sub?` · ${sub}`:''}</div>
     </div>
     <i class="ti ti-chevron-right" style="font-size:18px;color:var(--muted);flex-shrink:0"></i>
@@ -6553,8 +6611,8 @@ function renderBills(){
     const freqBadge=b.frequency==='annual'?`<span style="font-size:10px;font-weight:700;background:#f59e0b15;color:#fbbf24;padding:2px 5px;border-radius:5px;margin-left:4px">Annual</span>`:(b.category==='subscription'?`<span style="font-size:10px;font-weight:700;background:#6366f115;color:#a5b4fc;padding:2px 5px;border-radius:5px;margin-left:4px">Monthly</span>`:'');
     const annualHint=b.frequency==='annual'&&b.amount?`<span style="font-size:11px;color:var(--muted)"> ≈ $${(b.amount/12).toFixed(2)}/mo</span>`:'';
     d.innerHTML=`${b.priority==='high'&&!b.paid?'<div class="bill-priority-bar"></div>':''}<div class="bill-toggle ${b.paid?'paid':''}" onclick="toggleBill(${i})"><i class="ti ti-check"></i></div>
-      <div class="bill-info" onclick="openBillHistory('${b.name.replace(/'/g,"'")}')" style="cursor:pointer">
-        <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${b.name}${dueBadge(b)}${b.category==='subscription'?'':''}${b.recurring!==false&&b.category!=='subscription'?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${freqBadge}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
+      <div class="bill-info" onclick="openBillHistory(C.bills[${i}].name)" style="cursor:pointer">
+        <div class="bill-name ${b.paid?'paid':''}" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${b.priority==='high'&&!b.paid?'<i class="ti ti-bolt" style="font-size:12px;color:var(--amber);margin-right:2px"></i>':''}${esc(b.name)}${dueBadge(b)}${b.category==='subscription'?'':''}${b.recurring!==false&&b.category!=='subscription'?'<i class="ti ti-repeat" style="font-size:11px;color:var(--muted);opacity:.6;margin-left:4px"></i>':''}${freqBadge}${b.paidBy&&getPartners().p2?partnerAvatar(b.paidBy,18):''}</div>
         <div class="bill-amount" style="display:flex;align-items:center;gap:6px">${b.amount?fmt(b.amount):'Amount TBD'}${annualHint}${STATE.history.length?'<i class="ti ti-history" style="font-size:11px;color:var(--muted);opacity:.5"></i>':''}</div>
       </div>
       ${dragHandle}<button class="icon-btn" onclick="openBillModal(${i})"><i class="ti ti-edit"></i></button>`;
@@ -6674,7 +6732,7 @@ function renderSpendSearch(query){
   // Sort newest first
   matches.sort((a,b)=>(b.t.date||'').localeCompare(a.t.date||''));
   if(!matches.length){
-    results.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:14px;padding:40px 0"><i class="ti ti-search" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3"></i>${q?'No transactions match "'+query+'"':'No transactions logged yet'}</div>`;
+    results.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:14px;padding:40px 0"><i class="ti ti-search" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3"></i>${q?'No transactions match "'+esc(query)+'"':'No transactions logged yet'}</div>`;
     return;
   }
   const total=matches.reduce((a,m)=>a+(m.t.amount||0),0);
@@ -6684,8 +6742,8 @@ function renderSpendSearch(query){
         <i class="ti ${m.bucketIcon}" style="font-size:15px;color:${m.bucketColor}"></i>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.t.label||'Purchase'}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:1px">${m.bucketLabel}${m.t.date?' · '+m.t.date:''}${m.t.notes?' · '+m.t.notes:''}</div>
+        <div style="font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.t.label||'Purchase')}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">${esc(m.bucketLabel)}${m.t.date?' · '+m.t.date:''}${m.t.notes?' · '+esc(m.t.notes):''}</div>
       </div>
       <span style="font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(m.t.amount)}</span>
     </div>`).join('');
@@ -6728,7 +6786,7 @@ function renderSpend(){
         const b=C.buckets[k],spent=bucketSpent(k),budgetFrac=(b.budget||0)/totalBudget,spentFrac=Math.min(spent/(b.budget||1),1),segLen=budgetFrac*circ,fillLen=spentFrac*segLen,col=COLORS[i%COLORS.length];
         segments+=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="var(--border)" stroke-width="${stroke}" stroke-dasharray="${segLen-2} ${circ-(segLen-2)}" stroke-dashoffset="${-(offset-circ/4)}" />`;
         if(fillLen>0)segments+=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${fillLen-1} ${circ-(fillLen-1)}" stroke-dashoffset="${-(offset-circ/4)}" />`;
-        legendItems+=`<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:3px 0;gap:4px"><div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.label}</span></div><span style="font-variant-numeric:tabular-nums;color:${bucketColor(spent/(b.budget||1))};flex-shrink:0;padding-left:4px">${fmt(spent)}<span style="color:var(--muted)"> / ${fmt(b.budget)}</span></span></div>`;
+        legendItems+=`<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:3px 0;gap:4px"><div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.label)}</span></div><span style="font-variant-numeric:tabular-nums;color:${bucketColor(spent/(b.budget||1))};flex-shrink:0;padding-left:4px">${fmt(spent)}<span style="color:var(--muted)"> / ${fmt(b.budget)}</span></span></div>`;
         offset+=segLen;
       });
     } else {segments=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>`;}
@@ -6751,10 +6809,10 @@ function renderSpend(){
         const actualIdx=b.transactions.length-1-(b.transactions.slice(-5).length-1-ri);
         txns+=`<div class="txn-row" onclick="openEditTxnModal('${k}',${actualIdx})" style="cursor:pointer;transition:background .15s;flex-direction:column;align-items:stretch;gap:2px" onmouseenter="this.style.background='var(--border)'" onmouseleave="this.style.background='var(--card2)'">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="txn-label">${t.label||'Purchase'}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date||''}</span></span>
+            <span class="txn-label">${esc(t.label||'Purchase')}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date||''}</span></span>
             <span class="txn-amt" style="display:flex;align-items:center;gap:6px">${fmt(t.amount)}<i class="ti ti-pencil" style="font-size:12px;color:var(--muted);opacity:.6"></i></span>
           </div>
-          ${t.notes?`<span style="font-size:11px;color:var(--muted);padding-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.notes}</span>`:''}
+          ${t.notes?`<span style="font-size:11px;color:var(--muted);padding-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.notes)}</span>`:''}
         </div>`;
       });
       txnSection=`
@@ -6766,7 +6824,7 @@ function renderSpend(){
     card.innerHTML=`
       <div onclick="toggleBucketExpand('${k}')" style="cursor:pointer">
         <div class="bucket-header" style="margin-bottom:10px">
-          <span class="bucket-name"><i class="ti ${b.icon}" style="font-size:19px;vertical-align:-3px;margin-right:8px;color:${col}"></i>${b.label}</span>
+          <span class="bucket-name"><i class="ti ${b.icon}" style="font-size:19px;vertical-align:-3px;margin-right:8px;color:${col}"></i>${esc(b.label)}</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:13px;color:${col};font-variant-numeric:tabular-nums">${fmt(spent)}<span style="color:var(--muted);font-size:12px"> / ${fmt(b.budget)}</span></span>
             <button class="icon-btn" onclick="event.stopPropagation();openBucketModal('${k}')"><i class="ti ti-edit"></i></button>
@@ -6774,7 +6832,7 @@ function renderSpend(){
           </div>
         </div>
         <div class="bucket-bar"><div class="bucket-fill" style="width:${Math.min(pct,1)*100}%;background:${col}"></div></div>
-        ${!isExpanded&&lastTxn?`<div style="margin-top:8px;display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">Last: ${lastTxn.label||'Purchase'}</span><span style="flex-shrink:0;padding-left:8px;font-variant-numeric:tabular-nums">${fmt(lastTxn.amount)}</span></div>`:''}
+        ${!isExpanded&&lastTxn?`<div style="margin-top:8px;display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">Last: ${esc(lastTxn.label||'Purchase')}</span><span style="flex-shrink:0;padding-left:8px;font-variant-numeric:tabular-nums">${fmt(lastTxn.amount)}</span></div>`:''}
         ${!isExpanded?`<button class="add-btn" style="margin-top:8px" onclick="event.stopPropagation();openAddModal('${k}')"><i class="ti ti-plus" style="font-size:15px"></i> Log expense</button>`:''}
       </div>
       ${txnSection}`;
@@ -6852,7 +6910,7 @@ function renderInvest(){
       const i=extraList.length-1-ri;
       const d=document.createElement('div');
       d.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--card2);border-radius:10px;margin-bottom:6px';
-      d.innerHTML=`<div><div style="font-size:13px;font-weight:500">${e.label||'Extra savings'}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${e.date||''}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:500;color:var(--green);font-variant-numeric:tabular-nums">${fmt(e.amount)}</span><button onclick="deleteExtraSaving(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex;align-items:center"><i class="ti ti-x" style="font-size:15px"></i></button></div>`;
+      d.innerHTML=`<div><div style="font-size:13px;font-weight:500">${esc(e.label||'Extra savings')}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${e.date||''}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:500;color:var(--green);font-variant-numeric:tabular-nums">${fmt(e.amount)}</span><button onclick="deleteExtraSaving(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex;align-items:center"><i class="ti ti-x" style="font-size:15px"></i></button></div>`;
       el.appendChild(d);
     });
   }
