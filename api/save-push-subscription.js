@@ -48,6 +48,10 @@ export default async function handler(req) {
     updates.bill_due_days = billDueDays; // JSON array of {name, dueDay}
   }
 
+  if (body.cycleEndDate !== undefined) {
+    updates.cycle_end_date = body.cycleEndDate || null; // yyyy-mm-dd
+  }
+
   const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`;
   const resp = await fetch(url, {
     method: 'PATCH',

@@ -747,6 +747,16 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
   </nav>
 </div>
 <script>
+// ── Version & error beacon ──────────────────────────────────────────
+const APP_VERSION='2026.07.16';
+let _errCount=0;
+function _reportError(msg,src,line){
+  if(_errCount>=5)return;_errCount++;
+  try{fetch('/api/log-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:String(msg).slice(0,500),source:String(src||'').slice(0,200),line:line||0,version:APP_VERSION,ua:navigator.userAgent.slice(0,120),ts:new Date().toISOString()})}).catch(()=>{});}catch(e){}
+}
+window.addEventListener('error',e=>_reportError(e.message,e.filename,e.lineno));
+window.addEventListener('unhandledrejection',e=>_reportError((e.reason&&e.reason.message)||String(e.reason||'unhandled rejection'),'promise',0));
+
 const DEFAULT_401K_CYCLE={me:0,emp:0};
 const ICON_OPTIONS=[
   {icon:'ti-shopping-cart',label:'Shop'},{icon:'ti-gas-station',label:'Gas'},
@@ -1060,7 +1070,7 @@ function markTrialUsed(feature){const u=getUsage();u[feature]=true;setUsage(u);}
 // Pro Couples features: partner sync (future) — partner UI is free for now
 // Free: everything core, unlimited quantities
 function gateFeature(feature){
-  const FEATURE_LABELS={advisor:'AI Advisor',invgoals:'Investment Goals',export:'Data Export',trends:'Spending Trends',partner:'Partner features',partnersync:'Partner sync'};
+  const FEATURE_LABELS={advisor:'AI Advisor',invgoals:'Investment Goals',export:'Data Export',trends:'Spending Trends',rollover:'Budget rollover',partner:'Partner features',partnersync:'Partner sync'};
   const label=FEATURE_LABELS[feature]||'this feature';
   if(feature==='partner'||feature==='partnersync'){
     if(isCouplePro())return true;
@@ -1269,8 +1279,28 @@ function save401K(){
   saveState();closeModal();render();
 }
 
+let _bucketRollover=false;
+function toggleBucketRollover(){
+  if(!_bucketRollover&&!gateFeature('rollover'))return;
+  _bucketRollover=!_bucketRollover;
+  const bar=document.getElementById('bucket-rollover-bar');
+  const knob=document.getElementById('bucket-rollover-knob');
+  if(bar)bar.style.background=_bucketRollover?'var(--accent)':'var(--border)';
+  if(knob)knob.style.left=_bucketRollover?'21px':'3px';
+}
+function _rolloverToggleRow(){
+  return `<div onclick="toggleBucketRollover()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;cursor:pointer">
+      <div>
+        <div style="font-size:15px;font-weight:500">Roll over unused budget <span style="font-size:9px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;padding:2px 6px;border-radius:99px;font-weight:700;vertical-align:2px">PRO</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Leftover adds to next period&#39;s budget; overspending subtracts</div>
+      </div>
+      <div id="bucket-rollover-bar" style="width:44px;height:26px;border-radius:99px;background:${_bucketRollover?'var(--accent)':'var(--border)'};position:relative;transition:background .2s;flex-shrink:0">
+        <div id="bucket-rollover-knob" style="position:absolute;top:3px;left:${_bucketRollover?'21px':'3px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s"></div>
+      </div>
+    </div>`;
+}
 function openNewBucketModal(){
-  selectedIcon='ti-star';
+  selectedIcon='ti-star';_bucketRollover=false;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Add budget</h3>
     <span class="modal-label">Category name</span>
@@ -1279,6 +1309,7 @@ function openNewBucketModal(){
     <input type="number" id="new-bucket-amt" placeholder="0.00" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Icon</span>
     <div class="icon-grid" id="igrid-new"></div>
+    ${_rolloverToggleRow()}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveNewBucket()">Add</button>
@@ -1292,12 +1323,12 @@ function saveNewBucket(){
   const budget=parseFloat(document.getElementById('new-bucket-amt').value)||0;
   if(!name){showToast('Please enter a category name.');return;}
   if(!checkLimit('buckets',Object.keys(C.buckets).length)){closeModal();return;}
-  C.buckets['b'+Date.now()]={label:name,icon:selectedIcon,budget,transactions:[]};
+  C.buckets['b'+Date.now()]={label:name,icon:selectedIcon,budget,baseBudget:budget,rollover:_bucketRollover,transactions:[]};
   saveState();closeModal();render();
 }
 
 function openBucketModal(key){
-  const b=C.buckets[key];selectedIcon=b.icon||'ti-star';
+  const b=C.buckets[key];selectedIcon=b.icon||'ti-star';_bucketRollover=!!b.rollover;
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Edit ${esc(b.label)}</h3>
     <span class="modal-label">Category name</span>
@@ -1306,6 +1337,7 @@ function openBucketModal(key){
     <input type="number" id="bucket-budget-input" value="${b.budget||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Icon</span>
     <div class="icon-grid" id="igrid-edit"></div>
+    ${_rolloverToggleRow()}
     <div class="modal-btns">
       <button class="btn btn-danger" onclick="deleteBucket('${key}')"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1319,7 +1351,7 @@ function saveBucket(key){
   const label=document.getElementById('bucket-label-input').value.trim();
   const budget=parseFloat(document.getElementById('bucket-budget-input').value)||0;
   if(!label)return;
-  C.buckets[key].label=label;C.buckets[key].budget=budget;C.buckets[key].icon=selectedIcon;
+  C.buckets[key].label=label;C.buckets[key].budget=budget;C.buckets[key].baseBudget=budget;C.buckets[key].icon=selectedIcon;C.buckets[key].rollover=_bucketRollover;
   saveState();closeModal();render();
 }
 function deleteBucket(key){
@@ -2205,9 +2237,23 @@ function confirmNewCycle(leftoverAction){
   const recurringSav=(C.savings&&C.savings.recurring!==false&&(C.savings.perPaycheck||0)>0)?(C.savings.perPaycheck||0):0;
   const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
   const carryDebts=JSON.parse(JSON.stringify(C.debts||[]));
+  // Carry bucket definitions into the new period (categories/budgets used to
+  // reset to defaults every cycle). Rollover buckets adjust by the leftover.
+  const carryBuckets={};
+  Object.keys(C.buckets||{}).forEach(k=>{
+    const b=C.buckets[k];
+    const base=(b.baseBudget!==undefined?b.baseBudget:(b.budget||0));
+    let newBudget=base;
+    if(b.rollover&&isPro()){
+      const leftover=(b.budget||0)-bucketSpent(k);
+      newBudget=Math.max(0,base+leftover);
+    }
+    carryBuckets[k]={label:b.label,icon:b.icon,budget:newBudget,baseBudget:base,rollover:!!b.rollover,transactions:[]};
+  });
   const leftoverAmt=remaining(); // capture before resetting
   STATE.current=newCycleData();C=STATE.current;
   if(carryDebts.length)C.debts=carryDebts;
+  if(Object.keys(carryBuckets).length)C.buckets=carryBuckets;
   if(recurringIncome.length) C.income=recurringIncome;
   // Apply leftover action
   if(leftoverAmt>0.01){
@@ -2231,6 +2277,7 @@ function confirmNewCycle(leftoverAction){
   if(recurring401k) C.k401=recurring401k;
   C.debtExtraPayments=0; // reset per-cycle debt payment tracking
   saveState();closeModal();render();
+  syncBillRemindersIfEnabled(); // push new endDate + bill days to the reminder cron
 }
 
 function renderSavingsScreen(){
@@ -3089,7 +3136,7 @@ let _obData={};
 function showOnboarding(){
   const ov=document.getElementById('onboard-overlay');if(!ov)return;
   _obStep=1;
-  _obData={income:0,period:'biweekly',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
+  _obData={income:0,period:'biweekly',payAnchor:'',bills:[],food:0,gas:0,personal:0,goalName:'',goalTarget:0};
   if(ov.parentNode!==document.body)document.body.appendChild(ov);
   ov.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);overflow-y:auto;max-width:none;margin:0;padding:20px;';
   _renderObStep();
@@ -3119,12 +3166,22 @@ function _renderOb1(){
     '<input id="ob-income" type="number" inputmode="decimal" placeholder="0" value="'+(_obData.income||'')+'" style="width:100%;padding:14px 14px 14px 28px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:18px;box-sizing:border-box;font-family:inherit"></div></div>'+
     '<div style="margin-bottom:24px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">How often do you get paid?</label>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-    periods.map(([p,l])=>'<button onclick="_obData.period=\''+p+'\';_renderObStep()" style="padding:12px 8px;border:2px solid '+(_obData.period===p?'var(--accent)':'var(--border)')+';border-radius:12px;background:'+(_obData.period===p?'#6366f118':'var(--card)')+';color:'+(_obData.period===p?'var(--accent)':'var(--text)')+';font-size:13px;font-weight:'+(_obData.period===p?'600':'400')+';cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
+    periods.map(([p,l])=>'<button onclick="_obSaveStep1();_obData.period=\''+p+'\';_renderObStep()" style="padding:12px 8px;border:2px solid '+(_obData.period===p?'var(--accent)':'var(--border)')+';border-radius:12px;background:'+(_obData.period===p?'#6366f118':'var(--card)')+';color:'+(_obData.period===p?'var(--accent)':'var(--text)')+';font-size:13px;font-weight:'+(_obData.period===p?'600':'400')+';cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
     '</div></div>'+
+    ((_obData.period==='weekly'||_obData.period==='biweekly')?'<div style="margin-bottom:24px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">When was your most recent payday?</label>'+
+    '<input id="ob-payday" type="date" value="'+(_obData.payAnchor||'')+'" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit">'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:5px">So your budget periods line up with your real paychecks.</div></div>':'')+
     '<button onclick="_obNext1()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>';
 }
+function _obSaveStep1(){
+  const inc=parseFloat(document.getElementById('ob-income')?.value||0);
+  if(inc>0)_obData.income=inc;
+  const pd=document.getElementById('ob-payday');
+  if(pd&&pd.value)_obData.payAnchor=pd.value;
+}
 function _obNext1(){
-  const v=parseFloat(document.getElementById('ob-income')?.value||0);
+  _obSaveStep1();
+  const v=parseFloat(document.getElementById('ob-income')?.value||0)||_obData.income;
   if(!v||v<=0){alert('Please enter your take-home pay.');return;}
   _obData.income=v;
   _obData.food=Math.round(v*0.12);
@@ -3206,6 +3263,7 @@ function _obComplete(){
   if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
   if(gn&&gt>0){STATE.savingsBuckets=STATE.savingsBuckets||[];STATE.savingsBuckets.push({name:gn,goal:gt,saved:0,color:'green',createdAt:new Date().toISOString()});}
   setFreq(_obData.period==='twicemonthly'?'semimonthly':_obData.period);
+  if((_obData.period==='weekly'||_obData.period==='biweekly')&&_obData.payAnchor)STATE.payAnchor=_obData.payAnchor;
   const freshCycle=newCycleData();
   C.startDate=freshCycle.startDate;
   C.endDate=freshCycle.endDate;
@@ -3313,7 +3371,8 @@ function openSettingsModal(){
         <div><div style="font-size:15px;font-weight:500">Log out</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="settings-auth-sub">Signed in</div></div>
       </div>
     </div>
-    <div class="modal-btns" style="margin-top:16px">
+    <div style="text-align:center;font-size:10px;color:var(--muted);padding:12px 0 0">DistroFi v${APP_VERSION}</div>
+    <div class="modal-btns" style="margin-top:10px">
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
     </div>
   </div></div>`;
@@ -3811,13 +3870,14 @@ function openPaywall(feature){
     export:{name:'Data export',tier:'solo',why:'Download your full budget history as JSON to back it up, import into a spreadsheet, or migrate to another tool.'},
     trends:{name:'Full spending trends',tier:'solo',why:'Unlock your complete multi-period trend history with category breakdowns going back as far as you have tracked.'},
     invgoals:{name:'Investment goals',tier:'solo',why:'Track exactly how close you are to retirement, a down payment, or any long-term target with your real investment numbers.'},
+    rollover:{name:'Budget rollover',tier:'solo',why:'Unused category budget carries into the next pay period automatically — overspending subtracts, just like an envelope system.'},
     partner:{name:'Shared finances',tier:'couples',why:'Sync budgets in real time with your partner, see who paid what, and track your combined net worth together.'},
     partnersync:{name:'Partner sync',tier:'couples',why:'Keep both of your views in sync automatically — no manual sharing or exports needed.'},
   };
   const info=featureInfo[feature]||{name:'This Pro feature',tier:'solo',why:'Upgrade to DistroFi Pro to unlock this feature and everything else.'};
   const isCouplesFeature=info.tier==='couples';
   const freeItems=['Unlimited buckets, bills & savings goals','Full pay period history','Partner expense tracking (single device)','Recurring bills & auto-tracking','Bill priority & reorder','All core tracking — forever free'];
-  const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)'];
+  const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)','Per-category budget rollover'];
   const couplesItems=['Real-time partner sync','Shared savings goals','Combined net worth view','Per-person spending reports','Everything in Pro Solo'];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="text-align:center;padding-bottom:14px;border-bottom:0.5px solid var(--border);margin-bottom:14px">
@@ -3966,6 +4026,7 @@ async function savePushSubscriptionToServer(sub,enabled){
         userId:auth.user_id,
         subscription:sub,
         billDueDays:getBillDueDays(),
+        cycleEndDate:(C&&C.endDate)||null,
         enabled,
       }),
     });
@@ -4040,7 +4101,7 @@ async function syncBillRemindersIfEnabled(){
     await fetch('/api/save-push-subscription',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({userId:auth.user_id,billDueDays:getBillDueDays(),enabled:true}),
+      body:JSON.stringify({userId:auth.user_id,billDueDays:getBillDueDays(),cycleEndDate:(C&&C.endDate)||null,enabled:true}),
     });
   }catch(e){/* silent */}
 }
@@ -4116,7 +4177,7 @@ function openProSettings(){
       <div style="background:linear-gradient(135deg,#7c3aed12,#6366f112);border:1.5px solid var(--accent);border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:6px">Pro Solo</div>
         <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:8px">$2.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
-        ${['AI Advisor','Spending trends','Inv. goals','Data export'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">✦ ${f}</div>`).join('')}
+        ${['AI Advisor','Spending trends','Inv. goals','Data export','Rollover'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">✦ ${f}</div>`).join('')}
       </div>
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid #ec4899;border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899;margin-bottom:6px">Couples</div>

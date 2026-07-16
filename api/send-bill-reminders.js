@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   const threeDayTarget = reminderDays.find(d => d !== today) ?? today;
 
   // Fetch users with reminders enabled and a push subscription
-  const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?bill_reminders=eq.true&push_endpoint=not.is.null&select=id,push_endpoint,push_p256dh,push_auth,bill_due_days`;
+  const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?bill_reminders=eq.true&push_endpoint=not.is.null&select=id,push_endpoint,push_p256dh,push_auth,bill_due_days,cycle_end_date,cycle_end_notified`;
   const resp = await fetch(url, { headers: sbHeaders() });
 
   if (!resp.ok) {
@@ -75,12 +75,45 @@ export default async function handler(req, res) {
 
   for (const user of users) {
     const billDueDays = user.bill_due_days;
-    if (!Array.isArray(billDueDays) || billDueDays.length === 0) continue;
 
     const subscription = {
       endpoint: user.push_endpoint,
       keys: { p256dh: user.push_p256dh, auth: user.push_auth },
     };
+
+    // ── Cycle-end reminder: first cron run after the period closes ──
+    if (user.cycle_end_date) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (todayStr > user.cycle_end_date && user.cycle_end_notified !== user.cycle_end_date) {
+        try {
+          await webpush.sendNotification(subscription, JSON.stringify({
+            title: 'Your pay period has ended',
+            body: 'Review last period and start your next one in DistroFi.',
+            tag: `cycle-end-${user.cycle_end_date}`,
+            url: '/',
+          }));
+          sent++;
+          await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
+            method: 'PATCH',
+            headers: sbHeaders(),
+            body: JSON.stringify({ cycle_end_notified: user.cycle_end_date }),
+          });
+        } catch (e) {
+          console.error(`Cycle-end push failed for user ${user.id}:`, e.statusCode, e.body);
+          if (e.statusCode === 404 || e.statusCode === 410) {
+            await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
+              method: 'PATCH',
+              headers: sbHeaders(),
+              body: JSON.stringify({ push_endpoint: null, push_p256dh: null, push_auth: null, bill_reminders: false }),
+            });
+          }
+          errors++;
+        }
+      }
+    }
+
+    // ── Bill reminders ──
+    if (!Array.isArray(billDueDays) || billDueDays.length === 0) continue;
 
     // Find bills due today or in 3 days
     const toNotify = billDueDays.filter(b => reminderDays.includes(b.dueDay));
