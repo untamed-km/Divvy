@@ -18,6 +18,9 @@
     },
     "api/send-bill-reminders.js": {
       "maxDuration": 30
+    },
+    "api/market.js": {
+      "maxDuration": 10
     }
   },
   "crons": [
@@ -27,29 +30,60 @@
     }
   ],
   "rewrites": [
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/app", "destination": "/index.html" }
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/sw.js",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/index.html",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/admin",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/admin.html",
-      "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ]
 }
