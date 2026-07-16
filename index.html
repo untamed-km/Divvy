@@ -712,25 +712,6 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         <div id="members-networth" style="margin-bottom:8px"><div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid var(--accent);border-radius:16px;padding:16px;margin-bottom:4px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Worth</div><div style="height:28px;background:var(--border);border-radius:8px;width:120px;opacity:.4"></div></div></div>
         <div id="members-couples" style="display:none;margin-bottom:8px"></div>
       </div>
-      <!-- Markets sub-view -->
-      <div id="members-markets" style="display:none">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-          <button onclick="openWatchEditor('stocks')" style="background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;padding:2px 0"><i class="ti ti-adjustments" style="font-size:14px"></i> Customize</button>
-        </div>
-        <div class="section-label" style="margin-top:0">Stocks</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:4px"><i class="ti ti-info-circle" style="font-size:12px"></i> Prices are indicative — live data coming soon</div>
-        <div id="mkt-stocks"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-          <span class="section-label" style="margin-top:0">Crypto</span>
-          <button onclick="openWatchEditor('crypto')" style="background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;padding:2px 0"><i class="ti ti-adjustments" style="font-size:14px"></i> Customize</button>
-        </div>
-        <div id="mkt-crypto"></div>
-      </div>
-      <!-- News sub-view -->
-      <div id="members-news" style="display:none">
-
-        <div id="mkt-news"></div>
-      </div>
       <!-- Deals sub-view -->
       <div id="members-deals" style="display:none">
         <div id="mkt-deals"></div>
@@ -1075,7 +1056,7 @@ function setUsage(u){localStorage.setItem(USAGE_KEY,JSON.stringify(u));}
 function hasUsedTrial(feature){return getUsage()[feature]===true;}
 function markTrialUsed(feature){const u=getUsage();u[feature]=true;setUsage(u);}
 
-// Pro Solo features: advisor, trends, invgoals, export, watchlist
+// Pro Solo features: advisor, trends, invgoals, export
 // Pro Couples features: partner sync (future) — partner UI is free for now
 // Free: everything core, unlimited quantities
 function gateFeature(feature){
@@ -3830,14 +3811,13 @@ function openPaywall(feature){
     export:{name:'Data export',tier:'solo',why:'Download your full budget history as JSON to back it up, import into a spreadsheet, or migrate to another tool.'},
     trends:{name:'Full spending trends',tier:'solo',why:'Unlock your complete multi-period trend history with category breakdowns going back as far as you have tracked.'},
     invgoals:{name:'Investment goals',tier:'solo',why:'Track exactly how close you are to retirement, a down payment, or any long-term target with your real investment numbers.'},
-    watchlist:{name:'Custom watchlist',tier:'solo',why:'Pin the stocks and crypto you actually care about to your Marketplace screen.'},
     partner:{name:'Shared finances',tier:'couples',why:'Sync budgets in real time with your partner, see who paid what, and track your combined net worth together.'},
     partnersync:{name:'Partner sync',tier:'couples',why:'Keep both of your views in sync automatically — no manual sharing or exports needed.'},
   };
   const info=featureInfo[feature]||{name:'This Pro feature',tier:'solo',why:'Upgrade to DistroFi Pro to unlock this feature and everything else.'};
   const isCouplesFeature=info.tier==='couples';
   const freeItems=['Unlimited buckets, bills & savings goals','Full pay period history','Partner expense tracking (single device)','Recurring bills & auto-tracking','Bill priority & reorder','All core tracking — forever free'];
-  const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)','Custom market watchlist'];
+  const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)'];
   const couplesItems=['Real-time partner sync','Shared savings goals','Combined net worth view','Per-person spending reports','Everything in Pro Solo'];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="text-align:center;padding-bottom:14px;border-bottom:0.5px solid var(--border);margin-bottom:14px">
@@ -4136,7 +4116,7 @@ function openProSettings(){
       <div style="background:linear-gradient(135deg,#7c3aed12,#6366f112);border:1.5px solid var(--accent);border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:6px">Pro Solo</div>
         <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:8px">$2.99<span style="font-size:11px;font-weight:400;color:var(--muted)">/mo</span></div>
-        ${['AI Advisor','Spending trends','Inv. goals','Data export','Watchlist'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">✦ ${f}</div>`).join('')}
+        ${['AI Advisor','Spending trends','Inv. goals','Data export'].map(f=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">✦ ${f}</div>`).join('')}
       </div>
       <div style="background:linear-gradient(135deg,#ec489912,#f43f5e12);border:1.5px solid #ec4899;border-radius:12px;padding:12px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#ec4899;margin-bottom:6px">Couples</div>
@@ -4297,239 +4277,10 @@ function openSpendingTrends(){
 }
 
 
-// ── MARKETPLACE DATA (sample/demo — replace with live feeds in Phase 2) ──
-const MKT_STOCKS=[
-  {sym:'SPY',name:'S&P 500 ETF',price:'$548.20',chg:'+0.82%',up:true,spark:[20,22,21,24,23,26,28,27,30]},
-  {sym:'AAPL',name:'Apple Inc.',price:'$229.15',chg:'+1.14%',up:true,spark:[18,17,19,20,19,22,21,24,25]},
-  {sym:'TSLA',name:'Tesla Inc.',price:'$248.50',chg:'-1.92%',up:false,spark:[30,28,29,26,27,24,22,23,20]},
-  {sym:'NVDA',name:'NVIDIA Corp.',price:'$132.65',chg:'+2.41%',up:true,spark:[15,18,17,20,22,24,23,27,30]},
-  {sym:'MSFT',name:'Microsoft',price:'$424.80',chg:'+0.55%',up:true,spark:[22,23,22,24,25,24,26,27,28]},
-  {sym:'AMZN',name:'Amazon',price:'$186.40',chg:'+1.62%',up:true,spark:[18,19,21,20,22,24,23,25,27]},
-  {sym:'GOOGL',name:'Alphabet',price:'$178.30',chg:'-0.41%',up:false,spark:[26,25,27,24,25,23,24,22,23]},
-  {sym:'META',name:'Meta Platforms',price:'$512.20',chg:'+2.08%',up:true,spark:[20,22,24,23,26,28,27,30,32]},
-  {sym:'QQQ',name:'Nasdaq 100 ETF',price:'$478.90',chg:'+1.05%',up:true,spark:[21,22,24,23,25,27,26,28,30]},
-  {sym:'AMD',name:'AMD',price:'$162.40',chg:'-1.20%',up:false,spark:[28,27,29,26,25,24,26,23,22]},
-  {sym:'DIS',name:'Disney',price:'$98.75',chg:'+0.34%',up:true,spark:[19,20,19,21,20,22,21,23,24]},
-  {sym:'JPM',name:'JPMorgan Chase',price:'$204.10',chg:'+0.92%',up:true,spark:[22,23,24,23,25,26,25,27,28]},
-];
-const MKT_CRYPTO=[
-  {sym:'BTC',name:'Bitcoin',price:'$67,420',chg:'+3.10%',up:true,spark:[20,22,25,24,28,30,29,33,36]},
-  {sym:'ETH',name:'Ethereum',price:'$3,285',chg:'+1.85%',up:true,spark:[18,19,18,21,22,21,24,25,27]},
-  {sym:'SOL',name:'Solana',price:'$168.40',chg:'-0.74%',up:false,spark:[28,27,29,26,25,27,24,23,22]},
-  {sym:'XRP',name:'XRP',price:'$0.62',chg:'+1.40%',up:true,spark:[18,19,20,19,21,22,21,23,24]},
-  {sym:'ADA',name:'Cardano',price:'$0.45',chg:'-0.95%',up:false,spark:[26,25,24,26,23,24,22,23,21]},
-  {sym:'DOGE',name:'Dogecoin',price:'$0.16',chg:'+5.20%',up:true,spark:[15,17,16,20,22,21,26,28,31]},
-  {sym:'AVAX',name:'Avalanche',price:'$38.20',chg:'+2.30%',up:true,spark:[19,20,22,21,24,23,26,27,29]},
-  {sym:'LINK',name:'Chainlink',price:'$14.85',chg:'-1.10%',up:false,spark:[27,26,28,25,24,26,23,24,22]},
-  {sym:'MATIC',name:'Polygon',price:'$0.72',chg:'+0.85%',up:true,spark:[20,21,20,22,21,23,22,24,25]},
-  {sym:'DOT',name:'Polkadot',price:'$7.15',chg:'+1.55%',up:true,spark:[19,20,21,20,22,24,23,25,26]},
-];
-
-// ── Live market data ─────────────────────────────────────────────
-
 function membersBack(){
   showMembersHub();
 }
 
-const MKT_CACHE_KEY='distrofi_mkt_cache';
-const MKT_CACHE_TTL=60000; // 60 seconds
-
-// CoinGecko ID map
-const COINGECKO_IDS={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',AVAX:'avalanche-2',LINK:'chainlink',MATIC:'matic-network',DOT:'polkadot'};
-
-function getMktCache(){try{const c=JSON.parse(sessionStorage.getItem(MKT_CACHE_KEY)||'{}');return c;}catch(e){return{};}}
-function setMktCache(data){try{sessionStorage.setItem(MKT_CACHE_KEY,JSON.stringify({data,ts:Date.now()}));}catch(e){}}
-function isMktCacheFresh(){try{const c=JSON.parse(sessionStorage.getItem(MKT_CACHE_KEY)||'{}');return c.ts&&(Date.now()-c.ts)<MKT_CACHE_TTL;}catch(e){return false;}}
-
-async function fetchFinnhubQuote(sym){
-  const r=await fetch(`/api/market?fn=quote&symbol=${sym}`);
-  if(!r.ok)return null;
-  const d=await r.json();
-  if(!d.c)return null;
-  const price=d.c,prev=d.pc,chg=((price-prev)/prev*100);
-  return{price:'$'+price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),chg:(chg>=0?'+':'')+chg.toFixed(2)+'%',up:chg>=0};
-}
-
-async function fetchFinnhubSpark(sym){
-  const to=Math.floor(Date.now()/1000);
-  const from=to-7*24*3600;
-  const r=await fetch(`/api/market?fn=candle&symbol=${sym}&resolution=D&from=${from}&to=${to}`);
-  if(!r.ok)return null;
-  const d=await r.json();
-  return d.c&&d.c.length>1?d.c:null;
-}
-
-async function fetchCoinGeckoPrices(ids){
-  const joined=ids.join(',');
-  const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${joined}&vs_currencies=usd&include_24hr_change=true`);
-  if(!r.ok)return null;
-  return await r.json();
-}
-
-function fmtCryptoPrice(p){
-  if(p>=1000)return'$'+p.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
-  if(p>=1)return'$'+p.toFixed(2);
-  return'$'+p.toFixed(4);
-}
-
-async function fetchLiveMarketData(){
-  if(isMktCacheFresh()){
-    const cache=getMktCache();
-    if(cache.data)applyMarketData(cache.data);
-    return;
-  }
-  // Show loading state
-  const st=document.getElementById('mkt-stocks');
-  const cr=document.getElementById('mkt-crypto');
-  if(st)st.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--muted);font-size:13px"><i class="ti ti-loader-2" style="font-size:20px;display:block;margin:0 auto 8px;animation:spin 1s linear infinite"></i>Loading live prices…</div>';
-  if(cr)cr.innerHTML='<div style="height:20px"></div>';
-
-  try{
-    const wl=getWatchlist();
-    const liveData={stocks:{},crypto:{}};
-
-    // Fetch stocks in parallel
-    await Promise.all(wl.stocks.map(async sym=>{
-      const [quote,spark]=await Promise.all([fetchFinnhubQuote(sym),fetchFinnhubSpark(sym)]);
-      if(quote)liveData.stocks[sym]={...quote,spark:spark||null};
-    }));
-
-    // Fetch crypto
-    const cgIds=wl.crypto.map(sym=>COINGECKO_IDS[sym]).filter(Boolean);
-    if(cgIds.length){
-      const prices=await fetchCoinGeckoPrices(cgIds);
-      if(prices){
-        wl.crypto.forEach(sym=>{
-          const id=COINGECKO_IDS[sym];
-          if(id&&prices[id]){
-            const p=prices[id].usd,chg=prices[id].usd_24h_change||0;
-            liveData.crypto[sym]={price:fmtCryptoPrice(p),chg:(chg>=0?'+':'')+chg.toFixed(2)+'%',up:chg>=0};
-          }
-        });
-      }
-    }
-
-    setMktCache(liveData);
-    applyMarketData(liveData);
-  }catch(e){
-    console.warn('Market fetch error:',e);
-    renderMarketsWithData(null); // fallback to static
-  }
-}
-
-function applyMarketData(liveData){
-  // Patch MKT_STOCKS with live data
-  MKT_STOCKS.forEach(s=>{
-    const d=liveData.stocks[s.sym];
-    if(d){s.price=d.price;s.chg=d.chg;s.up=d.up;if(d.spark)s.spark=d.spark;}
-  });
-  // Patch MKT_CRYPTO with live data
-  MKT_CRYPTO.forEach(s=>{
-    const d=liveData.crypto[s.sym];
-    if(d){s.price=d.price;s.chg=d.chg;s.up=d.up;}
-  });
-  renderMarketsWithData(liveData);
-}
-
-// ── Live financial news ──────────────────────────────────────────
-const NEWS_CACHE_KEY='distrofi_news_cache';
-const NEWS_CACHE_TTL=15*60*1000; // 15 minutes
-
-function isNewsCacheFresh(){try{const c=JSON.parse(sessionStorage.getItem(NEWS_CACHE_KEY)||'{}');return c.ts&&(Date.now()-c.ts)<NEWS_CACHE_TTL;}catch(e){return false;}}
-function getNewsCache(){try{return JSON.parse(sessionStorage.getItem(NEWS_CACHE_KEY)||'{}').data||null;}catch(e){return null;}}
-function setNewsCache(data){try{sessionStorage.setItem(NEWS_CACHE_KEY,JSON.stringify({data,ts:Date.now()}));}catch(e){}}
-
-function timeAgo(unixTs){
-  const diff=Math.floor((Date.now()/1000)-unixTs);
-  if(diff<60)return'just now';
-  if(diff<3600)return Math.floor(diff/60)+'m ago';
-  if(diff<86400)return Math.floor(diff/3600)+'h ago';
-  return Math.floor(diff/86400)+'d ago';
-}
-
-async function fetchLiveNews(){
-  if(isNewsCacheFresh()){
-    const cached=getNewsCache();
-    if(cached){renderNewsWithData(cached);return;}
-  }
-  const nw=document.getElementById('mkt-news');
-  if(nw)nw.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--muted);font-size:13px"><i class="ti ti-loader-2" style="font-size:20px;display:block;margin:0 auto 8px;animation:spin 1s linear infinite"></i>Loading news…</div>';
-  try{
-    const r=await fetch(`/api/market?fn=news`);
-    if(!r.ok)throw new Error('News fetch failed');
-    const data=await r.json();
-    const articles=data.filter(a=>a.headline&&a.url&&a.source).slice(0,8);
-    setNewsCache(articles);
-    renderNewsWithData(articles);
-  }catch(e){
-    console.warn('News fetch error:',e);
-    renderNewsWithData(null);
-  }
-}
-
-function renderNewsWithData(articles){
-  const nw=document.getElementById('mkt-news');
-  if(!nw)return;
-  if(!articles||!articles.length){
-    // Fallback to hardcoded
-    nw.innerHTML=MKT_NEWS.map((n,i)=>`<div onclick="openMktNews(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f114;padding:3px 8px;border-radius:99px">${n.cat}</span><span style="font-size:11px;color:var(--muted)">${n.src}</span></div>
-      <div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${n.title}</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.4">${n.summary}</div>
-      <div style="font-size:11px;color:var(--accent);margin-top:8px;display:flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:12px"></i> Read article</div>
-    </div>`).join('');
-    return;
-  }
-  nw.innerHTML=articles.map(a=>`<div onclick="window.open('${a.url.replace(/'/g,'')}','_blank')" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:8px;cursor:pointer">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f114;padding:3px 8px;border-radius:99px">Markets</span>
-      <span style="font-size:11px;color:var(--muted)">${a.source} · ${timeAgo(a.datetime)}</span>
-    </div>
-    <div style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px">${esc(a.headline)}</div>
-    ${a.summary?`<div style="font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(a.summary)}</div>`:''}
-    <div style="font-size:11px;color:var(--accent);margin-top:8px;display:flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:12px"></i> Read article</div>
-  </div>`).join('');
-}
-
-function renderMarketsWithData(liveData){
-  renderHoldings();
-  const wl=getWatchlist();
-  const st=document.getElementById('mkt-stocks');
-  const cr=document.getElementById('mkt-crypto');
-  if(st){const shown=MKT_STOCKS.filter(s=>wl.stocks.includes(s.sym));st.innerHTML=(shown.length?shown.map(s=>{const i=MKT_STOCKS.indexOf(s);return `<div onclick="openMktChart('stock',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:var(--text)">${s.sym}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>${sparkSVG(s.spark,s.up)}<div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div></div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Tap Customize to add stocks</div>')+(!liveData?'<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0">Prices may be delayed</div>':'');}
-  if(cr){const shownC=MKT_CRYPTO.filter(s=>wl.crypto.includes(s.sym));cr.innerHTML=shownC.length?shownC.map(s=>{const i=MKT_CRYPTO.indexOf(s);return `<div onclick="openMktChart('crypto',${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer"><div style="width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent)">${s.sym}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--muted)">${s.price}</div></div>${sparkSVG(s.spark,s.up)}<div style="font-size:13px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'};flex-shrink:0;min-width:54px;text-align:right">${s.chg}</div></div>`;}).join(''):'';}
-}
-
-// ── Default watchlist (free tier sees these; Pro can customize)
-const DEFAULT_WATCH_STOCKS=['SPY','AAPL','TSLA','NVDA'];
-const DEFAULT_WATCH_CRYPTO=['BTC','ETH','SOL'];
-const WATCH_KEY='distrofi_watchlist';
-function getWatchlist(){
-  try{const w=JSON.parse(localStorage.getItem(WATCH_KEY)||'null');if(w&&w.stocks&&w.crypto)return w;}catch(e){}
-  return{stocks:[...DEFAULT_WATCH_STOCKS],crypto:[...DEFAULT_WATCH_CRYPTO]};
-}
-function saveWatchlist(w){localStorage.setItem(WATCH_KEY,JSON.stringify(w));}
-function toggleWatch(type,sym){
-  const w=getWatchlist();
-  const arr=w[type];
-  const idx=arr.indexOf(sym);
-  if(idx>=0){
-    if(arr.length<=1)return; // keep at least one
-    arr.splice(idx,1);
-  }else{
-    arr.push(sym);
-  }
-  saveWatchlist(w);
-  renderWatchEditor(type);
-  renderMarketplace();
-}
-const MKT_NEWS=[
-  {title:'How the Federal Reserve affects your savings account rate',summary:'When the Fed raises or lowers its benchmark rate, banks follow — here\'s how it directly impacts what you earn on your cash.',src:'Investopedia',cat:'Policy',url:'https://www.investopedia.com/articles/economics/08/federal-reserve.asp'},
-  {title:'How to build an emergency fund in 6 months',summary:'Financial planners recommend saving 3–6 months of expenses. Here\'s a realistic step-by-step plan.',src:'NerdWallet',cat:'Personal Finance',url:'https://www.nerdwallet.com/article/banking/emergency-fund-why-it-matters'},
-  {title:'How inflation impacts your household budget — and what to do about it',summary:'Even modest inflation erodes purchasing power over time. These budgeting moves help you stay ahead.',src:'CNBC',cat:'Economy',url:'https://www.cnbc.com/economy/'},
-  {title:'The case for automating your savings',summary:'Studies show people who automate transfers save 2–3x more than those who move money manually each month.',src:'Investopedia',cat:'Savings',url:'https://www.investopedia.com/articles/personal-finance/040915/how-automate-your-savings.asp'},
-  {title:'Index funds vs. ETFs: what\'s the difference?',summary:'Both offer low-cost diversification, but there are key differences in how they\'re bought, sold, and taxed.',src:'Investopedia',cat:'Investing',url:'https://www.investopedia.com/articles/investing/102015/etf-vs-index-fund.asp'},
-];
 const LESSONS_READ_KEY='distrofi_lessons_read';
 function getReadLessons(){try{return JSON.parse(localStorage.getItem(LESSONS_READ_KEY)||'[]');}catch(e){return[];}}
 function markLessonRead(i){const r=getReadLessons();if(!r.includes(i)){r.push(i);localStorage.setItem(LESSONS_READ_KEY,JSON.stringify(r));}}
@@ -4713,15 +4464,7 @@ const SHOP_PRODUCTS=[
   },
 ];
 
-function sparkSVG(data,up){
-  const w=64,h=24,max=Math.max(...data),min=Math.min(...data),range=(max-min)||1;
-  const pts=data.map((v,i)=>`${(i/(data.length-1)*w).toFixed(1)},${(h-((v-min)/range)*h).toFixed(1)}`).join(' ');
-  const col=up?'#22c55e':'#ef4444';
-  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="flex-shrink:0"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-
-const MEMBERS_TITLES={hub:'Members',markets:'Markets',news:'Financial News',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop',community:'Community'};
+const MEMBERS_TITLES={hub:'Members',learn:'Learn',shop:'Shop',deals:'Member Deals',merch:'Merch Shop',community:'Community'};
 function toggleInsights(){
   const exp=document.getElementById('insights-expanded');
   const chev=document.getElementById('insights-chevron');
@@ -4755,39 +4498,6 @@ function showMembersView(view){
   if(screen)screen.scrollTop=0;
 }
 function showMembersHub(){showMembersView('hub');}
-
-function openWatchEditor(type){
-  if(!gateFeature('watchlist')){return;}
-  renderWatchEditor(type);
-}
-function renderWatchEditor(type){
-  const wl=getWatchlist();
-  const catalog=type==='stocks'?MKT_STOCKS:MKT_CRYPTO;
-  const selected=wl[type];
-  const title=type==='stocks'?'Customize stocks':'Customize crypto';
-  const rows=catalog.map(item=>{
-    const on=selected.includes(item.sym);
-    const isCrypto=type==='crypto';
-    return `<div onclick="toggleWatch('${type}','${item.sym}')" style="display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:0.5px solid var(--border);cursor:pointer">
-      <div style="width:34px;height:34px;border-radius:${isCrypto?'50%':'9px'};background:var(--card2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;color:${isCrypto?'var(--accent)':'var(--text)'}">${item.sym}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div><div style="font-size:12px;color:var(--muted)">${item.price}</div></div>
-      <div style="width:24px;height:24px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${on?'var(--accent)':'transparent'};border:1.5px solid ${on?'var(--accent)':'var(--border)'}">
-        ${on?'<i class="ti ti-check" style="font-size:15px;color:#fff"></i>':''}
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h3 style="margin:0">${title}</h3>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Choose which ${type==='stocks'?'stocks':'coins'} appear in your Marketplace. Tap to add or remove.</p>
-    <div id="watch-editor-rows">${rows}</div>
-    <div class="modal-btns" style="margin-top:16px">
-      <button class="btn btn-primary" onclick="closeModal()">Done</button>
-    </div>
-  </div></div>`;
-}
 
 function openDeal(i){
   const p=DEALS_PRODUCTS[i];
@@ -4998,13 +4708,8 @@ function renderMarketplace(){
   // ── Hub nav cards ──
   const hubCards=document.getElementById('members-hub-cards');
   if(hubCards){
-    const wl=getWatchlist();
-    const topStock=MKT_STOCKS.find(s=>wl.stocks.includes(s.sym));
-    const latestNews=MKT_NEWS[0];
     const readLessonsHub=getReadLessons();
     const unreadCount=MKT_LEARN.length-readLessonsHub.length;
-    const liveNewsHeadline=(()=>{const c=getNewsCache();return c&&c[0]?c[0].headline:latestNews?latestNews.title:'Curated headlines';})();
-    const mktAge=isMktCacheFresh()?Math.floor((Date.now()-(JSON.parse(sessionStorage.getItem('distrofi_mkt_cache')||'{}').ts||Date.now()))/60000)||'<1':null;
     const tiles=[
       {id:'learn',icon:'ti-school',color:'var(--green)',bg:'#22c55e18',label:'Learn',sub:unreadCount>0?unreadCount+' new lessons':'Financial lessons',subCol:unreadCount>0?'var(--accent)':'var(--muted)',badge:unreadCount>0?String(unreadCount):null,badgeCol:'var(--accent)'},
       {id:'deals',icon:'ti-tag',color:'#ec4899',bg:'#ec489918',label:'Deals',sub:DEALS_PRODUCTS.length+' partner offers',subCol:'var(--muted)',badge:String(DEALS_PRODUCTS.length),badgeCol:'#ec4899'},
@@ -5026,12 +4731,8 @@ function renderMarketplace(){
   }
 
 
-  // ── Markets — rendered live via fetchLiveMarketData() on tab open
-  renderMarketsWithData(isMktCacheFresh()?getMktCache().data:null);
 
 
-  // ── News — rendered live via fetchLiveNews() on tab open
-  renderNewsWithData(isNewsCacheFresh()?getNewsCache():null);
 
   // ── Deals ──
   const dl=document.getElementById('mkt-deals');
@@ -5143,83 +4844,6 @@ function renderMarketplace(){
     }
     merch.innerHTML=html;
   }
-}
-
-function bigChartSVG(data,up){
-  const w=300,h=120,max=Math.max(...data),min=Math.min(...data),range=(max-min)||1;
-  const pts=data.map((v,i)=>`${(i/(data.length-1)*w).toFixed(1)},${(h-((v-min)/range)*h*0.85-8).toFixed(1)}`);
-  const line=pts.join(' ');
-  const col=up?'#22c55e':'#ef4444';
-  const area=`0,${h} ${line} ${w},${h}`;
-  return`<svg width="100%" viewBox="0 0 ${w} ${h}" style="display:block"><polygon points="${area}" fill="${col}" opacity="0.08"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-const MKT_RANGES=[{label:'1D',days:1,finRes:'60'},{label:'1W',days:7,finRes:'D'},{label:'1M',days:30,finRes:'D'},{label:'3M',days:90,finRes:'D'},{label:'1Y',days:365,finRes:'W'}];
-async function loadMktChart(type,i,rangeIdx){
-  const s=type==='stock'?MKT_STOCKS[i]:MKT_CRYPTO[i];
-  const r=MKT_RANGES[rangeIdx];
-  const chartArea=document.getElementById('mkt-chart-area');
-  if(!chartArea)return;
-  chartArea.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:120px"><i class="ti ti-loader-2" style="font-size:24px;color:var(--muted);animation:spin 1s linear infinite"></i></div>';
-  let sparkData=null;
-  try{
-    if(type==='stock'){
-      const to=Math.floor(Date.now()/1000),from=to-r.days*24*3600;
-      const res=await fetch(`/api/market?fn=candle&symbol=${s.sym}&resolution=${r.finRes}&from=${from}&to=${to}`);
-      if(res.ok){const d=await res.json();if(d.c&&d.c.length>1)sparkData=d.c;}
-    }else{
-      const cgId=COINGECKO_IDS[s.sym];
-      if(cgId){const res=await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${r.days}`);if(res.ok){const d=await res.json();if(d.prices&&d.prices.length>1)sparkData=d.prices.map(p=>p[1]);}}
-    }
-  }catch(e){sparkData=null;}
-  const ca2=document.getElementById('mkt-chart-area');if(!ca2)return;
-  if(sparkData&&sparkData.length>1){
-    if(sparkData.length>40){const step=Math.floor(sparkData.length/40);sparkData=sparkData.filter((_,j)=>j%step===0||j===sparkData.length-1);}
-    const up=sparkData[sparkData.length-1]>=sparkData[0];
-    ca2.innerHTML=bigChartSVG(sparkData,up);
-  }else{ca2.innerHTML=bigChartSVG(s.spark||[20,22,21,24,23,26,28,27,30],s.up);}
-}
-async function switchMktRange(type,i,rangeIdx){
-  MKT_RANGES.forEach((_,ri)=>{const btn=document.getElementById('mkt-range-'+ri);if(btn){btn.style.background=ri===rangeIdx?'var(--accent)':'var(--card2)';btn.style.color=ri===rangeIdx?'#fff':'var(--muted)';}});
-  await loadMktChart(type,i,rangeIdx);
-}
-async function openMktChart(type,i){
-  const s=type==='stock'?MKT_STOCKS[i]:MKT_CRYPTO[i];
-  const defR=1;
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-      <div>
-        <h3 style="margin:0">${s.name}</h3>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${s.sym}</div>
-      </div>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px">
-      <div style="font-size:26px;font-weight:700;font-variant-numeric:tabular-nums">${s.price}</div>
-      <div style="font-size:15px;font-weight:600;color:${s.up?'var(--green)':'var(--red)'}">${s.chg}</div>
-    </div>
-    <div id="mkt-chart-area" style="min-height:120px"></div>
-    <div style="display:flex;gap:6px;margin:14px 0 6px">
-      ${MKT_RANGES.map((r,ri)=>`<div id="mkt-range-${ri}" onclick="switchMktRange('${type}',${i},${ri})" style="flex:1;text-align:center;padding:7px 0;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;background:${ri===defR?'var(--accent)':'var(--card2)'};color:${ri===defR?'#fff':'var(--muted)'}">${r.label}</div>`).join('')}
-    </div>
-    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5">Live data · refreshes every 60s</div>
-  </div></div>`;
-  await loadMktChart(type,i,defR);
-}
-
-function openMktNews(i){
-  const n=MKT_NEWS[i];
-  if(n.url){window.open(n.url,'_blank');return;}
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <span style="font-size:10px;font-weight:600;color:var(--accent);background:#6366f118;padding:3px 10px;border-radius:99px">${n.cat}</span>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <h3 style="margin-bottom:8px;line-height:1.35">${n.title}</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${n.src}</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">${n.summary}</p>
-    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Close</button>
-  </div></div>`;
 }
 
 function openMktLesson(i){markLessonRead(i);renderMarketplace();
@@ -6903,7 +6527,6 @@ function renderSpend(){
 }
 
 function renderInvest(){
-  renderHoldings();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
@@ -7100,98 +6723,6 @@ function renderHubInsightFallback(){
   else{headline='Savings rate '+_savRate+'% — '+fmt(_saved)+' set aside this period';detail='Variable spend at '+_pct+'% of income with '+fmt(_rem)+' remaining'+(_bills>0?'. '+fmt(_bills)+' in bills still pending':'')+'.';col='var(--green)';}
   el.innerHTML='<div style="background:linear-gradient(135deg,#6366f112,#7c3aed08);border:1px solid '+col+'40;border-left:3px solid '+col+';border-radius:16px;padding:18px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:12px;background:'+col+'20;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-chart-bar" style="font-size:20px;color:'+col+'"></i></div><div><div style="font-size:13px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.06em">Budget Snapshot</div><div style="font-size:11px;color:var(--muted)">Based on current period</div></div></div><div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:8px">'+headline+'</div><p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0">'+detail+'</p></div>';
 }
-const HOLDINGS_KEY='distrofi_holdings';
-function getHoldings(){try{return JSON.parse(localStorage.getItem(HOLDINGS_KEY)||'[]');}catch(e){return[];}}
-function saveHoldings(h){localStorage.setItem(HOLDINGS_KEY,JSON.stringify(h));}
-
-function renderHoldings(){
-  let holdingsEl=document.getElementById('mkt-holdings');
-  if(!holdingsEl){
-    const stocksEl=document.getElementById('mkt-stocks');
-    if(!stocksEl)return;
-    holdingsEl=document.createElement('div');
-    holdingsEl.id='mkt-holdings';
-    stocksEl.parentNode.insertBefore(holdingsEl,stocksEl);
-  }
-  const holdings=getHoldings();
-  if(!holdings.length){
-    holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center"><i class="ti ti-briefcase" style="font-size:24px;color:var(--muted);margin-bottom:8px;display:block"></i><div style="font-size:13px;color:var(--muted);margin-bottom:12px">Track the value of your investments in one place</div><button onclick="openHoldingsEditor()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Add Holdings</button></div>';
-    return;
-  }
-  let totalValue=0;
-  const rows=holdings.map(h=>{
-    const sym=h.sym.toUpperCase();
-    const data=MKT_STOCKS.find(s=>s.sym===sym)||MKT_CRYPTO.find(s=>s.sym===sym);
-    let value=h.value||0;
-    if(data&&data.price){const p=parseFloat(data.price.replace(/[$,]/g,''));if(!isNaN(p))value=p*(h.shares||0);}
-    totalValue+=value;
-    return{sym,shares:h.shares,value,chg:data?data.chg:null,isUp:data?data.up:null,name:data?data.name:sym};
-  });
-  holdingsEl.innerHTML='<div style="background:var(--card);border:0.5px solid var(--border);border-left:3px solid #3b82f6;border-radius:14px;padding:14px;margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3b82f6;margin-bottom:2px">My Portfolio</div><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+fmt(totalValue)+'</div></div><button onclick="openHoldingsEditor()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit">Edit</button></div><div style="border-top:0.5px solid var(--border);padding-top:10px">'+rows.map((h,i)=>'<div onclick="openHoldingEdit('+i+')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">'+h.sym+'</div><div><div style="font-size:13px;font-weight:600">'+h.name+'</div><div style="font-size:11px;color:var(--muted)">'+h.shares+' shares</div></div></div><div style="text-align:right"><div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">'+fmt(h.value)+'</div>'+(h.chg!==null?'<div style="font-size:11px;color:'+(h.isUp?'var(--green)':'var(--red)')+'">'+h.chg+'</div>':'')+'</div></div>').join('')+'</div><div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Prices update with watchlist data</div></div>';
-}
-
-function openHoldingsEditor(){
-  const holdings=getHoldings();
-  const rows=holdings.length?holdings.map((h,i)=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)"><div style="flex:1;font-size:13px;font-weight:600;color:var(--accent)">'+h.sym.toUpperCase()+'</div><div style="font-size:13px;color:var(--muted)">'+h.shares+' shares</div><button onclick="removeHolding('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:16px"></i></button></div>').join(''):'<div style="text-align:center;padding:16px;font-size:13px;color:var(--muted)">No holdings yet</div>';
-  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0">My Holdings</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button></div><p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Add tickers and share counts. Values update with live prices from your watchlist.</p><div id="holdings-rows">'+rows+'</div><div style="display:flex;gap:8px;margin-top:14px"><input id="holding-sym" placeholder="Ticker (e.g. AAPL)" style="flex:1;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"><input id="holding-shares" type="number" min="0" step="any" placeholder="Shares" style="width:90px;padding:10px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none"></div><div class="modal-btns" style="margin-top:12px"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-primary" onclick="addHolding()">Add</button></div></div></div>';
-}
-
-function addHolding(){
-  const symEl=document.getElementById('holding-sym');
-  const shrEl=document.getElementById('holding-shares');
-  const sym=symEl?symEl.value.trim().toUpperCase():'';
-  const shares=parseFloat(shrEl?shrEl.value:'0');
-  if(!sym||isNaN(shares)||shares<=0){showToast('Enter a ticker and number of shares');return;}
-  const holdings=getHoldings();
-  const idx=holdings.findIndex(h=>h.sym===sym);
-  if(idx>=0)holdings[idx].shares=shares;else holdings.push({sym,shares});
-  saveHoldings(holdings);
-  renderHoldings();
-  openHoldingsEditor();
-}
-
-function removeHolding(i){
-  const holdings=getHoldings();
-  holdings.splice(i,1);
-  saveHoldings(holdings);
-  renderHoldings();
-  openHoldingsEditor();
-}
-function openHoldingEdit(i){
-  const holdings=getHoldings();
-  const h=holdings[i];
-  if(!h)return;
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <h3>Edit ${h.sym.toUpperCase()}</h3>
-    <span class="modal-label">Shares</span>
-    <input type="number" id="hold-edit-shares" value="${h.shares}" inputmode="decimal" step="any" min="0" autocomplete="off"/>
-    <div class="modal-btns">
-      <button class="btn btn-danger" onclick="deleteHolding(${i})"><i class="ti ti-trash" style="font-size:16px;vertical-align:-2px"></i> Delete</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveHoldingEdit(${i})">Save</button>
-    </div>
-  </div></div>`;
-  setTimeout(()=>{const el=document.getElementById('hold-edit-shares');if(el)el.focus();},100);
-}
-function saveHoldingEdit(i){
-  const shares=parseFloat(document.getElementById('hold-edit-shares').value);
-  if(isNaN(shares)||shares<=0){showToast('Enter a valid number of shares');return;}
-  const holdings=getHoldings();
-  if(!holdings[i])return;
-  holdings[i].shares=shares;
-  saveHoldings(holdings);
-  closeModal();
-  renderHoldings();
-}
-function deleteHolding(i){
-  const holdings=getHoldings();
-  holdings.splice(i,1);
-  saveHoldings(holdings);
-  closeModal();
-  renderHoldings();
-}
-
-
 // ── Community Polls ──────────────────────────────────────────────────────────
 function getPollUserId(){let uid=localStorage.getItem('distrofi_poll_uid');if(!uid){uid=crypto.randomUUID();localStorage.setItem('distrofi_poll_uid',uid);}return getAuth()?.user_id||uid;}
 

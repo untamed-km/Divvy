@@ -18,9 +18,6 @@
     },
     "api/send-bill-reminders.js": {
       "maxDuration": 30
-    },
-    "api/market.js": {
-      "maxDuration": 10
     }
   },
   "crons": [
