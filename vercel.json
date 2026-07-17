@@ -31,6 +31,10 @@
   ],
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/landing.html"
+    },
+    {
       "source": "/admin",
       "destination": "/admin.html"
     },
