@@ -1,4 +1,4 @@
-// DistroFi Service Worker — v10
+// DistroFi Service Worker — v11 (landing page at /, app at /app.html)
 // Network-first for all navigation; static assets cached after first load.
 // On every SW update, ALL old caches are wiped so stale HTML never survives.
 
@@ -65,7 +65,7 @@ self.addEventListener('fetch', event => {
         }
         return res;
       });
-    }).catch(() => caches.match('/index.html'))
+    }).catch(() => caches.match('/app.html'))
   );
 });
 
@@ -80,7 +80,7 @@ self.addEventListener('push', event => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-96.png',
       tag: data.tag || 'bill-reminder',
-      data: { url: data.url || '/' },
+      data: { url: data.url || '/app' },
       vibrate: [200, 100, 200],
     })
   );
@@ -88,7 +88,7 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const url = event.notification.data?.url || '/app';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       const existing = list.find(c => c.url.includes('distrofi.org') || c.url.includes('localhost'));
