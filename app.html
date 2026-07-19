@@ -852,6 +852,8 @@ const SUPA_URL='https://lvpslwmodbhenxcnaifk.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHNsd21vZGJoZW54Y25haWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Nzk2OTIsImV4cCI6MjA5NjE1NTY5Mn0.Ne-NWRI5Y0ZuLJJAP08cUvitfS3-XYv_g4uyc_PWj0Y';
 let _sb=null;
 function getSB(){if(!_sb&&window.supabase){_sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);}return _sb;}
+// Stamp the current user's last_seen_at (fire-and-forget; secure RPC only touches auth.uid()'s own row)
+function touchLastSeen(sb){if(!sb)return;try{sb.rpc('touch_last_seen').then(()=>{},()=>{});}catch(e){}}
 
 // ── Household / partner sync ──────────────────────────────────────────
 let _householdId=null;
@@ -5184,6 +5186,7 @@ async function submitAuth(){
         if(profile?.pro_tier){localStorage.setItem(PRO_KEY,JSON.stringify({active:true,tier:profile.pro_tier,since:new Date().toISOString()}));}
         else{localStorage.removeItem(PRO_KEY);}
         await initHousehold(data.user.id);
+        touchLastSeen(sb);
       }
     } else {
       // Offline: validate against cached PIN
@@ -5347,6 +5350,7 @@ async function checkAuthGate(){
   if(sb){
     const {data:{session}}=await sb.auth.getSession();
     if(session){
+      touchLastSeen(sb);
       if(!isLoggedIn()){
         // Restore from Supabase session
         const {data:cloudState}=await sb.from('app_state').select('state_json').eq('user_id',session.user.id).maybeSingle();
