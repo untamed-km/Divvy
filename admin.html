@@ -367,7 +367,7 @@ const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
 
 const PAGE_SIZE = 50;
-const PRICE     = { pro: 2.99, couples: 4.99 };
+const PRICE     = { solo: 2.99, pro: 2.99, couples: 4.99 };
 
 let trendChart    = null;
 let mrrChart      = null;
@@ -506,7 +506,7 @@ function renderStats(profiles) {
 
   // A user is "paid" only if they have pro_tier AND no active cancellation
   const isPaid    = p => p.pro_tier && !p.cancelled_at;
-  const pro       = profiles.filter(p => isPaid(p) && p.pro_tier === 'pro').length;
+  const pro       = profiles.filter(p => isPaid(p) && (p.pro_tier === 'solo' || p.pro_tier === 'pro')).length;
   const couples   = profiles.filter(p => isPaid(p) && p.pro_tier === 'couples').length;
   const free      = total - pro - couples;
   const actPct    = total ? Math.round(active / total * 100) : 0;
@@ -537,7 +537,7 @@ function renderStats(profiles) {
 function renderRevenue(profiles) {
   // Active subscribers only — cancelled_at means they've churned
   const isPaid      = p => p.pro_tier && !p.cancelled_at;
-  const proUsers    = profiles.filter(p => isPaid(p) && p.pro_tier === 'pro');
+  const proUsers    = profiles.filter(p => isPaid(p) && (p.pro_tier === 'solo' || p.pro_tier === 'pro'));
   const cplUsers    = profiles.filter(p => isPaid(p) && p.pro_tier === 'couples');
   const proMRR      = proUsers.length * PRICE.pro;
   const cplMRR      = cplUsers.length * PRICE.couples;
@@ -791,7 +791,7 @@ function renderUserRows(rows, showLastSeen) {
     const rawTier    = (r.pro_tier || '').toLowerCase();
     const isActive   = rawTier && !r.cancelled_at;
     const tier       = isActive && rawTier === 'couples' ? 'couples'
-                     : isActive && rawTier === 'pro'     ? 'pro'
+                     : isActive && (rawTier === 'solo' || rawTier === 'pro') ? 'pro'
                      : 'free';
     const tagLabel   = tier === 'couples' ? 'Couples' : tier === 'pro' ? 'Pro Solo' : 'Free';
     const joined     = new Date(r.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
