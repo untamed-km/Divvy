@@ -4541,7 +4541,8 @@ function toggleInsights(){
 
 function showMembersView(view){
   if(view==='merch')renderMarketplace();
-  const views=['hub','learn','shop','deals','merch'];
+  if(view==='community')renderCommunityView();
+  const views=['hub','learn','shop','deals','merch','community'];
   views.forEach(v=>{
     const el=document.getElementById('members-'+(v==='hub'?'hub':v));
     if(el)el.style.display=(v===view||(v==='hub'&&view==='hub'))?'block':'none';
