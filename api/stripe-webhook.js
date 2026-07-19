@@ -64,6 +64,21 @@ async function sbPatch(filter, updates) {
   }
 }
 
+// Like sbPatch but returns the updated rows so callers can confirm a match happened.
+async function sbPatchReturning(filter, updates) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?${filter}`;
+  const resp = await fetch(url, {
+    method: 'PATCH',
+    headers: { ...sbHeaders(), Prefer: 'return=representation' },
+    body: JSON.stringify(updates),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Supabase PATCH failed: ${resp.status} ${text}`);
+  }
+  return await resp.json(); // array of updated rows (empty if nothing matched)
+}
+
 async function sbFindByCustomer(customerId) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id`;
   const resp = await fetch(url, { headers: sbHeaders() });
@@ -167,16 +182,20 @@ export default async function handler(req, res) {
       const customerId = session.customer;
       const subscriptionId = session.subscription;
 
+      // We match the buyer ONLY by their app account id (client_reference_id).
+      // Never fall back to email — a customer's billing email can differ from the
+      // account they upgraded, so email-matching risks granting Pro to the wrong user.
+      const buyerEmail = session.customer_details?.email || session.customer_email || 'unknown';
       if (!userId) {
-        console.error('No client_reference_id in session');
-        return res.status(200).json({ received: true });
+        console.error(`⚠️ ACTION REQUIRED — checkout.session.completed had NO client_reference_id, so it can't be linked to an app account. Pro NOT granted. customer=${customerId} subscription=${subscriptionId} billing_email=${buyerEmail}. Grant manually in the DB.`);
+        return res.status(200).json({ received: true, warning: 'missing client_reference_id' });
       }
 
       const tier = subscriptionId
         ? await getSubscriptionTier(subscriptionId)
         : (session.metadata?.tier || 'solo');
 
-      await sbPatch(`id=eq.${userId}`, {
+      const updated = await sbPatchReturning(`id=eq.${userId}`, {
         pro_tier: tier,
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
@@ -184,7 +203,11 @@ export default async function handler(req, res) {
         cancelled_at: null,
       });
 
-      console.log(`Activated ${tier} for user ${userId}`);
+      if (!updated || updated.length === 0) {
+        console.error(`⚠️ ACTION REQUIRED — checkout.session.completed client_reference_id=${userId} matched NO profile row, so ${tier} was NOT granted. customer=${customerId} subscription=${subscriptionId} billing_email=${buyerEmail}. Grant manually in the DB.`);
+      } else {
+        console.log(`✅ Activated ${tier} for user ${userId} (customer ${customerId})`);
+      }
     }
 
     // ── Subscription renewed (keep pro_tier fresh) ───────────────────────────
