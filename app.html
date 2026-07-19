@@ -115,6 +115,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 .icon-opt.selected{border-color:var(--accent);color:var(--accent);background:#6366f118}
 .icon-opt i{font-size:22px}
 .cycle-card{background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+/* Auth screen — input styling + button size fix */
+#auth-overlay input[type=text],#auth-overlay input[type=email],#auth-overlay input[type=password]{width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box}
+#auth-overlay input:focus{border-color:var(--accent)}
+#auth-overlay .btn{flex:none}
 .cycle-meta{font-size:12px;color:var(--muted);margin-top:4px}
 .cycle-badge{font-size:13px;padding:4px 12px;border-radius:99px;font-weight:600}
 .badge-green{background:#16a34a22;color:var(--green)}
