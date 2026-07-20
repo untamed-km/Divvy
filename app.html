@@ -5157,7 +5157,13 @@ async function submitAuth(){
       // Save profile
       if(data.user){
         const recoveryEmail=(document.getElementById('auth-recovery-email')?.value||'').trim().toLowerCase()||null;
-        await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,recovery_email:recoveryEmail});
+        const {error:profileError}=await sb.from('profiles').insert({id:data.user.id,username,display_name:displayName,recovery_email:recoveryEmail});
+        if(profileError){
+          _reportError('signup profile insert failed: '+(profileError.message||profileError),'signup',0);
+          showAuthError('We couldn’t finish setting up your account. Please try again, or email support@distrofi.org if it keeps happening.');
+          setAuthLoading(false);
+          return;
+        }
         setAuth({loggedIn:true,name:displayName,username,user_id:data.user.id,pro_tier:null,method:'supabase',since:new Date().toISOString()});
       }
     } else {
