@@ -84,8 +84,8 @@ C = STATE.current = {
 - `STRIPE_WEBHOOK_SECRET`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `VAPID_PUBLIC_KEY` — `BNXMDaT_klzqgC4jGtAE6KbXXq7WBzU48lC-R90KGNIlc__eXOmFbG7he-I3wrJbru2-_uUUGMT7jCGrbM6_HeM`
-- `VAPID_PRIVATE_KEY` — `pEOrU83qhXzZpkbhJnaw9QliOYbMe7GMmHJKPogvLug`
+- `VAPID_PUBLIC_KEY` — set in Vercel (public key; safe to expose — it ships to browsers as the push applicationServerKey)
+- `VAPID_PRIVATE_KEY` — set in Vercel env only. **Never commit the value.** (The old value was previously in this file and remains in git history — rotate the VAPID keypair; see note below.)
 
 > **TODO:** Still need to run `bill-reminders-migration.sql` in Supabase SQL Editor.
 
@@ -128,12 +128,17 @@ Use `notion-update-page` with `insert_content` at `{"type":"end"}` after every c
 ---
 
 ## Brand
-- Primary: `#7c3aed` (purple)
-- Accent/gradient: `#6366f1`
-- Red: `#ef4444`, Green: `#22c55e`, Amber: `#f59e0b`
-- Font: system-ui / -apple-system
-- Logo: circuit tree (white on purple gradient background)
-- Logo files in: `assets/distrofi-logo/` and `distrofi-logo/`
+Current DistroFi identity — see the `distrofi-brand` skill for the full kit (logo files, usage rules, and the social/OG image generator).
+- Navy `#18183A` — "Distro", headings, primary text, mono mark
+- Teal `#0C9488` — "Fi", accents, CTAs, key numbers
+- Cream `#EFF0EA` — brand off-white background · White `#FFFFFF`
+- UI status colors: Red `#ef4444`, Green `#22c55e`, Amber `#f59e0b`
+- Font: **Poppins Bold** for logo/headings; system-ui / Inter for body & UI
+- Logo: purple→indigo circuit-tree mark + "DistroFi" wordmark (navy "Distro" + teal "Fi"). Use the brand-kit files — don't recreate or recolor the mark.
+- Logo files: the `distrofi-brand` skill (`assets/logos/…`); in-repo copies in `assets/distrofi-logo/` and `distrofi-logo/`.
+- OG / link-preview: `assets/og-image.png` (navy circuit-tree banner; regenerate with the brand kit's `build_social.py --preset og`).
+
+> Note: the in-app UI still uses a purple/indigo accent gradient (`#7c3aed`→`#6366f1`) from the original Divvy build. The navy/teal system above is the canonical brand (logo, marketing, OG image); migrating the app UI accent is a separate, unscheduled task.
 
 ---
 

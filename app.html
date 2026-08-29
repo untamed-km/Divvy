@@ -387,9 +387,10 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="ai-chat-messages" style="padding:14px;display:flex;flex-direction:column;gap:10px;min-height:120px;max-height:300px;overflow-y:auto">
         <div style="background:var(--card2);border-radius:10px;padding:12px;font-size:13px;line-height:1.6;color:var(--muted)">
           <i class="ti ti-sparkles" style="color:var(--accent);font-size:15px;vertical-align:-2px;margin-right:6px"></i>
-          Hi! I'm your investment advisor. I can see your full financial picture. Ask me anything about your investments, goals, or how to allocate your money.
+          Hi! I'm your budget assistant. I can see your full financial picture. Ask me anything about your budget, spending, or goals.
         </div>
       </div>
+      <div style="padding:4px 14px 2px;font-size:11px;color:var(--muted);opacity:.85"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>Educational only — not licensed financial advice.</div>
       <div id="ai-suggestions" style="padding:8px 12px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div style="border-top:0.5px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;margin-top:8px">
         <textarea id="ai-input" placeholder="Ask about your budget, spending, or goals…" rows="2"
@@ -637,7 +638,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
           <i class="ti ti-crown" style="font-size:26px;color:var(--accent)"></i>
         </div>
         <div style="font-size:21px;font-weight:700;margin-bottom:6px">Unlock your Members area</div>
-        <div style="font-size:14px;color:var(--muted);line-height:1.6;max-width:280px;margin:0 auto">AI insights, live markets, financial lessons — personalised to your actual budget.</div>
+        <div style="font-size:14px;color:var(--muted);line-height:1.6;max-width:280px;margin:0 auto">AI insights and financial lessons — personalised to your actual budget.</div>
       </div>
 
       <!-- Monthly / Annual toggle -->
@@ -669,7 +670,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-sparkles" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>AI that reads your real spending patterns</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-chart-line" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Full spending trends across every cycle</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-history" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Unlimited budget history</div>
-          <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-eye" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Live markets + financial news</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-refresh" style="font-size:14px;color:var(--accent);flex-shrink:0"></i>Per-category budget rollover</div>
         </div>
         <button data-stripe-tier="solo" onclick="startStripeCheckout('solo',_checkoutCadence)" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
           Start free trial — Solo
@@ -2923,7 +2924,7 @@ async function sendToAdvisor(){
 
   aiHistory.push({role:'user',content:msg});
 
-  const systemPrompt=`You are a personal financial advisor built into a paycheck budgeting app. You have access to the user's complete financial picture for this pay period and historically. Give detailed, educational advice — explain the WHY behind every recommendation. Be specific to their numbers, not generic. Use plain conversational language. When suggesting changes, be concrete (e.g. "move $50 from gas to investments" not "consider investing more"). Always note you are not a licensed financial advisor and major decisions should be verified with a professional.
+  const systemPrompt=`You are a budgeting assistant built into a paycheck budgeting app. You have access to the user's complete financial picture for this pay period and historically. Give detailed, educational advice — explain the WHY behind every recommendation. Be specific to their numbers, not generic. Use plain conversational language. When suggesting changes, be concrete (e.g. "move $50 from gas to investments" not "consider investing more"). Always note you are not a licensed financial advisor and major decisions should be verified with a professional.
 
 ${buildFinancialContext()}`;
 
@@ -3872,7 +3873,7 @@ function openSpendingChart(){
 
 function openPaywall(feature){
   const featureInfo={
-    advisor:{name:'AI Financial Advisor',tier:'solo',why:'Ask anything about your budget, goals, or spending and get answers grounded in your actual numbers — not generic advice.'},
+    advisor:{name:'Budget Assistant',tier:'solo',why:'Ask anything about your budget, goals, or spending and get answers grounded in your actual numbers — not generic advice.'},
     export:{name:'Data export',tier:'solo',why:'Download your full budget history as JSON to back it up, import into a spreadsheet, or migrate to another tool.'},
     trends:{name:'Full spending trends',tier:'solo',why:'Unlock your complete multi-period trend history with category breakdowns going back as far as you have tracked.'},
     invgoals:{name:'Investment goals',tier:'solo',why:'Track exactly how close you are to retirement, a down payment, or any long-term target with your real investment numbers.'},
@@ -3883,7 +3884,7 @@ function openPaywall(feature){
   const info=featureInfo[feature]||{name:'This Pro feature',tier:'solo',why:'Upgrade to DistroFi Pro to unlock this feature and everything else.'};
   const isCouplesFeature=info.tier==='couples';
   const freeItems=['Unlimited buckets, bills & savings goals','Full pay period history','Partner expense tracking (single device)','Recurring bills & auto-tracking','Bill priority & reorder','All core tracking — forever free'];
-  const soloItems=['AI Financial Advisor','Full spending trends & insights','Investment goal tracking','Data export (JSON)','Per-category budget rollover'];
+  const soloItems=['Budget Assistant','Full spending trends & insights','Investment goal tracking','Data export (JSON)','Per-category budget rollover'];
   const couplesItems=['Real-time partner sync','Shared savings goals','Combined net worth view','Per-person spending reports','Everything in Pro Solo'];
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
     <div style="text-align:center;padding-bottom:14px;border-bottom:0.5px solid var(--border);margin-bottom:14px">
@@ -4006,7 +4007,7 @@ async function openBillingPortal(){
 
 // ── Bill Reminders / Push Notifications ─────────────────────────────────────
 
-const VAPID_PUBLIC_KEY='BNXMDaT_klzqgC4jGtAE6KbXXq7WBzU48lC-R90KGNIlc__eXOmFbG7he-I3wrJbru2-_uUUGMT7jCGrbM6_HeM';
+const VAPID_PUBLIC_KEY='BJ21pPTtRvRG_gyW0XHXElfgnTiz4POOkbcSSUcNUSVyZeMkseHMAq6TrNgS-4KFLzk93q9tCL4X9EynzCzhmCU';
 
 function urlBase64ToUint8Array(base64String){
   const padding='='.repeat((4-base64String.length%4)%4);
