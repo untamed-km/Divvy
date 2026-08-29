@@ -519,6 +519,8 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <button onclick="openSavingsBucketModal()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;padding:4px 0">+ New goal</button>
     </div>
+    <div id="savings-banner"></div>
+    <div id="savings-insights"></div>
     <div class="section-label">This period</div>
     <div class="savings-summary">
       <div class="savings-row">
@@ -820,6 +822,7 @@ function migrateState(s){
   if(!s)return s;
   // Stable IDs for investment goals; investments switch from goalIdx (fragile) to goalId
   (s.invGoals||[]).forEach((g,i)=>{if(!g.id)g.id='g'+Date.now()+'_'+i;});
+  (s.savingsBuckets||[]).forEach((b,i)=>{if(!b.id)b.id='s'+Date.now()+'_'+i;});
   const _goalIdByIdx=i=>(s.invGoals&&s.invGoals[i])?s.invGoals[i].id:null;
   const _migInvs=cyc=>{((cyc&&cyc.investments)||[]).forEach(inv=>{
     if(inv.goalId===undefined&&inv.goalIdx!==null&&inv.goalIdx!==undefined)inv.goalId=_goalIdByIdx(inv.goalIdx);
@@ -2292,7 +2295,150 @@ function confirmNewCycle(leftoverAction){
   syncBillRemindersIfEnabled(); // push new endDate + bill days to the reminder cron
 }
 
+// ── Savings mirror of the investment features (contribution-only; paycheck-first) ──
+function _savingsPerPeriod(){
+  const per=[...STATE.history,C].map(c=>(c.savings&&c.savings.perPaycheck||0)+((c.savings&&c.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0)));
+  const recent=per.filter(v=>v>0).slice(-3);
+  if(recent.length)return recent.reduce((a,b)=>a+b,0)/recent.length;
+  return (C.savings&&C.savings.perPaycheck)||0;
+}
+function savingsWaterfall(){
+  const bkts=STATE.savingsBuckets||[];let pool=allTimeSavings();
+  return bkts.map(b=>{
+    const cap=b.goal||0,manual=b.saved||0;
+    const fromWaterfall=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;
+    const effective=cap>0?Math.min(manual+fromWaterfall,cap):manual;
+    pool=Math.max(0,pool-fromWaterfall);
+    return {...b,effective,cap};
+  });
+}
+function projectSavingsBucket(wf,i){
+  const b=wf[i],target=b.cap||0,current=b.effective;
+  const pct=target>0?Math.min(current/target,1):0;
+  if(target<=0)return{status:'no-target',pct:0};
+  if(current>=target)return{status:'reached',pct:1};
+  const rate=_savingsPerPeriod(),remaining=Math.max(0,target-current);
+  if(rate<=0)return{status:'need-rate',pct,remaining};
+  let cum=0;for(let j=0;j<=i;j++){cum+=Math.max(0,(wf[j].cap||0)-wf[j].effective);}
+  const paychecks=Math.ceil(cum/rate);
+  const dObj=new Date(Date.now()+paychecks*_periodAvgDays()*86400000);
+  const res={status:'on-track',pct,remaining,rate,paychecks,date:dObj.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
+  if(b.targetDate){res.targetDate=b.targetDate;res.behind=dObj>new Date(b.targetDate+'T00:00:00');}
+  return res;
+}
+function _featuredSavings(){
+  const wf=savingsWaterfall();
+  const idx=wf.map((b,i)=>i).filter(i=>wf[i].cap>0);
+  if(!idx.length)return null;
+  if(STATE.pinnedSavingsId){const pi=idx.find(i=>wf[i].id===STATE.pinnedSavingsId);if(pi!==undefined)return{b:wf[pi],i:pi,p:projectSavingsBucket(wf,pi)};}
+  const withP=idx.map(i=>({b:wf[i],i,p:projectSavingsBucket(wf,i)}));
+  const inProgress=withP.filter(x=>x.p.status!=='reached');
+  const pool=inProgress.length?inProgress:withP;
+  pool.sort((a,b)=>b.p.pct-a.p.pct);
+  return pool[0];
+}
+function renderSavingsBanner(){
+  const el=document.getElementById('savings-banner');if(!el)return;
+  const wf=savingsWaterfall().filter(b=>b.cap>0);
+  const box=(inner,grad,border)=>`<div style="position:relative;background:${grad};border:1px solid ${border||'#16a34a30'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
+  if(!wf.length){
+    el.innerHTML=box(`<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:12px;background:#16a34a22;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-pig-money" style="font-size:20px;color:var(--green)"></i></div>
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">Set your first savings goal</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Track it in paychecks — see how close you are every payday.</div></div></div>
+      <button onclick="openSavingsBucketModal()" style="width:100%;margin-top:12px;padding:11px;background:linear-gradient(135deg,#16a34a,#0d9488);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Create a goal</button>`,
+      'linear-gradient(135deg,#16a34a1f,#0d94880f)');
+    return;
+  }
+  const {b,p}=_featuredSavings();
+  const bn=b.banner||{};const name=esc(bn.title||b.name);const emoji=bn.emoji?bn.emoji+' ':'';
+  const grad=(bn.theme&&BANNER_THEMES[bn.theme])||BANNER_THEMES.forest;
+  const pinned=STATE.pinnedSavingsId===b.id;
+  const gear=`<button onclick="openSavingsBannerCustomize()" title="Customize" style="position:absolute;top:10px;right:10px;background:#ffffff26;border:none;border-radius:8px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff"><i class="ti ti-${pinned?'pin-filled':'settings'}" style="font-size:14px"></i></button>`;
+  if(p.status==='reached'){
+    el.innerHTML=box(`${gear}<div style="display:flex;align-items:center;gap:8px;padding-right:30px"><div style="font-size:13px;font-weight:700;color:#fff">🎉 Goal reached</div><div style="font-size:12px;color:#ffffffcc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${emoji}${name}</div></div>
+      <div style="font-size:28px;font-weight:800;color:#fff;margin:6px 0;font-variant-numeric:tabular-nums">${fmt(b.goal)}</div>
+      <div style="font-size:12px;color:#ffffffcc;margin-bottom:10px">${bn.msg?esc(bn.msg)+' — ':''}Nicely done. Ready for the next one?</div>
+      <button onclick="openSavingsBucketModal()" style="width:100%;padding:10px;background:#ffffff26;border:1px solid #ffffff40;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Set a new goal</button>`,
+      'linear-gradient(135deg,#16a34a,#0d9488)','#ffffff30');
+    return;
+  }
+  let sub;
+  if(p.status==='need-rate'){sub=`<div style="font-size:12px;color:#ffffffdd">Set a savings-per-paycheck amount to see your projection.</div>`;}
+  else{
+    const dateBit=p.targetDate?(p.behind?`· behind your ${fmtD(p.targetDate)} goal`:`· on track for ${fmtD(p.targetDate)}`):`· at ${fmt(p.rate)}/paycheck`;
+    sub=`<div style="font-size:13px;color:#fff;font-weight:700">~${p.paychecks} paycheck${p.paychecks===1?'':'s'} to go</div><div style="font-size:12px;color:#ffffffcc;margin-top:1px">around ${p.date} ${dateBit}</div>`;
+  }
+  el.innerHTML=box(`${gear}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-right:30px">
+      <div style="font-size:15px;font-weight:700;color:#fff;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${emoji}${name}</div>
+      <div style="font-size:12px;color:#ffffffe6;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(p.pct*b.goal)} / ${fmt(b.goal)}</div></div>
+    ${bn.msg?`<div style="font-size:12px;color:#ffffffcc;margin-top:3px">${esc(bn.msg)}</div>`:''}
+    <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><div style="min-width:0">${sub}</div><div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
+    grad,'#ffffff26');
+}
+function openSavingsBannerCustomize(id){
+  const wf=savingsWaterfall().filter(b=>b.cap>0);if(!wf.length)return;
+  const featured=_featuredSavings();
+  const subj=(id&&wf.find(b=>b.id===id))||featured.b;
+  const bn=subj.banner||{};const curTheme=bn.theme||'forest';const curEmoji=bn.emoji||'';
+  const emojiChips=BANNER_EMOJIS.map(e=>`<button type="button" onclick="_gbSet('emoji','${e}',this)" style="font-size:20px;background:var(--card2);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;opacity:${curEmoji===e?'1':'.6'};outline:${curEmoji===e?'2px solid var(--accent)':'none'}">${e}</button>`).join('')
+    +`<button type="button" onclick="_gbSet('emoji','',this)" style="font-size:11px;color:var(--muted);background:var(--card2);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;opacity:${curEmoji===''?'1':'.6'};outline:${curEmoji===''?'2px solid var(--accent)':'none'}">none</button>`;
+  const themeSwatches=Object.keys(BANNER_THEMES).map(t=>`<button type="button" onclick="_gbSet('theme','${t}',this)" style="height:34px;flex:1;min-width:44px;border:none;border-radius:9px;cursor:pointer;background:${BANNER_THEMES[t]};opacity:${curTheme===t?'1':'.6'};outline:${curTheme===t?'2px solid #fff':'none'};box-shadow:0 0 0 1px var(--border)"></button>`).join('');
+  const goalOpts=wf.map(b=>`<option value="${b.id}" ${b.id===subj.id?'selected':''}>${esc(b.name)}</option>`).join('');
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <input type="hidden" id="gb-emoji" value="${curEmoji}"><input type="hidden" id="gb-theme" value="${curTheme}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">Customize banner</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Goal</label>
+    <select id="gb-goal" onchange="openSavingsBannerCustomize(this.value)" style="width:100%;margin-bottom:12px">${goalOpts}</select>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="gb-pin" ${STATE.pinnedSavingsId===subj.id?'checked':''} style="width:16px;height:16px"> 📌 Always feature this goal on the banner</label>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Title <span style="opacity:.7">(optional)</span></label>
+    <input type="text" id="gb-title" maxlength="40" placeholder="${esc(subj.name)}" value="${esc(bn.title||'')}" style="width:100%;margin-bottom:12px"/>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Message <span style="opacity:.7">(optional)</span></label>
+    <input type="text" id="gb-msg" maxlength="60" placeholder="e.g. Rainy-day fund" value="${esc(bn.msg||'')}" style="width:100%;margin-bottom:12px"/>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Emoji</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${emojiChips}</div>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Theme</label>
+    <div style="display:flex;gap:6px;margin-bottom:18px">${themeSwatches}</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="saveSavingsBanner('${subj.id}')">Save</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancel</button>
+  </div></div>`;
+}
+function saveSavingsBanner(id){
+  const b=(STATE.savingsBuckets||[]).find(x=>x.id===id);if(!b)return;
+  b.banner={title:(document.getElementById('gb-title').value||'').trim(),msg:(document.getElementById('gb-msg').value||'').trim(),emoji:document.getElementById('gb-emoji').value||'',theme:document.getElementById('gb-theme').value||'forest'};
+  STATE.pinnedSavingsId=document.getElementById('gb-pin').checked?id:(STATE.pinnedSavingsId===id?null:STATE.pinnedSavingsId);
+  saveState();closeModal();renderSavingsScreen();
+}
+function savingsStreak(){
+  const per=[...STATE.history,C].map(c=>(c.savings&&c.savings.perPaycheck||0)+((c.savings&&c.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0)));
+  let s=0;for(let i=per.length-1;i>=0;i--){if(per[i]>0)s++;else break;}
+  if(s>0)return{streak:s,live:true};
+  let s2=0;for(let i=per.length-2;i>=0;i--){if(per[i]>0)s2++;else break;}
+  return{streak:s2,live:false};
+}
+function renderSavingsInsights(){
+  const el=document.getElementById('savings-insights');if(!el)return;
+  const per=[...STATE.history,C].map(c=>(c.savings&&c.savings.perPaycheck||0)+((c.savings&&c.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0)));
+  if(!per.some(v=>v>0)){el.innerHTML='';return;}
+  const st=savingsStreak();
+  const income=totalIncome();const savedNow=(C.savings&&C.savings.perPaycheck||0)+currentExtraSavings();
+  const share=income>0?Math.round(savedNow/income*100):0;
+  const series=per.slice(-8);const max=Math.max(...series,1);
+  const bars=series.map(v=>`<div title="${fmt(v)}" style="flex:1;height:${Math.max(3,Math.round(v/max*34))}px;background:${v>0?'var(--green)':'var(--border)'};border-radius:2px;opacity:${v>0?'.85':'.5'}"></div>`).join('');
+  const card=inner=>`<div style="flex:1;min-width:0;background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px">${inner}</div>`;
+  const lbl=t=>`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${t}</div>`;
+  const streakInner=st.streak>=2
+    ?`${lbl('Streak')}<div style="font-size:20px;font-weight:800;color:var(--green)">🔥 ${st.streak}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">pay periods saving in a row${st.live?'':' · add this period to keep it going'}</div>`
+    :`${lbl('Streak')}<div style="font-size:20px;font-weight:800;color:var(--text)">—</div><div style="font-size:12px;color:var(--muted);margin-top:2px">save 2 periods running to start one</div>`;
+  const shareInner=`${lbl('Paycheck share')}<div style="font-size:20px;font-weight:800;color:var(--green)">~${share}%</div><div style="font-size:12px;color:var(--muted);margin-top:2px">of each paycheck saved</div>`;
+  el.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:8px">${card(streakInner)}${card(shareInner)}</div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Saved / period</span><span style="font-size:11px;color:var(--muted)">last ${series.length}</span></div>
+      <div style="display:flex;gap:3px;align-items:flex-end;height:36px">${bars}</div>
+    </div>`;
+}
 function renderSavingsScreen(){
+  renderSavingsBanner();renderSavingsInsights();
   const bkts=STATE.savingsBuckets||[];
   const totalAllTime=allTimeSavings();
   // Waterfall explanation card
@@ -2351,6 +2497,8 @@ function renderSavingsScreen(){
   };
   list.innerHTML='';
   waterfall.forEach((b,i)=>{
+    const _spj=b.cap>0?projectSavingsBucket(waterfall,i):null;
+    const _sprojLine=(!_spj||_spj.status==='reached'||_spj.status==='no-target')?'':(_spj.status==='need-rate'?'Set a savings amount to project a date':`~${_spj.paychecks} paycheck${_spj.paychecks===1?'':'s'} to go · around ${_spj.date}${_spj.targetDate?(_spj.behind?' · behind your date':' · on track for your date'):''}`);
     const c=colorMap[b.color||'green'];
     const pct=b.cap>0?Math.min(b.effective/b.cap,1):0;
     const isComplete=b.cap>0&&b.effective>=b.cap;
@@ -2397,7 +2545,7 @@ function renderSavingsScreen(){
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:12px">
         <span>${(pct*100).toFixed(0)}% complete</span>
         <span>${isComplete?'Goal reached!':fmt(b.cap-b.effective)+' to go'}</span>
-      </div>`:'<div style="margin-bottom:10px"></div>'}
+      </div>${_sprojLine?`<div style="font-size:12px;color:${c.fg};background:${c.bg};border-radius:8px;padding:7px 10px;margin-bottom:12px;font-weight:500"><i class="ti ti-calendar-stats" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>${_sprojLine}</div>`:''}`:'<div style="margin-bottom:10px"></div>'}
       <button onclick="addToSavingsBucket(${i})" style="width:100%;padding:9px;background:${c.bg};border:0.5px solid ${c.fg}44;border-radius:10px;color:${c.fg};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-plus" style="font-size:14px"></i> Add funds
       </button>`;
