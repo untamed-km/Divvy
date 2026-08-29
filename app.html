@@ -377,6 +377,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
   </div>
   <div id="screen-invest" class="screen">
     <div class="top-bar"><h2>Investments &amp; Savings</h2></div>
+    <div id="hub-hero-toggle"></div>
     <div id="goal-banner"></div>
     <div id="invest-insights"></div>
     <div id="invest-total-banner" style="margin-bottom:4px"></div>
@@ -2337,8 +2338,8 @@ function _featuredSavings(){
   pool.sort((a,b)=>b.p.pct-a.p.pct);
   return pool[0];
 }
-function renderSavingsBanner(){
-  const el=document.getElementById('savings-banner');if(!el)return;
+function renderSavingsBanner(cid){
+  const el=document.getElementById(cid||'savings-banner');if(!el)return;
   const wf=savingsWaterfall().filter(b=>b.cap>0);
   const box=(inner,grad,border)=>`<div style="position:relative;background:${grad};border:1px solid ${border||'#16a34a30'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
   if(!wf.length){
@@ -2407,7 +2408,7 @@ function saveSavingsBanner(id){
   const b=(STATE.savingsBuckets||[]).find(x=>x.id===id);if(!b)return;
   b.banner={title:(document.getElementById('gb-title').value||'').trim(),msg:(document.getElementById('gb-msg').value||'').trim(),emoji:document.getElementById('gb-emoji').value||'',theme:document.getElementById('gb-theme').value||'forest'};
   STATE.pinnedSavingsId=document.getElementById('gb-pin').checked?id:(STATE.pinnedSavingsId===id?null:STATE.pinnedSavingsId);
-  saveState();closeModal();renderSavingsScreen();
+  saveState();closeModal();renderSavingsScreen();renderHubHero();
 }
 function savingsStreak(){
   const per=[...STATE.history,C].map(c=>(c.savings&&c.savings.perPaycheck||0)+((c.savings&&c.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0)));
@@ -2703,8 +2704,8 @@ function _featuredGoal(){
   pool.sort((a,b)=>b.p.pct-a.p.pct);
   return pool[0];
 }
-function renderGoalBanner(){
-  const el=document.getElementById('goal-banner');
+function renderGoalBanner(cid){
+  const el=document.getElementById(cid||'goal-banner');
   if(!el)return;
   const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
   const box=(inner,grad,border)=>`<div style="position:relative;background:${grad};border:1px solid ${border||'#6366f130'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
@@ -2793,7 +2794,7 @@ function saveGoalBanner(id){
   const theme=document.getElementById('gb-theme').value||'indigo';
   g.banner={title,msg,emoji,theme};
   STATE.pinnedGoalId=document.getElementById('gb-pin').checked?id:(STATE.pinnedGoalId===id?null:STATE.pinnedGoalId);
-  saveState();closeModal();renderInvGoalsScreen();
+  saveState();closeModal();renderInvGoalsScreen();renderHubHero();
 }
 function investStreak(){
   const inv=[...STATE.history,C].map(c=>(c.investments||[]).reduce((s,i)=>s+(i.amount||0),0));
@@ -2903,6 +2904,33 @@ ${goalBit}`;
     if(!text)throw new Error('empty');
     cycle.recap=text;saveState();openCycleDetail(idx);
   }catch(e){ if(btn){btn.disabled=false;btn.textContent='Try again';} }
+}
+function _hubHeroShow(){
+  const invGoals=(STATE.invGoals||[]).filter(g=>g.goal>0);
+  const savBuckets=savingsWaterfall().filter(b=>b.cap>0);
+  const hasInv=invGoals.length>0,hasSav=savBuckets.length>0;
+  const mode=STATE.heroGoalType||'auto';
+  if(mode==='invest'&&hasInv)return{show:'invest',hasInv,hasSav};
+  if(mode==='savings'&&hasSav)return{show:'savings',hasInv,hasSav};
+  if(hasInv&&hasSav){
+    const fi=_featuredGoal(),fs=_featuredSavings();
+    const show=(fs&&fi)?((fs.p.pct>fi.p.pct)?'savings':'invest'):(fi?'invest':'savings');
+    return{show,hasInv,hasSav};
+  }
+  return{show:(hasSav&&!hasInv)?'savings':'invest',hasInv,hasSav};
+}
+function setHeroType(t){STATE.heroGoalType=t;saveState();renderHubHero();}
+function renderHubHero(){
+  const {show,hasInv,hasSav}=_hubHeroShow();
+  const tog=document.getElementById('hub-hero-toggle');
+  if(tog){
+    if(hasInv&&hasSav){
+      const btn=(t,label,ic)=>`<button onclick="setHeroType('${t}')" style="flex:1;padding:6px 0;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;background:${show===t?'var(--accent)':'transparent'};color:${show===t?'#fff':'var(--muted)'};transition:background .15s,color .15s"><i class="ti ${ic}" style="font-size:14px"></i>${label}</button>`;
+      tog.innerHTML=`<div style="display:flex;background:var(--card2);border-radius:9px;padding:3px;margin-bottom:10px">${btn('invest','Investments','ti-trending-up')}${btn('savings','Savings','ti-pig-money')}</div>`;
+    } else { tog.innerHTML=''; }
+  }
+  if(show==='savings') renderSavingsBanner('goal-banner');
+  else renderGoalBanner('goal-banner');
 }
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
@@ -7016,7 +7044,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
-  renderGoalBanner();renderInvestInsights();renderNetWorthTrend();
+  renderHubHero();renderInvestInsights();renderNetWorthTrend();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
