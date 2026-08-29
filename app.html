@@ -380,6 +380,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="goal-banner"></div>
     <div id="invest-insights"></div>
     <div id="invest-total-banner" style="margin-bottom:4px"></div>
+    <div id="networth-trend"></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="section-label" style="margin-top:0">AI Advisor</span>
       <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Powered by Claude</span>
@@ -2141,6 +2142,7 @@ function openCycleDetail(idx){
     </div>
     ${bucketKeys.length?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Spending</div>${bucketRows}`:''}
     ${cycle.bills.length?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px">Bills (${paidBillsCount}/${cycle.bills.length} paid)</div>${billRows}`:''}
+    ${cycle.recap?`<div style="background:linear-gradient(135deg,#6366f114,#a855f70d);border:0.5px solid #6366f130;border-radius:12px;padding:14px;margin-top:16px"><div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px"><i class="ti ti-sparkles" style="font-size:13px"></i>Budget Assistant recap</div><div style="font-size:13px;line-height:1.6;color:var(--text)">${esc(cycle.recap)}</div><div style="font-size:10px;color:var(--muted);margin-top:8px;opacity:.85">Educational only — not licensed financial advice.</div><button onclick="generatePeriodRecap(${idx})" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:inherit;margin-top:8px;padding:0">↻ Regenerate</button></div>`:`<button id="recap-btn" onclick="generatePeriodRecap(${idx})" class="btn btn-ghost" style="width:100%;margin-top:16px;color:var(--accent);border-color:var(--accent)"><i class="ti ti-sparkles" style="font-size:15px;vertical-align:-2px;margin-right:4px"></i>Generate recap</button>`}
     <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Close</button>
   </div></div>`;
 }
@@ -2519,9 +2521,9 @@ function goalPerPeriodContribution(goal){
   const rec=(C.investments||[]).reduce((s,iv)=>s+((iv.goalId===goal.id&&iv.recurring!==false)?(iv.amount||0):0),0);
   return rec>0?rec:0;
 }
-function projectGoal(goal){
+function projectGoal(goal,currentOverride){
   const target=goal.goal||0;
-  const current=goalCurrentAmount(goal);
+  const current=(currentOverride!=null)?currentOverride:goalCurrentAmount(goal);
   const pct=target>0?Math.min(current/target,1):0;
   if(target<=0)return{status:'no-target',current,target,pct:0};
   if(current>=target)return{status:'reached',current,target,pct:1,remaining:0,paychecks:0};
@@ -2675,6 +2677,85 @@ function renderInvestInsights(){
       <div style="display:flex;gap:3px;align-items:flex-end;height:36px">${bars}</div>
     </div>`;
 }
+function netWorthSeries(){
+  const cycles=[...STATE.history,C];
+  let cs=0,ci=0,ck=0;
+  const series=cycles.map(cyc=>{
+    const saved=(cyc.savings&&cyc.savings.perPaycheck||0)+((cyc.savings&&cyc.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0));
+    const invested=(cyc.investments||[]).reduce((a,i)=>a+(i.amount||0),0);
+    const k=(cyc.k401&&cyc.k401.me||0)+(cyc.k401&&cyc.k401.emp||0);
+    cs+=saved;ci+=invested;ck+=k;
+    const debt=(cyc.debts||[]).filter(d=>!d.paid).reduce((a,d)=>a+(d.balance||0),0);
+    const assets=cs+ci+ck;
+    const label=cyc.startDate?new Date(cyc.startDate+'T00:00:00').toLocaleDateString('en-US',{month:'short'}):'-';
+    return{label,assets,debt,net:assets-debt,saved,invested,k};
+  });
+  for(let i=0;i<series.length;i++){const prevDebt=i>0?series[i-1].debt:series[i].debt;series[i].debtPaid=Math.max(0,prevDebt-series[i].debt);}
+  return series;
+}
+function renderNetWorthTrend(){
+  const el=document.getElementById('networth-trend'); if(!el)return;
+  const s=netWorthSeries();
+  const active=s.filter(p=>p.assets>0||p.debt>0);
+  if(active.length<2){el.innerHTML='';return;}
+  const nets=s.map(p=>p.net);
+  const min=Math.min(...nets,0),max=Math.max(...nets,0);const range=(max-min)||1;
+  const W=340,H=110,pad=8,n=s.length;
+  const x=i=>pad+(i*(W-pad*2)/(n-1));
+  const y=v=>H-4-((v-min)/range)*(H-16);
+  let path='';s.forEach((p,i)=>{path+=`${i===0?'M':'L'}${x(i).toFixed(1)},${y(p.net).toFixed(1)} `;});
+  const area=`${path}L${x(n-1).toFixed(1)},${(H-4).toFixed(1)} L${x(0).toFixed(1)},${(H-4).toFixed(1)} Z`;
+  const last=s[n-1],prev=n>1?s[n-2]:null;const change=prev?last.net-prev.net:last.net;
+  const drivers=[];
+  if(last.invested>0)drivers.push(`${fmt(last.invested)} invested`);
+  if(last.saved>0)drivers.push(`${fmt(last.saved)} saved`);
+  if(last.k>0)drivers.push(`${fmt(last.k)} 401(k)`);
+  if(last.debtPaid>0)drivers.push(`${fmt(last.debtPaid)} debt paid`);
+  const zeroY=y(0);
+  el.innerHTML=`<div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Net worth over time</span>
+      <span style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:${last.net<0?'var(--red)':'var(--text)'}">${fmt(last.net)}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="margin:6px 0 4px">
+      ${(min<0&&max>0)?`<line x1="${pad}" y1="${zeroY.toFixed(1)}" x2="${W-pad}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-dasharray="3 3"/>`:''}
+      <path d="${area}" fill="var(--accent)" opacity=".08"/>
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:12px;color:var(--muted)">This period: net worth ${change>=0?'up':'down'} <span style="color:${change>=0?'var(--green)':'var(--red)'};font-weight:600">${fmt(Math.abs(change))}</span>${drivers.length?' — '+drivers.join(' · '):''}</div>
+  </div>`;
+}
+async function generatePeriodRecap(idx){
+  if(!gateFeature('advisor'))return;
+  const cycle=STATE.history[idx];if(!cycle)return;
+  const btn=document.getElementById('recap-btn');
+  if(btn){btn.disabled=true;btn.textContent='Generating…';}
+  const series=netWorthSeries();
+  const s=series[idx]||{invested:0,saved:0,k:0,debtPaid:0,net:0};
+  const prev=idx>0?series[idx-1]:null;
+  const netChange=prev?s.net-prev.net:s.net;
+  const invSeries=[...STATE.history,C].map(c=>(c.investments||[]).reduce((a,i)=>a+(i.amount||0),0));
+  let streak=0;for(let i=idx;i>=0;i--){if(invSeries[i]>0)streak++;else break;}
+  const feat=_featuredGoal();
+  const goalBit=feat&&feat.p&&feat.p.status==='on-track'?`Featured goal "${feat.g.name}" is about ${feat.p.paychecks} paychecks away at the current pace.`:'';
+  const drivers=[];
+  if(s.invested>0)drivers.push(`$${Math.round(s.invested)} invested`);
+  if(s.saved>0)drivers.push(`$${Math.round(s.saved)} saved`);
+  if(s.k>0)drivers.push(`$${Math.round(s.k)} to 401(k)`);
+  if(s.debtPaid>0)drivers.push(`$${Math.round(s.debtPaid)} debt paid down`);
+  const facts=`Pay period ${fmtD(cycle.startDate)}–${fmtD(cycle.endDate)}.
+Investing streak: ${streak} pay period(s) in a row.
+Net worth change this period: ${netChange>=0?'up':'down'} $${Math.abs(Math.round(netChange))} (${drivers.join(', ')||'no contributions this period'}).
+${goalBit}`;
+  const system=`You write a short, warm, encouraging recap of ONE pay period for a budgeting app user. 1–2 sentences, plain conversational language, framed around their paycheck cycle. Use ONLY the numbers given. Do NOT predict markets, assume any investment growth or returns, or give financial advice. Do not add a disclaimer (the app shows one separately).`;
+  try{
+    const res=await fetch('/api/advisor',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:200,system,messages:[{role:'user',content:'Write the recap for this period:\n'+facts}]})});
+    const data=await res.json();
+    const text=(data&&data.content&&data.content[0]&&data.content[0].text)?data.content[0].text.trim():'';
+    if(!text)throw new Error('empty');
+    cycle.recap=text;saveState();openCycleDetail(idx);
+  }catch(e){ if(btn){btn.disabled=false;btn.textContent='Try again';} }
+}
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
   const inv=allTimeInvestments();
@@ -2825,6 +2906,8 @@ function renderInvGoalsScreen(){
   };
   list.innerHTML='';
   waterfall.forEach((g,i)=>{
+    const _pj=g.cap>0?projectGoal(g,g.effective):null;
+    const _projLine=(!_pj||_pj.status==='reached'||_pj.status==='no-target')?'':(_pj.status==='need-contribution'?'Add a contribution to project a date':`~${_pj.paychecks} paycheck${_pj.paychecks===1?'':'s'} to go · around ${_pj.date} · at ${fmt(_pj.perPeriod)}/paycheck`);
     const c=colorMap[g.color||'purple'];
     const pct=g.cap>0?Math.min(g.effective/g.cap,1):0;
     const isComplete=g.cap>0&&g.effective>=g.cap;
@@ -2855,7 +2938,7 @@ function renderInvGoalsScreen(){
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:12px">
         <span>${(pct*100).toFixed(0)}% complete</span>
         <span>${isComplete?'Goal reached!':fmt(g.cap-g.effective)+' to go'}</span>
-      </div>`:'<div style="margin-bottom:10px"></div>'}
+      </div>${_projLine?`<div style="font-size:12px;color:${c.fg};background:${c.bg};border-radius:8px;padding:7px 10px;margin-bottom:12px;font-weight:500"><i class="ti ti-calendar-stats" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>${_projLine}</div>`:''}`:'<div style="margin-bottom:10px"></div>'}
       <button onclick="addToInvGoal(${i})" style="width:100%;padding:9px;background:${c.bg};border:0.5px solid ${c.fg}44;border-radius:10px;color:${c.fg};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-plus" style="font-size:14px"></i> Add funds
       </button>`;
@@ -6785,7 +6868,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
-  renderGoalBanner();renderInvestInsights();
+  renderGoalBanner();renderInvestInsights();renderNetWorthTrend();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
