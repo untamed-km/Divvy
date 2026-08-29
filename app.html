@@ -567,6 +567,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <button onclick="openInvGoalModal()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;padding:4px 0">+ Goal</button>
     </div>
+    <div id="goal-banner"></div>
     <div class="section-label">This period</div>
     <div id="invest-list"></div>
     <button class="add-row-btn" onclick="openInvModal()"><i class="ti ti-plus"></i> Add investment</button>
@@ -2531,7 +2532,59 @@ function projectGoal(goal){
   return{status:'on-track',current,target,pct,remaining,perPeriod,paychecks,
          date:date.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
 }
+function _featuredGoal(){
+  const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
+  if(!goals.length)return null;
+  const withProj=goals.map(g=>({g,p:projectGoal(g)}));
+  const inProgress=withProj.filter(x=>x.p.status!=='reached');
+  const pool=inProgress.length?inProgress:withProj; // all reached → feature a reached one
+  pool.sort((a,b)=>b.p.pct-a.p.pct); // closest to completion first
+  return pool[0];
+}
+function renderGoalBanner(){
+  const el=document.getElementById('goal-banner');
+  if(!el)return;
+  const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
+  const box=(inner,grad,border)=>`<div style="background:${grad};border:1px solid ${border||'#6366f130'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
+  if(!goals.length){
+    el.innerHTML=box(`<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:12px;background:#6366f122;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-target" style="font-size:20px;color:var(--accent)"></i></div>
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">Set your first goal</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Track progress in paychecks — see how close you are every payday.</div></div>
+      </div>
+      <button onclick="openInvGoalModal()" style="width:100%;margin-top:12px;padding:11px;background:linear-gradient(135deg,#7c3aed,#6366f1);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Create a goal</button>`,
+      'linear-gradient(135deg,#6366f11f,#a855f714)');
+    return;
+  }
+  const {g,p}=_featuredGoal();
+  const title=esc(g.name);
+  if(p.status==='reached'){
+    el.innerHTML=box(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="font-size:13px;font-weight:700;color:#fff">🎉 Goal reached</div>
+        <div style="font-size:12px;color:#ffffffcc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${title}</div></div>
+      <div style="font-size:28px;font-weight:800;color:#fff;margin:6px 0;font-variant-numeric:tabular-nums">${fmt(g.goal)}</div>
+      <div style="font-size:12px;color:#ffffffcc;margin-bottom:10px">You did it. Ready for the next one?</div>
+      <button onclick="openInvGoalModal()" style="width:100%;padding:10px;background:#ffffff26;border:1px solid #ffffff40;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Set a new goal</button>`,
+      'linear-gradient(135deg,#16a34a,#0d9488)','#ffffff30');
+    return;
+  }
+  let sub;
+  if(p.status==='need-contribution'){
+    sub=`<div style="font-size:12px;color:#ffffffdd">Add a contribution to see your projection.</div>`;
+  } else {
+    sub=`<div style="font-size:13px;color:#fff;font-weight:700">~${p.paychecks} paycheck${p.paychecks===1?'':'s'} to go</div>
+         <div style="font-size:12px;color:#ffffffcc;margin-top:1px">around ${p.date} · at ${fmt(p.perPeriod)}/paycheck</div>`;
+  }
+  el.innerHTML=box(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:15px;font-weight:700;color:#fff;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+      <div style="font-size:12px;color:#ffffffe6;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(p.current)} / ${fmt(g.goal)}</div></div>
+    <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
+      <div style="min-width:0">${sub}</div>
+      <div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
+    'linear-gradient(135deg,#6366f1,#a855f7)','#ffffff26');
+}
 function renderInvGoalsScreen(){
+  renderGoalBanner();
   const goals=STATE.invGoals||[];
   const inv=allTimeInvestments();
   const totalAllTime=inv.grand;
