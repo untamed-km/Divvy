@@ -1945,10 +1945,15 @@ function openSavingsBucketModal(idx){
     <h3>${isEdit?'Edit goal':'New savings goal'}</h3>
     <span class="modal-label">Goal name</span>
     <input type="text" id="sbkt-name" placeholder="e.g. Emergency fund, Vacation" value="${esc(bkt.name)}" autocomplete="off"/>
+    <span class="modal-label">Savings account (optional)</span>
+    <input type="text" id="sbkt-institution" placeholder="e.g. Bank of America, Ally, Wells Fargo" value="${esc(bkt.institution||'')}" autocomplete="off"/>
     <span class="modal-label">Goal amount</span>
     <input type="number" id="sbkt-goal" placeholder="0.00" value="${bkt.goal||''}" inputmode="decimal" step="0.01" min="0"/>
     <span class="modal-label">Amount saved so far</span>
     <input type="number" id="sbkt-saved" placeholder="0.00" value="${bkt.saved||''}" inputmode="decimal" step="0.01" min="0"/>
+    <span class="modal-label">APY % (optional)</span>
+    <input type="number" id="sbkt-apy" placeholder="e.g. 4.25" value="${bkt.apy||''}" inputmode="decimal" step="0.01" min="0"/>
+    <div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5">If set, interest compounds monthly into this goal’s balance.</div>
     <span class="modal-label">Target date (optional)</span>
     <input type="date" id="sbkt-date" value="${bkt.targetDate||''}" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:12px;outline:none;-webkit-appearance:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
     <span class="modal-label">Color</span>
@@ -1978,9 +1983,11 @@ function saveSavingsBucket(idx){
   if(!STATE.savingsBuckets)STATE.savingsBuckets=[];
   if((idx===null||idx==='null')&&!checkLimit('savingsgoals',STATE.savingsBuckets.length)){closeModal();return;}
   const targetDate=document.getElementById('sbkt-date')?.value||null;
-  const entry={name,goal,saved,color:window._savColor||'green',targetDate:targetDate||null};
+  const institution=(document.getElementById('sbkt-institution')?.value||'').trim();
+  const apy=parseFloat(document.getElementById('sbkt-apy')?.value)||0;
+  const entry={name,goal,saved,color:window._savColor||'green',targetDate:targetDate||null,institution:institution||null,apy};
   if(idx===null||idx==='null'){entry.createdAt=new Date().toISOString();STATE.savingsBuckets.push(entry);}
-  else STATE.savingsBuckets[idx]=entry;
+  else STATE.savingsBuckets[idx]={...STATE.savingsBuckets[idx],...entry};
   saveState();closeModal();renderSavingsScreen();
 }
 function deleteSavingsBucket(idx){
@@ -2308,7 +2315,7 @@ function savingsWaterfall(){
   return bkts.map(b=>{
     const cap=b.goal||0,manual=b.saved||0;
     const fromWaterfall=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;
-    const effective=cap>0?Math.min(manual+fromWaterfall,cap):manual;
+    const effective=(cap>0?Math.min(manual+fromWaterfall,cap):manual)+(b.interestEarned||0);
     pool=Math.max(0,pool-fromWaterfall);
     return {...b,effective,cap};
   });
@@ -2372,7 +2379,7 @@ function renderSavingsBanner(cid){
   el.innerHTML=box(`${gear}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-right:30px">
       <div style="font-size:15px;font-weight:700;color:#fff;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${emoji}${name}</div>
       <div style="font-size:12px;color:#ffffffe6;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(p.pct*b.goal)} / ${fmt(b.goal)}</div></div>
-    ${bn.msg?`<div style="font-size:12px;color:#ffffffcc;margin-top:3px">${esc(bn.msg)}</div>`:''}
+    ${bn.msg?`<div style="font-size:12px;color:#ffffffcc;margin-top:3px">${esc(bn.msg)}</div>`:''}${b.institution?`<div style="font-size:11px;color:#ffffffcc;margin-top:2px"><i class="ti ti-building-bank" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>${esc(b.institution)}${(parseFloat(b.apy)||0)>0?` · ${parseFloat(b.apy)}% APY`:''}</div>`:''}
     <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><div style="min-width:0">${sub}</div><div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
     grad,'#ffffff26');
@@ -2438,6 +2445,31 @@ function renderSavingsInsights(){
       <div style="display:flex;gap:3px;align-items:flex-end;height:36px">${bars}</div>
     </div>`;
 }
+function _apyMonthly(bal,apy,months){
+  const mRate=Math.pow(1+apy/100,1/12)-1;let earned=0;
+  for(let m=0;m<months;m++){const it=bal*mRate;earned+=it;bal+=it;}
+  return earned;
+}
+function accrueSavingsAPY(){
+  const bkts=STATE.savingsBuckets||[];if(!bkts.length)return;
+  // accrual base = capped pool+manual per bucket (no interest), mirrors displayed effective minus interest
+  let pool=allTimeSavings();
+  const base=bkts.map(b=>{const cap=b.goal||0,manual=b.saved||0;const fill=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;const eff=cap>0?Math.min(manual+fill,cap):manual;pool=Math.max(0,pool-fill);return eff;});
+  const now=new Date();let changed=false;
+  bkts.forEach((b,i)=>{
+    const apy=parseFloat(b.apy)||0;
+    if(apy<=0)return;
+    if(!b.apyLastAccrued){b.apyLastAccrued=now.toISOString();changed=true;return;}
+    const last=new Date(b.apyLastAccrued);
+    const months=(now.getFullYear()-last.getFullYear())*12+(now.getMonth()-last.getMonth());
+    if(months<=0)return;
+    const earned=_apyMonthly(base[i]+(b.interestEarned||0),apy,months);
+    b.interestEarned=(b.interestEarned||0)+earned;
+    const na=new Date(last);na.setMonth(na.getMonth()+months);b.apyLastAccrued=na.toISOString();
+    changed=true;
+  });
+  if(changed)saveState();
+}
 function renderSavingsScreen(){
   renderSavingsBanner();renderSavingsInsights();
   const bkts=STATE.savingsBuckets||[];
@@ -2470,7 +2502,7 @@ function renderSavingsScreen(){
     // manually added funds always count; waterfall adds on top up to goal
     const manual=b.saved||0;
     const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-manual)):0;
-    const effective=cap>0?Math.min(manual+fromWaterfall,cap):manual;
+    const effective=(cap>0?Math.min(manual+fromWaterfall,cap):manual)+(b.interestEarned||0);
     remaining=Math.max(0,remaining-(cap>0?Math.min(remaining,Math.max(0,cap-manual)):0));
     return{...b,effective,fromWaterfall,cap};
   });
@@ -2532,7 +2564,7 @@ function renderSavingsScreen(){
               })()}
             </div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px">
-              ${b.cap?fmt(b.effective)+' of '+fmt(b.cap):'No goal set'}
+              ${b.cap?fmt(b.effective)+' of '+fmt(b.cap):'No goal set'}${b.institution?' · '+esc(b.institution):''}${(parseFloat(b.apy)||0)>0?' · '+parseFloat(b.apy)+'% APY':''}
               ${b.targetDate&&!isComplete?`<span style="color:var(--muted)">·</span><i class="ti ti-calendar" style="font-size:11px"></i><span>${(()=>{const t=new Date(b.targetDate+'T00:00:00');const d=Math.ceil((t-new Date())/(864e5));return d<0?'Overdue':d===0?'Due today':d+' days left';})()}</span>`:''}
             </div>
           </div>
@@ -6473,7 +6505,7 @@ function accrueMonthlyInterest(){
   }
 }
 
-function render(){accrueMonthlyInterest();renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
+function render(){accrueMonthlyInterest();accrueSavingsAPY();renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
 
 function renderHome(){
   // Payment past due banner
