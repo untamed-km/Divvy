@@ -2532,20 +2532,31 @@ function projectGoal(goal){
   return{status:'on-track',current,target,pct,remaining,perPeriod,paychecks,
          date:date.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
 }
+const BANNER_THEMES={
+  indigo:'linear-gradient(135deg,#6366f1,#a855f7)',
+  ocean:'linear-gradient(135deg,#3b82f6,#6366f1)',
+  teal:'linear-gradient(135deg,#0d9488,#0891b2)',
+  sunset:'linear-gradient(135deg,#f59e0b,#ef4444)',
+  rose:'linear-gradient(135deg,#ec4899,#f43f5e)',
+  forest:'linear-gradient(135deg,#16a34a,#0d9488)'
+};
+const BANNER_EMOJIS=['🏝️','🏠','🚗','💍','🎓','🛟','💰','📈','✈️','🎯','⭐','🔥'];
+function _bannerGrad(g){const t=g&&g.banner&&g.banner.theme;return BANNER_THEMES[t]||BANNER_THEMES.indigo;}
 function _featuredGoal(){
   const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
   if(!goals.length)return null;
+  if(STATE.pinnedGoalId){const pin=goals.find(g=>g.id===STATE.pinnedGoalId);if(pin)return{g:pin,p:projectGoal(pin)};}
   const withProj=goals.map(g=>({g,p:projectGoal(g)}));
   const inProgress=withProj.filter(x=>x.p.status!=='reached');
-  const pool=inProgress.length?inProgress:withProj; // all reached → feature a reached one
-  pool.sort((a,b)=>b.p.pct-a.p.pct); // closest to completion first
+  const pool=inProgress.length?inProgress:withProj;
+  pool.sort((a,b)=>b.p.pct-a.p.pct);
   return pool[0];
 }
 function renderGoalBanner(){
   const el=document.getElementById('goal-banner');
   if(!el)return;
   const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
-  const box=(inner,grad,border)=>`<div style="background:${grad};border:1px solid ${border||'#6366f130'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
+  const box=(inner,grad,border)=>`<div style="position:relative;background:${grad};border:1px solid ${border||'#6366f130'};border-radius:16px;padding:16px 18px;margin-bottom:14px">${inner}</div>`;
   if(!goals.length){
     el.innerHTML=box(`<div style="display:flex;align-items:center;gap:12px">
         <div style="width:40px;height:40px;border-radius:12px;background:#6366f122;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-target" style="font-size:20px;color:var(--accent)"></i></div>
@@ -2556,13 +2567,17 @@ function renderGoalBanner(){
     return;
   }
   const {g,p}=_featuredGoal();
-  const title=esc(g.name);
+  const b=g.banner||{};
+  const name=esc(b.title||g.name);
+  const emoji=b.emoji?b.emoji+' ':'';
+  const pinned=STATE.pinnedGoalId===g.id;
+  const gear=`<button onclick="openGoalBannerCustomize()" title="Customize" style="position:absolute;top:10px;right:10px;background:#ffffff26;border:none;border-radius:8px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff"><i class="ti ti-${pinned?'pin-filled':'settings'}" style="font-size:14px"></i></button>`;
   if(p.status==='reached'){
-    el.innerHTML=box(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+    el.innerHTML=box(`${gear}<div style="display:flex;align-items:center;gap:8px;padding-right:30px">
         <div style="font-size:13px;font-weight:700;color:#fff">🎉 Goal reached</div>
-        <div style="font-size:12px;color:#ffffffcc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${title}</div></div>
+        <div style="font-size:12px;color:#ffffffcc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${emoji}${name}</div></div>
       <div style="font-size:28px;font-weight:800;color:#fff;margin:6px 0;font-variant-numeric:tabular-nums">${fmt(g.goal)}</div>
-      <div style="font-size:12px;color:#ffffffcc;margin-bottom:10px">You did it. Ready for the next one?</div>
+      <div style="font-size:12px;color:#ffffffcc;margin-bottom:10px">${b.msg?esc(b.msg)+' — ':''}You did it. Ready for the next one?</div>
       <button onclick="openInvGoalModal()" style="width:100%;padding:10px;background:#ffffff26;border:1px solid #ffffff40;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Set a new goal</button>`,
       'linear-gradient(135deg,#16a34a,#0d9488)','#ffffff30');
     return;
@@ -2574,14 +2589,60 @@ function renderGoalBanner(){
     sub=`<div style="font-size:13px;color:#fff;font-weight:700">~${p.paychecks} paycheck${p.paychecks===1?'':'s'} to go</div>
          <div style="font-size:12px;color:#ffffffcc;margin-top:1px">around ${p.date} · at ${fmt(p.perPeriod)}/paycheck</div>`;
   }
-  el.innerHTML=box(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <div style="font-size:15px;font-weight:700;color:#fff;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+  el.innerHTML=box(`${gear}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-right:30px">
+      <div style="font-size:15px;font-weight:700;color:#fff;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${emoji}${name}</div>
       <div style="font-size:12px;color:#ffffffe6;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(p.current)} / ${fmt(g.goal)}</div></div>
+    ${b.msg?`<div style="font-size:12px;color:#ffffffcc;margin-top:3px">${esc(b.msg)}</div>`:''}
     <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
       <div style="min-width:0">${sub}</div>
       <div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
-    'linear-gradient(135deg,#6366f1,#a855f7)','#ffffff26');
+    _bannerGrad(g),'#ffffff26');
+}
+function _gbSet(kind,val,el){
+  document.getElementById('gb-'+kind).value=val;
+  [...el.parentElement.children].forEach(c=>{c.style.outline='none';c.style.opacity='.6';});
+  el.style.outline='2px solid #fff';el.style.opacity='1';
+}
+function openGoalBannerCustomize(goalId){
+  const goals=(STATE.invGoals||[]).filter(g=>g.goal>0);
+  if(!goals.length)return;
+  const featured=_featuredGoal();
+  const subj=(goalId&&goals.find(g=>g.id===goalId))||featured.g;
+  const b=subj.banner||{};
+  const curTheme=b.theme||'indigo';const curEmoji=b.emoji||'';
+  const emojiChips=BANNER_EMOJIS.map(e=>`<button type="button" onclick="_gbSet('emoji','${e}',this)" style="font-size:20px;background:var(--card2);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;opacity:${curEmoji===e?'1':'.6'};outline:${curEmoji===e?'2px solid var(--accent)':'none'}">${e}</button>`).join('')
+    +`<button type="button" onclick="_gbSet('emoji','',this)" style="font-size:11px;color:var(--muted);background:var(--card2);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;opacity:${curEmoji===''?'1':'.6'};outline:${curEmoji===''?'2px solid var(--accent)':'none'}">none</button>`;
+  const themeSwatches=Object.keys(BANNER_THEMES).map(t=>`<button type="button" onclick="_gbSet('theme','${t}',this)" style="height:34px;flex:1;min-width:44px;border:none;border-radius:9px;cursor:pointer;background:${BANNER_THEMES[t]};opacity:${curTheme===t?'1':'.6'};outline:${curTheme===t?'2px solid #fff':'none'};box-shadow:0 0 0 1px var(--border)"></button>`).join('');
+  const goalOpts=goals.map(g=>`<option value="${g.id}" ${g.id===subj.id?'selected':''}>${esc(g.name)}</option>`).join('');
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <input type="hidden" id="gb-emoji" value="${curEmoji}"><input type="hidden" id="gb-theme" value="${curTheme}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">Customize banner</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Goal</label>
+    <select id="gb-goal" onchange="openGoalBannerCustomize(this.value)" style="width:100%;margin-bottom:12px">${goalOpts}</select>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="gb-pin" ${STATE.pinnedGoalId===subj.id?'checked':''} style="width:16px;height:16px"> 📌 Always feature this goal on the banner</label>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Title <span style="opacity:.7">(optional)</span></label>
+    <input type="text" id="gb-title" maxlength="40" placeholder="${esc(subj.name)}" value="${esc(b.title||'')}" style="width:100%;margin-bottom:12px"/>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Message <span style="opacity:.7">(optional)</span></label>
+    <input type="text" id="gb-msg" maxlength="60" placeholder="e.g. Freedom fund" value="${esc(b.msg||'')}" style="width:100%;margin-bottom:12px"/>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Emoji</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${emojiChips}</div>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Theme</label>
+    <div style="display:flex;gap:6px;margin-bottom:18px">${themeSwatches}</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="saveGoalBanner('${subj.id}')">Save</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancel</button>
+  </div></div>`;
+}
+function saveGoalBanner(id){
+  const g=(STATE.invGoals||[]).find(x=>x.id===id);if(!g)return;
+  const title=(document.getElementById('gb-title').value||'').trim();
+  const msg=(document.getElementById('gb-msg').value||'').trim();
+  const emoji=document.getElementById('gb-emoji').value||'';
+  const theme=document.getElementById('gb-theme').value||'indigo';
+  g.banner={title,msg,emoji,theme};
+  STATE.pinnedGoalId=document.getElementById('gb-pin').checked?id:(STATE.pinnedGoalId===id?null:STATE.pinnedGoalId);
+  saveState();closeModal();renderInvGoalsScreen();
 }
 function renderInvGoalsScreen(){
   renderGoalBanner();
