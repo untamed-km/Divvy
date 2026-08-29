@@ -377,6 +377,8 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
   </div>
   <div id="screen-invest" class="screen">
     <div class="top-bar"><h2>Investments &amp; Savings</h2></div>
+    <div id="goal-banner"></div>
+    <div id="invest-insights"></div>
     <div id="invest-total-banner" style="margin-bottom:4px"></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="section-label" style="margin-top:0">AI Advisor</span>
@@ -567,7 +569,6 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       </div>
       <button onclick="openInvGoalModal()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;padding:4px 0">+ Goal</button>
     </div>
-    <div id="goal-banner"></div>
     <div class="section-label">This period</div>
     <div id="invest-list"></div>
     <button class="add-row-btn" onclick="openInvModal()"><i class="ti ti-plus"></i> Add investment</button>
@@ -2644,8 +2645,37 @@ function saveGoalBanner(id){
   STATE.pinnedGoalId=document.getElementById('gb-pin').checked?id:(STATE.pinnedGoalId===id?null:STATE.pinnedGoalId);
   saveState();closeModal();renderInvGoalsScreen();
 }
+function investStreak(){
+  const inv=[...STATE.history,C].map(c=>(c.investments||[]).reduce((s,i)=>s+(i.amount||0),0));
+  let s=0; for(let i=inv.length-1;i>=0;i--){if(inv[i]>0)s++;else break;}
+  if(s>0)return{streak:s,live:true};
+  let s2=0; for(let i=inv.length-2;i>=0;i--){if(inv[i]>0)s2++;else break;}
+  return{streak:s2,live:false};
+}
+function renderInvestInsights(){
+  const el=document.getElementById('invest-insights');
+  if(!el)return;
+  const cycles=[...STATE.history,C];
+  const invSeries=cycles.map(c=>(c.investments||[]).reduce((s,i)=>s+(i.amount||0),0));
+  if(!invSeries.some(v=>v>0)){el.innerHTML='';return;}
+  const st=investStreak();
+  const income=totalIncome();const investedNow=totalInvested();
+  const share=income>0?Math.round(investedNow/income*100):0;
+  const series=invSeries.slice(-8);const max=Math.max(...series,1);
+  const bars=series.map(v=>`<div title="${fmt(v)}" style="flex:1;height:${Math.max(3,Math.round(v/max*34))}px;background:${v>0?'var(--purple)':'var(--border)'};border-radius:2px;opacity:${v>0?'.85':'.5'}"></div>`).join('');
+  const card=inner=>`<div style="flex:1;min-width:0;background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px">${inner}</div>`;
+  const lbl=t=>`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${t}</div>`;
+  const streakInner=st.streak>=2
+    ?`${lbl('Streak')}<div style="font-size:20px;font-weight:800;color:var(--purple)">🔥 ${st.streak}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">pay periods in a row${st.live?'':' · add this period to keep it going'}</div>`
+    :`${lbl('Streak')}<div style="font-size:20px;font-weight:800;color:var(--text)">—</div><div style="font-size:12px;color:var(--muted);margin-top:2px">invest 2 periods running to start one</div>`;
+  const shareInner=`${lbl('Paycheck share')}<div style="font-size:20px;font-weight:800;color:var(--purple)">~${share}%</div><div style="font-size:12px;color:var(--muted);margin-top:2px">of each paycheck invested</div>`;
+  el.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:8px">${card(streakInner)}${card(shareInner)}</div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Contributions / period</span><span style="font-size:11px;color:var(--muted)">last ${series.length}</span></div>
+      <div style="display:flex;gap:3px;align-items:flex-end;height:36px">${bars}</div>
+    </div>`;
+}
 function renderInvGoalsScreen(){
-  renderGoalBanner();
   const goals=STATE.invGoals||[];
   const inv=allTimeInvestments();
   const totalAllTime=inv.grand;
@@ -6755,6 +6785,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
+  renderGoalBanner();renderInvestInsights();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
