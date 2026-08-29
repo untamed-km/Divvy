@@ -391,6 +391,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         </div>
       </div>
       <div style="padding:4px 14px 2px;font-size:11px;color:var(--muted);opacity:.85"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>Educational only — not licensed financial advice.</div>
+      <details style="padding:0 14px 8px;font-size:11px;color:var(--muted)"><summary style="cursor:pointer;opacity:.85">Is DistroFi financial advice?</summary><div style="padding:6px 0 2px;line-height:1.6;opacity:.9">No. DistroFi is an educational budgeting tool. The Budget Assistant explains your own numbers and does math on what you enter — it does not provide licensed financial, investment, tax, or legal advice. For decisions like how to invest or pay down debt, consider a licensed professional.</div></details>
       <div id="ai-suggestions" style="padding:8px 12px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div style="border-top:0.5px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;margin-top:8px">
         <textarea id="ai-input" placeholder="Ask about your budget, spending, or goals…" rows="2"
@@ -2495,6 +2496,40 @@ function confirmAddToInvGoal(idx){
   const knob=document.getElementById('gp-fromcheck-knob');
   if(!knob||knob.style.left==='21px'){C.goalContrib=(C.goalContrib||0)+amt;}
   saveState();closeModal();render();
+}
+// ── B0: Goal projection engine (contribution-only; NO assumed market returns) ──
+// Reused by the goal banner (B1), goal insights (B3), and AI recaps (B5).
+// Projections come only from the user's own contributions — never a growth assumption.
+function _periodAvgDays(){
+  const f=getFreq();
+  return f==='weekly'?7:f==='biweekly'?14:f==='monthly'?30.44:365.25/24; // semimonthly≈15.22
+}
+function goalCurrentAmount(goal){
+  let tagged=0;
+  [...STATE.history,C].forEach(cyc=>{(cyc.investments||[]).forEach(iv=>{if(iv.goalId===goal.id)tagged+=(iv.amount||0);});});
+  const base=(goal.saved||0)+tagged;
+  return goal.goal>0?Math.min(base,goal.goal):base;
+}
+function goalPerPeriodContribution(goal){
+  const perCycle=[...STATE.history,C].map(cyc=>(cyc.investments||[]).reduce((s,iv)=>s+(iv.goalId===goal.id?(iv.amount||0):0),0));
+  const recent=perCycle.filter(v=>v>0).slice(-3);
+  if(recent.length)return recent.reduce((a,b)=>a+b,0)/recent.length;
+  const rec=(C.investments||[]).reduce((s,iv)=>s+((iv.goalId===goal.id&&iv.recurring!==false)?(iv.amount||0):0),0);
+  return rec>0?rec:0;
+}
+function projectGoal(goal){
+  const target=goal.goal||0;
+  const current=goalCurrentAmount(goal);
+  const pct=target>0?Math.min(current/target,1):0;
+  if(target<=0)return{status:'no-target',current,target,pct:0};
+  if(current>=target)return{status:'reached',current,target,pct:1,remaining:0,paychecks:0};
+  const remaining=Math.max(0,target-current);
+  const perPeriod=goalPerPeriodContribution(goal);
+  if(!perPeriod||perPeriod<=0)return{status:'need-contribution',current,target,pct,remaining,perPeriod:0};
+  const paychecks=Math.ceil(remaining/perPeriod);
+  const date=new Date(Date.now()+paychecks*_periodAvgDays()*86400000);
+  return{status:'on-track',current,target,pct,remaining,perPeriod,paychecks,
+         date:date.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
 }
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
