@@ -2189,6 +2189,7 @@ function renderHistory(){
 }
 
 function startNewCycle(){
+  window._carryMode='recurring';
   // Pro: show under-budget summary before the leftover/confirm modal
   if(isPro()){
     const underBudgetBuckets=Object.keys(C.buckets).map(k=>{
@@ -2236,6 +2237,7 @@ function startNewCycleConfirm(){
         <h3 style="margin:0 0 6px">You have ${fmt(rem)} left over</h3>
         <p style="font-size:13px;color:var(--muted);line-height:1.5;margin:0">What would you like to do with it before starting a new period?</p>
       </div>
+      ${_carryModeToggle()}
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
         <button onclick="confirmNewCycle('savings')" style="width:100%;padding:14px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
           <div style="width:38px;height:38px;border-radius:10px;background:#22c55e18;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-pig-money" style="font-size:20px;color:var(--green)"></i></div>
@@ -2256,18 +2258,34 @@ function startNewCycleConfirm(){
     // No leftover — simple confirmation
     document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
       <h3>Start new pay period?</h3>
-      <p style="font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.6">Recurring bills carry forward (unpaid). One-time bills are removed. This period will be saved to history.</p>
+      ${_carryModeToggle()}
       <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmNewCycle('leave')">Start new period</button></div>
     </div></div>`;
   }
 }
+function _setCarryMode(m){
+  window._carryMode=m;
+  ['recurring','all'].forEach(k=>{const el=document.getElementById('cm-'+k);if(el){const on=k===m;el.style.background=on?'var(--accent)':'transparent';el.style.color=on?'#fff':'var(--muted)';}});
+  const d=document.getElementById('cm-desc');
+  if(d)d.textContent=m==='all'?'Copies every bill, income, and investment from this period — amounts kept, bills marked unpaid. Just tweak what changed.':'Only items marked recurring carry forward; one-time entries are removed.';
+}
+function _carryModeToggle(){
+  const m=window._carryMode||'recurring';
+  const btn=(k,label)=>`<button id="cm-${k}" onclick="_setCarryMode('${k}')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:${m===k?'var(--accent)':'transparent'};color:${m===k?'#fff':'var(--muted)'};transition:background .15s,color .15s">${label}</button>`;
+  return `<div style="margin-bottom:16px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Carry over to next period</div>
+    <div style="display:flex;background:var(--card2);border-radius:10px;padding:3px">${btn('recurring','Recurring items')}${btn('all','Everything')}</div>
+    <div id="cm-desc" style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">${m==='all'?'Copies every bill, income, and investment from this period — amounts kept, bills marked unpaid. Just tweak what changed.':'Only items marked recurring carry forward; one-time entries are removed.'}</div>
+  </div>`;
+}
 function confirmNewCycle(leftoverAction){
   STATE.history.push(JSON.parse(JSON.stringify(C)));
-  const recurringIncome=C.income.filter(l=>l.recurring!==false).map(l=>({...l,depositDate:''}));
-  const recurringBills=C.bills.filter(b=>b.recurring!==false).map(b=>({...b,paid:false}));
-  const recurringInvs=C.investments.filter(inv=>inv.recurring!==false).map(inv=>({...inv}));
-  const recurringSav=(C.savings&&C.savings.recurring!==false&&(C.savings.perPaycheck||0)>0)?(C.savings.perPaycheck||0):0;
-  const recurring401k=C.k401&&C.k401.recurring!==false?{...C.k401}:null;
+  const _all=(window._carryMode==='all');
+  const recurringIncome=C.income.filter(l=>_all||l.recurring!==false).map(l=>({...l,depositDate:''}));
+  const recurringBills=C.bills.filter(b=>_all||b.recurring!==false).map(b=>({...b,paid:false}));
+  const recurringInvs=C.investments.filter(inv=>_all||inv.recurring!==false).map(inv=>({...inv}));
+  const recurringSav=(C.savings&&(_all||C.savings.recurring!==false)&&(C.savings.perPaycheck||0)>0)?(C.savings.perPaycheck||0):0;
+  const recurring401k=C.k401&&(_all||C.k401.recurring!==false)?{...C.k401}:null;
   const carryDebts=JSON.parse(JSON.stringify(C.debts||[]));
   // Carry bucket definitions into the new period (categories/budgets used to
   // reset to defaults every cycle). Rollover buckets adjust by the leftover.
