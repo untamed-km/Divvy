@@ -2323,7 +2323,7 @@ function savingsWaterfall(){
   return bkts.map(b=>{
     const cap=b.goal||0,manual=b.saved||0;
     const fromWaterfall=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;
-    const effective=(cap>0?Math.min(manual+fromWaterfall,cap):manual)+(b.interestEarned||0);
+    const effective=(manual+fromWaterfall)+(b.interestEarned||0);
     pool=Math.max(0,pool-fromWaterfall);
     return {...b,effective,cap};
   });
@@ -2466,20 +2466,20 @@ function _apyMonthly(bal,apy,months){
 }
 function accrueSavingsAPY(){
   const bkts=STATE.savingsBuckets||[];if(!bkts.length)return;
-  // accrual base = capped pool+manual per bucket (no interest), mirrors displayed effective minus interest
+  // accrual base = true balance (manual + pool fill, uncapped for deposits above goal); interest tracked separately
   let pool=allTimeSavings();
-  const base=bkts.map(b=>{const cap=b.goal||0,manual=b.saved||0;const fill=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;const eff=cap>0?Math.min(manual+fill,cap):manual;pool=Math.max(0,pool-fill);return eff;});
-  const now=new Date();let changed=false;
+  const base=bkts.map(b=>{const cap=b.goal||0,manual=b.saved||0;const fill=cap>0?Math.min(Math.max(0,pool),Math.max(0,cap-manual)):0;pool=Math.max(0,pool-fill);return manual+fill;});
+  const now=Date.now();let changed=false;
   bkts.forEach((b,i)=>{
     const apy=parseFloat(b.apy)||0;
     if(apy<=0)return;
-    if(!b.apyLastAccrued){b.apyLastAccrued=now.toISOString();changed=true;return;}
-    const last=new Date(b.apyLastAccrued);
-    const months=(now.getFullYear()-last.getFullYear())*12+(now.getMonth()-last.getMonth());
-    if(months<=0)return;
-    const earned=_apyMonthly(base[i]+(b.interestEarned||0),apy,months);
-    b.interestEarned=(b.interestEarned||0)+earned;
-    const na=new Date(last);na.setMonth(na.getMonth()+months);b.apyLastAccrued=na.toISOString();
+    if(!b.apyLastAccrued){b.apyLastAccrued=new Date(now).toISOString();changed=true;return;}
+    const last=new Date(b.apyLastAccrued).getTime();
+    const days=Math.floor((now-last)/86400000); // accrue per whole day, from when APY was set
+    if(days<1)return;
+    const earned=(base[i]+(b.interestEarned||0))*(Math.pow(1+apy/100,days/365)-1);
+    if(earned>0)b.interestEarned=(b.interestEarned||0)+earned;
+    b.apyLastAccrued=new Date(last+days*86400000).toISOString();
     changed=true;
   });
   if(changed)saveState();
@@ -2516,7 +2516,7 @@ function renderSavingsScreen(){
     // manually added funds always count; waterfall adds on top up to goal
     const manual=b.saved||0;
     const fromWaterfall=cap>0?Math.min(Math.max(0,remaining),Math.max(0,cap-manual)):0;
-    const effective=(cap>0?Math.min(manual+fromWaterfall,cap):manual)+(b.interestEarned||0);
+    const effective=(manual+fromWaterfall)+(b.interestEarned||0);
     remaining=Math.max(0,remaining-(cap>0?Math.min(remaining,Math.max(0,cap-manual)):0));
     return{...b,effective,fromWaterfall,cap};
   });
@@ -2578,7 +2578,7 @@ function renderSavingsScreen(){
               })()}
             </div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px">
-              ${b.cap?fmt(b.effective)+' of '+fmt(b.cap):'No goal set'}${b.institution?' · '+esc(b.institution):''}${(parseFloat(b.apy)||0)>0?' · '+parseFloat(b.apy)+'% APY':''}
+              ${b.cap?fmt(b.effective)+' of '+fmt(b.cap):'No goal set'}${b.institution?' · '+esc(b.institution):''}${(parseFloat(b.apy)||0)>0?' · '+parseFloat(b.apy)+'% APY':''}${(b.interestEarned||0)>0?' · +'+fmt(b.interestEarned)+' earned':''}
               ${b.targetDate&&!isComplete?`<span style="color:var(--muted)">·</span><i class="ti ti-calendar" style="font-size:11px"></i><span>${(()=>{const t=new Date(b.targetDate+'T00:00:00');const d=Math.ceil((t-new Date())/(864e5));return d<0?'Overdue':d===0?'Due today':d+' days left';})()}</span>`:''}
             </div>
           </div>

@@ -20,12 +20,13 @@ Most of the feedback doc was already built (esp. the Debt tab). These were the r
 - **What-If** — added an "Investing" slider; projected Remaining now responds to it.
 - **Avalanche vs Snowball** — live side-by-side comparison in the debt planner (`debtCompareHTML`), updates with the extra-payment slider, shows with 2+ debts.
 - **Debt polish** — per-card payoff-priority badge (#1/#2 from `result.order`); overall card-utilization bar; tab-level running totals (paid this period / principal paid / interest paid) in a new `debt-extras` container.
+- **Hub tighten** — streak + paycheck-share + a mini 7-period trend moved *into* the hero banner (`_bannerInsightsStrip`, used by both invest & savings banners); separate insight cards removed. Strip follows the hero toggle (invest vs savings), fixing the prior mismatch. Net-worth-over-time chart stays its own card.
 
 ## Tomorrow / open
 
-**Investment-tab IA cleanup (original):**
-1. Move streak + paycheck-share **into** the investments banner — mirror the savings-side read; tighten the hub so insights live with/in the banner, not as separate cards below.
-2. Consider moving **401(k) into the investments banner** — it's a retirement investment; may belong under Investments rather than its own hub tile. (Note: 401k *enrichment* is done; this is the IA/placement question.)
+**Investment-tab IA cleanup:**
+1. ✅ DONE — streak + paycheck-share (+ mini trend) moved into the hero banner (invest & savings); separate insight cards removed; strip follows the hero toggle.
+2. ✅ DECIDED — keep **401(k) as its own banner/tile** (not moving it into the investments banner). No change. (Enrichment is done.)
 
 **Savings APY — make it work better:**
 - Accrual timing: currently whole-months since `b.apyLastAccrued`, initialized when APY is set (no back-interest). Consider daily accrual or back-dating to `createdAt`.
