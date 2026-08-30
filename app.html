@@ -326,6 +326,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         </div>
       </div>
       <div id="home-remaining" style="font-size:36px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;line-height:1;color:var(--green)">$0</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span>Left to spend after bills, savings &amp; debt</span><span onclick="event.stopPropagation();openRemainingHelp()" style="cursor:pointer;color:var(--accent);font-weight:700" title="What does Remaining mean?">ⓘ</span></div>
       <div id="home-remaining-sub" style="font-size:11px;color:var(--muted);margin-top:6px">this pay period</div>
     </div>
     <!-- 2×2 supporting stats -->
@@ -3068,6 +3069,20 @@ function openAccountTypesHelp(){
     <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Got it</button>
   </div></div>`;
 }
+function openRemainingHelp(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">What \u201cRemaining\u201d means</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.65">
+      <p style="margin:0 0 10px">This is what\u2019s left of your paycheck to spend freely \u2014 after the money that\u2019s already committed this period.</p>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:6px">Remaining = Income \u2212</div>
+        <div style="font-size:12px;line-height:1.9">\u2022 Bills<br>\u2022 Money set aside to savings<br>\u2022 Spending so far this period<br>\u2022 Investments<br>\u2022 Extra debt payments</div>
+      </div>
+      <p style="margin:0">Green means you\u2019ve got room, amber means it\u2019s getting tight, and red means you\u2019ve committed more than you\u2019ve brought in.</p>
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Got it</button>
+  </div></div>`;
+}
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
   const inv=allTimeInvestments();
@@ -5022,6 +5037,16 @@ const MERCH_PRODUCTS=[
 
 // ── Partner Deals ───────────────────────────────────────────────────────────
 const DEALS_PRODUCTS=[
+  {
+    icon:'ti-feather',
+    color:'#22c55e',
+    badge:'Free stock',
+    title:'Robinhood — Free Investing',
+    sub:'We both pick our own gift stock',
+    desc:'Sign up for Robinhood with this link and we\'ll both get to pick our own free gift stock. Commission-free investing in stocks, ETFs, options, and crypto — start with any amount.',
+    cta:'Claim your free stock',
+    url:'https://join.robinhood.com/kirkm-3c91b9b5',
+  },
   {
     icon:'ti-building-bank',
     color:'#22c55e',
