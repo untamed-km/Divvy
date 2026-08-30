@@ -21,6 +21,8 @@ Most of the feedback doc was already built (esp. the Debt tab). These were the r
 - **Avalanche vs Snowball** — live side-by-side comparison in the debt planner (`debtCompareHTML`), updates with the extra-payment slider, shows with 2+ debts.
 - **Debt polish** — per-card payoff-priority badge (#1/#2 from `result.order`); overall card-utilization bar; tab-level running totals (paid this period / principal paid / interest paid) in a new `debt-extras` container.
 - **Hub tighten** — streak + paycheck-share + a mini 7-period trend moved *into* the hero banner (`_bannerInsightsStrip`, used by both invest & savings banners); separate insight cards removed. Strip follows the hero toggle (invest vs savings), fixing the prior mismatch. Net-worth-over-time chart stays its own card.
+- **Savings APY rework** — daily accrual (from when APY set), true-balance base, "interest earned" line (see APY section below). Unallocated separation still open.
+- **Tappable "By account" rows** — the Investment "By account — all periods" breakdown rows now open `openInvAccountDetail(idx)` → that account's per-pay-period contribution history (index-based onclick, injection-safe).
 
 ## Tomorrow / open
 
@@ -29,10 +31,10 @@ Most of the feedback doc was already built (esp. the Debt tab). These were the r
 2. ✅ DECIDED — keep **401(k) as its own banner/tile** (not moving it into the investments banner). No change. (Enrichment is done.)
 
 **Savings APY — make it work better:**
-- Accrual timing: currently whole-months since `b.apyLastAccrued`, initialized when APY is set (no back-interest). Consider daily accrual or back-dating to `createdAt`.
-- Principal vs balance: modal "Amount saved" = deposits; displayed balance = deposits + `interestEarned`. Consider a labeled "interest earned" line.
-- "Unallocated" can read low when interest fills goals (interest baked into capped waterfall `effective`, guarded by `max(0,…)`). Consider separating interest from pool accounting.
-- Over-funded accounts: interest accrues on capped `effective` + `interestEarned`; manual deposits above the goal aren't in the accrual base — revisit.
+- ✅ DONE — **daily accrual** (whole-day granularity, from when APY is set), APY-accurate compounding `(1+APY/100)^(days/365)`.
+- ✅ DONE — **"interest earned" line** on each goal card; displayed balance (`effective`) is now the true (uncapped) balance.
+- ✅ DONE — accrues on the **true balance** (manual + pool fill, uncapped for above-goal deposits) + prior interest.
+- ⬜ OPEN — "Unallocated" can still read low (interest folded into the capped waterfall `effective`, guarded by `max(0,…)`). Cleanly separating interest from pool accounting is the follow-up.
 
 **Deferred UX-feedback items (lower priority):**
 - Period-end **"did you make your planned debt payments?"** prompt — touches the pay-period rollover flow (`confirmNewCycle`); do deliberately.

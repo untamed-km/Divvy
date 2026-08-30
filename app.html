@@ -1784,6 +1784,7 @@ function openInvModal(idx){
     <select id="inv-account-select" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;appearance:none">
       ${['Brokerage','Roth IRA','Traditional IRA','Crypto','HSA','Other'].map(a=>`<option value="${a}" ${(inv.account||'Brokerage')===a?'selected':''}>${a}</option>`).join('')}
     </select>
+    <details style="margin:-2px 0 12px"><summary style="font-size:12px;color:var(--accent);cursor:pointer">ⓘ What do these account types mean?</summary><div style="padding:8px 0 2px">${_accountTypesHelpHTML()}</div></details>
     <input type="number" id="inv-amount-input" placeholder="Amount this period" value="${inv.amount||''}" inputmode="decimal" step="0.01" min="0"/>
     ${goalOpts}
     <div onclick="toggleRecurringInv()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;margin-bottom:8px;cursor:pointer">
@@ -3026,6 +3027,22 @@ function openInvAccountDetail(idx){
     <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">By pay period</div>
     ${rows.length?rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:13px;color:var(--muted)">${fmtD(r.start)} – ${fmtD(r.end)}</span><span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--purple)">${fmt(r.amt)}</span></div>`).join(''):'<div style="font-size:13px;color:var(--muted);padding:10px 0">No contributions logged.</div>'}
     <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Close</button>
+  </div></div>`;
+}
+function _accountTypesHelpHTML(){
+  return `<div style="font-size:12px;color:var(--muted);line-height:1.6">
+    <div style="margin-bottom:10px"><strong style="color:var(--text)">Brokerage</strong><br>A regular taxable investment account. No contribution limits and you can withdraw anytime, but gains are taxed.</div>
+    <div style="margin-bottom:10px"><strong style="color:var(--text)">Traditional IRA / 401(k)</strong><br>Contributions may lower your taxable income this year. You pay taxes when you withdraw in retirement.</div>
+    <div style="margin-bottom:10px"><strong style="color:var(--text)">Roth IRA / 401(k)</strong><br>Contributions are made with after-tax money. Qualified withdrawals in retirement are tax-free.</div>
+    <div style="background:var(--card2);border-radius:8px;padding:8px 10px;margin-top:4px"><strong style="color:var(--text)">Quick tip:</strong> Expecting a higher tax bracket later? Roth is often preferred. Want the tax break now? Traditional may help.</div>
+    <div style="font-size:11px;margin-top:8px;opacity:.8">Educational only — not tax or financial advice.</div>
+  </div>`;
+}
+function openAccountTypesHelp(){
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">Account types</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    ${_accountTypesHelpHTML()}
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Got it</button>
   </div></div>`;
 }
 function renderInvGoalsScreen(){
@@ -5975,7 +5992,7 @@ function render401K(){
       <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${limitPct}%;background:var(--blue);border-radius:99px;transition:width .5s"></div></div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${limitPct}% of your ${yr} employee contribution limit${ytd>=K401_ANNUAL_LIMIT?' · maxed out! 🎉':''}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <span style="font-size:12px;color:var(--muted)">Account type</span>
+        <span style="font-size:12px;color:var(--muted)">Account type <span onclick="openAccountTypesHelp()" style="cursor:pointer;color:var(--accent);font-weight:700" title="What do these mean?">ⓘ</span></span>
         <div style="display:flex;background:var(--card2);border-radius:8px;padding:3px;width:180px">${tbtn('traditional','Traditional')}${tbtn('roth','Roth')}</div>
       </div>
     </div>`;
