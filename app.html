@@ -2395,7 +2395,7 @@ function renderSavingsBanner(cid){
       <div style="font-size:12px;color:#ffffffe6;font-variant-numeric:tabular-nums;flex-shrink:0">${fmt(p.pct*b.goal)} / ${fmt(b.goal)}</div></div>
     ${bn.msg?`<div style="font-size:12px;color:#ffffffcc;margin-top:3px">${esc(bn.msg)}</div>`:''}${b.institution?`<div style="font-size:11px;color:#ffffffcc;margin-top:2px"><i class="ti ti-building-bank" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>${esc(b.institution)}${(parseFloat(b.apy)||0)>0?` · ${parseFloat(b.apy)}% APY`:''}</div>`:''}
     <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><div style="min-width:0">${sub}</div><div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><div style="min-width:0">${sub}</div><div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>${_bannerInsightsStrip('savings')}`,
     grad,'#ffffff26');
 }
 function openSavingsBannerCustomize(id){
@@ -2485,7 +2485,7 @@ function accrueSavingsAPY(){
   if(changed)saveState();
 }
 function renderSavingsScreen(){
-  renderSavingsBanner();renderSavingsInsights();
+  renderSavingsBanner();
   const bkts=STATE.savingsBuckets||[];
   const totalAllTime=allTimeSavings();
   // Waterfall explanation card
@@ -2800,7 +2800,7 @@ function renderGoalBanner(cid){
     <div style="height:8px;background:#ffffff26;border-radius:99px;overflow:hidden;margin:12px 0 8px"><div style="height:100%;width:${Math.round(p.pct*100)}%;background:#fff;border-radius:99px;transition:width .5s"></div></div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
       <div style="min-width:0">${sub}</div>
-      <div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>`,
+      <div style="font-size:20px;font-weight:800;color:#fff;flex-shrink:0">${Math.round(p.pct*100)}%</div></div>${_bannerInsightsStrip('invest')}`,
     _bannerGrad(g),'#ffffff26');
 }
 function _gbSet(kind,val,el){
@@ -2983,6 +2983,26 @@ function renderHubHero(){
   }
   if(show==='savings') renderSavingsBanner('goal-banner');
   else renderGoalBanner('goal-banner');
+}
+function _bannerInsightsStrip(kind){
+  const cyc=[...STATE.history,C];
+  const series=cyc.map(c=>kind==='savings'
+    ?((c.savings&&c.savings.perPaycheck||0)+((c.savings&&c.savings.extra||[]).reduce((a,e)=>a+(e.amount||0),0)))
+    :((c.investments||[]).reduce((a,i)=>a+(i.amount||0),0)));
+  if(!series.some(v=>v>0))return '';
+  const st=kind==='savings'?savingsStreak():investStreak();
+  const income=totalIncome();
+  const now=kind==='savings'?((C.savings&&C.savings.perPaycheck||0)+currentExtraSavings()):totalInvested();
+  const share=income>0?Math.round(now/income*100):0;
+  const spark=series.slice(-7),mx=Math.max(...spark,1);
+  const bars=spark.map(v=>`<div style="flex:1;height:${Math.max(2,Math.round(v/mx*16))}px;background:${v>0?'#ffffffcc':'#ffffff44'};border-radius:1px"></div>`).join('');
+  const streakTxt=st.streak>=2?`🔥 ${st.streak} in a row`:(kind==='savings'?'Start a saving streak':'Start an investing streak');
+  return `<div style="display:flex;align-items:center;gap:9px;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff26">
+    <span style="font-size:12px;color:#fff;font-weight:700;white-space:nowrap">${streakTxt}</span>
+    <span style="width:1px;height:12px;background:#ffffff40;flex-shrink:0"></span>
+    <span style="font-size:12px;color:#ffffffe6;white-space:nowrap">${share}% of paycheck</span>
+    <span style="flex:1;display:flex;gap:2px;align-items:flex-end;height:16px;margin-left:2px">${bars}</span>
+  </div>`;
 }
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
@@ -7205,7 +7225,7 @@ function renderSpend(){
 }
 
 function renderInvest(){
-  renderHubHero();renderInvestInsights();renderNetWorthTrend();
+  renderHubHero();renderNetWorthTrend();
   // Total across all accounts summary
   const itb=document.getElementById('invest-total-banner');
   if(itb){
