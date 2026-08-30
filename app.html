@@ -3004,6 +3004,30 @@ function _bannerInsightsStrip(kind){
     <span style="flex:1;display:flex;gap:2px;align-items:flex-end;height:16px;margin-left:2px">${bars}</span>
   </div>`;
 }
+function openInvAccountDetail(idx){
+  const name=(window._invAccountNames||[])[idx];
+  if(name==null)return;
+  const cyc=[...STATE.history,C];
+  const rows=cyc.map(c=>{
+    const amt=(c.investments||[]).filter(iv=>iv.name===name).reduce((a,iv)=>a+(iv.amount||0),0);
+    return {amt,start:c.startDate,end:c.endDate};
+  }).filter(r=>r.amt>0).reverse();
+  const total=rows.reduce((a,r)=>a+r.amt,0);
+  const accts=new Set();cyc.forEach(c=>(c.investments||[]).forEach(iv=>{if(iv.name===name&&iv.account)accts.add(iv.account);}));
+  const acctStr=[...accts].join(' · ');
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0">${esc(name)}</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    ${acctStr?`<div style="font-size:12px;color:var(--muted);margin-bottom:14px"><i class="ti ti-building-bank" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>${esc(acctStr)}</div>`:'<div style="margin-bottom:10px"></div>'}
+    <div style="background:linear-gradient(135deg,#a855f714,#6366f10d);border:1px solid #a855f728;border-radius:14px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin-bottom:4px">Total invested</div>
+      <div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text)">${fmt(total)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">across ${rows.length} pay period${rows.length!==1?'s':''}</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">By pay period</div>
+    ${rows.length?rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:13px;color:var(--muted)">${fmtD(r.start)} – ${fmtD(r.end)}</span><span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--purple)">${fmt(r.amt)}</span></div>`).join(''):'<div style="font-size:13px;color:var(--muted);padding:10px 0">No contributions logged.</div>'}
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Close</button>
+  </div></div>`;
+}
 function renderInvGoalsScreen(){
   const goals=STATE.invGoals||[];
   const inv=allTimeInvestments();
@@ -3121,15 +3145,16 @@ function renderInvGoalsScreen(){
     const names=Object.keys(inv.totals);
     if(!names.length){bd.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0">No investments logged yet</div>';}
     else{
-      bd.innerHTML=names.map(n=>{
+      window._invAccountNames=names;
+      bd.innerHTML=names.map((n,i)=>{
         const pct=inv.grand>0?(inv.totals[n]/inv.grand)*100:0;
-        return`<div style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:10px">
+        return`<div onclick="openInvAccountDetail(${i})" style="background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:10px;cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;border-radius:50%;background:#a855f718;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trending-up" style="font-size:15px;color:var(--purple)"></i></div>
               <span style="font-size:14px;font-weight:500">${esc(n)}</span>
             </div>
-            <span style="font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--purple)">${fmt(inv.totals[n])}</span>
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--purple)">${fmt(inv.totals[n])}</span><i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted)"></i></div>
           </div>
           <div style="height:6px;background:#a855f722;border-radius:99px;overflow:hidden">
             <div style="height:100%;width:${pct.toFixed(1)}%;background:var(--purple);border-radius:99px;transition:width .4s ease"></div>
