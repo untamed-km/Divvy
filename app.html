@@ -523,6 +523,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <button onclick="openSavingsBucketModal()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;padding:4px 0">+ New goal</button>
     </div>
     <div id="savings-banner"></div>
+    <div id="ef-suggest"></div>
     <div id="savings-insights"></div>
     <div class="section-label">This period</div>
     <div class="savings-summary">
@@ -2378,6 +2379,109 @@ function _featuredSavings(){
   pool.sort((a,b)=>b.p.pct-a.p.pct);
   return pool[0];
 }
+/* ── Emergency Fund calculator ─────────────────────────────────────────── */
+const EF_ESS_KEYWORDS=['rent','mortgage','grocer','food','gas','fuel','transport','transit','util','electric','power','water','insur','medical','health','pharm','child','daycare','phone','internet','wifi','loan'];
+function _efMonthlyFactor(){const ppy={weekly:52,biweekly:26,semimonthly:24,monthly:12}[getFreq()]||24;return ppy/12;}
+function _efBillEssential(b){if(b.essential!==undefined)return !!b.essential;return b.category!=='subscription';}
+function _efBucketEssential(k){const b=(C.buckets||{})[k];if(!b)return false;if(b.essential!==undefined)return !!b.essential;const hay=((b.label||'')+' '+(k||'')).toLowerCase();return EF_ESS_KEYWORDS.some(w=>hay.includes(w));}
+function _efDebtEssential(d){return d.essential!==undefined?!!d.essential:true;}
+function _efBucketSpentCyc(cyc,k){const b=cyc&&cyc.buckets&&cyc.buckets[k];return b?(b.transactions||[]).reduce((a,t)=>a+(t.amount||0),0):0;}
+function emergencyFundBreakdown(){
+  const mf=_efMonthlyFactor();
+  const completed=(STATE.history||[]).slice(-3);
+  const estimated=completed.length===0;
+  // Bills are already monthly via billAmt()
+  const allBills=(C.bills||[]).map(b=>({id:b.id,name:b.name||'Bill',monthly:billAmt(b),on:_efBillEssential(b),kind:'bill'}));
+  // Minimum debt payments not already represented as a linked bill (treated monthly)
+  const linked=new Set((C.bills||[]).map(b=>b.linkedDebtId).filter(Boolean));
+  const allDebts=(C.debts||[]).filter(d=>!linked.has(d.id)&&(d.minPayment||0)>0).map(d=>({id:d.id,name:(d.name||'Debt')+' — min payment',monthly:(d.minPayment||0),on:_efDebtEssential(d),kind:'debt'}));
+  // Buckets: trailing average of ACTUAL essential spend across completed periods; budgeted fallback (estimated)
+  const allBuckets=Object.keys(C.buckets||{}).map(k=>{
+    let perPeriod;
+    if(completed.length)perPeriod=completed.reduce((s,cyc)=>s+_efBucketSpentCyc(cyc,k),0)/completed.length;
+    else perPeriod=(C.buckets[k].budget||0);
+    return {id:k,name:(C.buckets[k].label||k),monthly:perPeriod*mf,on:_efBucketEssential(k),kind:'bucket'};
+  });
+  const sumOn=arr=>arr.filter(x=>x.on).reduce((s,x)=>s+x.monthly,0);
+  const monthlyEssentials=sumOn(allBills)+sumOn(allDebts)+sumOn(allBuckets);
+  return {mf,estimated,periods:completed.length,allBills,allDebts,allBuckets,monthlyEssentials};
+}
+function _efToggleBill(id){const b=(C.bills||[]).find(x=>x.id===id);if(!b)return;b.essential=!_efBillEssential(b);saveState();openEmergencyCalc(window._efMonths,true);}
+function _efToggleDebt(id){const d=(C.debts||[]).find(x=>x.id===id);if(!d)return;d.essential=!_efDebtEssential(d);saveState();openEmergencyCalc(window._efMonths,true);}
+function _efToggleBucket(k){const b=(C.buckets||{})[k];if(!b)return;b.essential=!_efBucketEssential(k);saveState();openEmergencyCalc(window._efMonths,true);}
+function _efDismissSuggest(){try{localStorage.setItem('distrofi_ef_dismissed','1');}catch(e){}renderEmergencyFundSuggest();}
+function renderEmergencyFundSuggest(){
+  const el=document.getElementById('ef-suggest');if(!el)return;
+  const bkts=STATE.savingsBuckets||[];
+  const has=bkts.some(g=>g.kind==='emergency');
+  let dismissed=false;try{dismissed=localStorage.getItem('distrofi_ef_dismissed')==='1';}catch(e){}
+  if(!bkts.length||has||dismissed){el.innerHTML='';return;}
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#16a34a14,#0d94880a);border:0.5px solid #16a34a33;border-radius:14px;padding:14px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start">
+    <div style="width:38px;height:38px;border-radius:11px;background:#16a34a20;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px">🛟</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700">Build your emergency fund</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5">We\'ll size it from what you actually spend on essentials — pick 3, 6, or 12 months of cushion.</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="openEmergencyCalc()" style="padding:7px 14px;background:linear-gradient(135deg,#16a34a,#0d9488);border:none;border-radius:99px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Calculate my number</button>
+        <button onclick="_efDismissSuggest()" style="padding:7px 12px;background:var(--card2);border:0.5px solid var(--border);border-radius:99px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Not now</button>
+      </div>
+    </div></div>`;
+}
+function openEmergencyCalc(months,keepPanel){
+  window._efMonths=months=months||window._efMonths||3;
+  window._efPanelOpen=!!keepPanel;
+  const bd=emergencyFundBreakdown();
+  const me=bd.monthlyEssentials;
+  const targets={3:me*3,6:me*6,12:me*12};
+  const existing=(STATE.savingsBuckets||[]).find(g=>g.kind==='emergency');
+  const po=window._efPanelOpen?'true':'false';
+  const tile=m=>{const sel=months===m;return `<button onclick="openEmergencyCalc(${m},${po})" style="flex:1;padding:11px 4px;border-radius:12px;border:1.5px solid ${sel?'var(--green)':'var(--border)'};background:${sel?'#16a34a14':'var(--card2)'};cursor:pointer;font-family:inherit"><div style="font-size:11px;color:var(--muted);font-weight:600">${m} mo</div><div style="font-size:15px;font-weight:800;color:${sel?'var(--green)':'var(--text)'};font-variant-numeric:tabular-nums;margin-top:2px">${fmt(targets[m])}</div></button>`;};
+  const catRow=(x,toggle)=>`<label style="display:flex;align-items:center;gap:9px;padding:7px 0;cursor:pointer"><input type="checkbox" ${x.on?'checked':''} onchange="${toggle}" style="width:16px;height:16px;flex-shrink:0"><span style="flex:1;min-width:0;font-size:13px;color:${x.on?'var(--text)':'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span><span style="font-size:13px;font-variant-numeric:tabular-nums;color:${x.on?'var(--text)':'var(--muted)'}">${fmt(x.monthly)}<span style="font-size:10px;color:var(--muted)">/mo</span></span></label>`;
+  const billRows=bd.allBills.map(b=>catRow(b,`_efToggleBill('${b.id}')`)).join('')||'<div style="font-size:12px;color:var(--muted);padding:6px 0">No bills yet</div>';
+  const debtRows=bd.allDebts.map(d=>catRow(d,`_efToggleDebt('${d.id}')`)).join('');
+  const bucketRows=bd.allBuckets.map(b=>catRow(b,`_efToggleBucket('${b.id}')`)).join('')||'<div style="font-size:12px;color:var(--muted);padding:6px 0">No spending categories yet</div>';
+  const estBadge=bd.estimated?`<span style="font-size:10px;font-weight:700;background:#f59e0b18;color:var(--amber);padding:2px 7px;border-radius:99px;margin-left:6px">estimated</span>`:'';
+  const guide=months===3?'Good if you have steady, dual income.':months===6?'A solid cushion for most single-income households.':'Best if your income varies or you\'re self-employed.';
+  const body=me<=0
+    ? `<div style="background:var(--card2);border-radius:12px;padding:16px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">We couldn\'t find any essential expenses yet. Add some bills or spending categories — or open the list below and mark items as essential — then we\'ll size your fund.</div>`
+    : `<div style="text-align:center;margin-bottom:4px"><div style="font-size:12px;color:var(--muted)">Your essential expenses ${estBadge}</div><div style="font-size:30px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px">${fmt(me)}<span style="font-size:14px;color:var(--muted);font-weight:600">/mo</span></div></div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin:12px 0 6px">How many months of cushion?</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">${tile(3)}${tile(6)}${tile(12)}</div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;line-height:1.4">${guide}</div>
+      <div style="background:#16a34a12;border:0.5px solid #16a34a33;border-radius:12px;padding:14px;text-align:center;margin-bottom:14px"><div style="font-size:12px;color:var(--muted)">Target emergency fund</div><div style="font-size:26px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums;margin-top:2px">${fmt(targets[months])}</div></div>`;
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">🛟 Emergency fund</h3><button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px"><i class="ti ti-x" style="font-size:20px"></i></button></div>
+    ${body}
+    <details ${window._efPanelOpen?'open':''} style="margin-bottom:14px"><summary style="font-size:12px;color:var(--accent);cursor:pointer;font-weight:600">What counts as essential?${bd.estimated?' (estimated from your budget)':''}</summary>
+      <div style="padding:8px 2px 2px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 2px">Bills</div>${billRows}
+        ${debtRows?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Minimum debt payments</div>${debtRows}`:''}
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Spending${bd.periods?` · avg of last ${bd.periods} period${bd.periods!==1?'s':''}`:''}</div>${bucketRows}
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Essentials are what you\'d still owe if income stopped — housing, utilities, food, insurance, minimum debt payments. Toggle anything that doesn\'t belong.</div>
+      </div>
+    </details>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px"></i> A common guideline is <strong style="color:var(--text)">3–6 months</strong> of essential expenses. Educational only — not financial advice.</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:8px${me<=0?';opacity:.5;pointer-events:none':''}" onclick="_efCreateGoal()">${existing?'Update my emergency fund goal':'Create emergency fund goal'}</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Close</button>
+  </div></div>`;
+}
+function _efCreateGoal(){
+  const bd=emergencyFundBreakdown();
+  const months=window._efMonths||3;
+  const target=Math.round(bd.monthlyEssentials*months);
+  if(target<=0){if(typeof showToast==='function')showToast('Tag at least one essential bill or category first');return;}
+  if(!STATE.savingsBuckets)STATE.savingsBuckets=[];
+  const existing=STATE.savingsBuckets.find(g=>g.kind==='emergency');
+  if(existing){existing.goal=target;existing.efMonths=months;}
+  else{
+    if(!checkLimit('savingsgoals',STATE.savingsBuckets.length)){closeModal();return;}
+    STATE.savingsBuckets.push({id:'s'+Date.now(),name:'Emergency Fund',goal:target,saved:0,color:'green',kind:'emergency',efMonths:months,createdAt:new Date().toISOString(),banner:{emoji:'🛟',theme:'forest'}});
+  }
+  try{localStorage.removeItem('distrofi_ef_dismissed');}catch(e){}
+  saveState();closeModal();
+  renderSavingsScreen();if(typeof renderHubHero==='function')renderHubHero();
+  if(typeof showToast==='function')showToast(existing?'Emergency fund target updated 🛟':'Emergency fund goal created 🛟');
+}
 function renderSavingsBanner(cid){
   const el=document.getElementById(cid||'savings-banner');if(!el)return;
   const wf=savingsWaterfall().filter(b=>b.cap>0);
@@ -2389,7 +2493,7 @@ function renderSavingsBanner(cid){
       <button onclick="openSavingsBucketModal()" style="width:100%;margin-top:12px;padding:11px;background:linear-gradient(135deg,#16a34a,#0d9488);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Create a goal</button>
       <div style="font-size:11px;color:var(--muted);margin:12px 0 6px">Or start with:</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
-        <button onclick="openSavingsBucketModal(undefined,{name:'Emergency fund',goal:1000})" style="background:var(--card2);border:0.5px solid var(--border);border-radius:99px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">🛟 Emergency fund · $1k</button>
+        <button onclick="openEmergencyCalc()" style="background:var(--card2);border:0.5px solid var(--border);border-radius:99px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">🛟 Emergency fund · calculate</button>
         <button onclick="openSavingsBucketModal(undefined,{name:'Vacation',goal:2000})" style="background:var(--card2);border:0.5px solid var(--border);border-radius:99px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">✈️ Vacation · $2k</button>
         <button onclick="openSavingsBucketModal(undefined,{name:'New car',goal:5000})" style="background:var(--card2);border:0.5px solid var(--border);border-radius:99px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">🚗 New car · $5k</button>
       </div>`,
@@ -2511,6 +2615,7 @@ function accrueSavingsAPY(){
 }
 function renderSavingsScreen(){
   renderSavingsBanner();
+  renderEmergencyFundSuggest();
   const bkts=STATE.savingsBuckets||[];
   const totalAllTime=allTimeSavings();
   // Waterfall explanation card
@@ -2620,7 +2725,7 @@ function renderSavingsScreen(){
       </div>${_sprojLine?`<div style="font-size:12px;color:${c.fg};background:${c.bg};border-radius:8px;padding:7px 10px;margin-bottom:12px;font-weight:500"><i class="ti ti-calendar-stats" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>${_sprojLine}</div>`:''}`:'<div style="margin-bottom:10px"></div>'}
       <button onclick="addToSavingsBucket(${i})" style="width:100%;padding:9px;background:${c.bg};border:0.5px solid ${c.fg}44;border-radius:10px;color:${c.fg};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-plus" style="font-size:14px"></i> Add funds
-      </button>`;
+      </button>${b.kind==='emergency'?`<button onclick="openEmergencyCalc()" style="width:100%;margin-top:8px;padding:6px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit"><i class="ti ti-calculator" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>Recalculate target</button>`:''}`;
     list.appendChild(d);
   });
   // Update snapshot sub
