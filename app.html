@@ -2175,14 +2175,9 @@ function openCycleDetail(idx){
 function renderHistory(){
   const list=document.getElementById('history-list');list.innerHTML='';
   if(!STATE.history.length){list.innerHTML='<div class="history-empty"><i class="ti ti-clock" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>Past cycles will appear here once you start a new period.</div>';return;}
-  const histToShow=isPro()?STATE.history:STATE.history.slice(-2);
-  if(!isPro()&&STATE.history.length>2){
-    list.innerHTML=`<div onclick="openPaywall('history')" style="background:linear-gradient(135deg,#7c3aed18,#6366f118);border:0.5px solid #6366f133;border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer">
-      <i class="ti ti-lock" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
-      <div><div style="font-size:14px;font-weight:500">+${STATE.history.length-2} older cycles locked</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Upgrade to Pro to view full history</div></div>
-      <i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted);margin-left:auto;flex-shrink:0"></i>
-    </div>`;
-  }
+  // Full pay-period history is free for everyone. Pro monetizes the analysis
+  // layer on top of it (Spending Trends), not the user's own records.
+  const histToShow=STATE.history;
   histToShow.slice().reverse().forEach(cycle=>{
     const _st=cycleStats(cycle);
     const inc=_st.income,spent=_st.spent,rem=_st.rem;

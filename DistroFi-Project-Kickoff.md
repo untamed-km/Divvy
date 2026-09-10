@@ -90,7 +90,9 @@ The rest of `admin-migration.sql` (the `is_admin()` SECURITY DEFINER helper and 
 
 Other rules:
 - **`check.js` is stale** — it validates `index.html` (now just the landing page), not `app.html`. Don't rely on it; hand-validate with `node --check` as above.
-- **Log every code change to Notion** "DistroFi — App Changelog", page id `375005e2-bce7-8126-85b3-e7e6226ce731`, via `insert_content` at end. Recent entries are bold-titled paragraphs.
+- **Log every code change to `CHANGELOG.md`** in the repo root. It is the canonical record: git-tracked, entries appended at the bottom, newest last. Format is an `### <what changed> (<files>) — YYYY-MM-DD` heading followed by one dense paragraph covering what, why, how it was verified, and push status. Append with a short `device_bash` script, never by re-typing the file.
+- **Drive mirror:** a Google Doc index lives in the `DistroFi` folder in My Drive (file id `1r2G9ELEy_MwN7jcx1NXdG65LdDftvKiRMwaROm6TCas`). It carries the heading index only, not full text, because the Drive connector cannot append and every republish must pass the whole document through the conversation. Regenerate it from `CHANGELOG.md` when the index has drifted enough to matter, not every session.
+- **Notion is retired.** The old page (`375005e2-bce7-8126-85b3-e7e6226ce731`) is a read-only archive; the workspace is out of free blocks and rejects writes. Do not try to log there.
 - Unit-test any non-trivial math in the container before shipping.
 - Read-only inspection (grep, counting, reading) is fine directly on the device with `device_bash`. The stage/commit recipe is only for **writes** to repo files.
 
@@ -103,6 +105,7 @@ Other rules:
 
 Repo: `~/Desktop/AI Brain/DistroFi Budget App/DistroFi Local/Divvy/`
 - `app.html` — the app · `index.html` — landing · `admin.html` — admin console
+- `CHANGELOG.md` — canonical change log, appended at the bottom
 - `sw.js`, `/api/*`, `vercel.json`, `package.json`, `manifest.json`, `README.md`, `*-migration.sql`
 - `/assets`, `/icons`, `/distrofi-logo`, `/landing-img`
 - Dated planning docs and session bookmarks: `YYYY-MM-DD-*.md`
@@ -120,4 +123,4 @@ Navy/teal current identity (OG image refreshed). Legacy purple gradient still on
 - Ask a few clarifying questions before big/ambiguous work; then proceed.
 - Default deliverables to Markdown unless another format is clearly better.
 - Kirk dislikes em dashes in copy he'll publish (reads as AI) — avoid them in drafts.
-- Keep the Notion changelog current, and update **DistroFi-Status-and-Backlog.md** in this project at the end of each session.
+- End-of-session ritual: verify git state, append to **`CHANGELOG.md`**, and update **DistroFi-Status-and-Backlog.md** in this project.

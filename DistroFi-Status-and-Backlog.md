@@ -3,8 +3,8 @@
 *The one place for "where things stand." Update at the end of every session. Evergreen architecture/rules live in **DistroFi-Project-Kickoff.md**.*
 
 **Last updated:** 2026-09-10
-**`app.html`:** 567,313 bytes, last modified 2026-09-03
-**Git:** `main` is level with `origin/main` at `5605169` — **everything below is pushed and live.** Working tree has only untracked `.md` notes plus whitespace noise in `.gitattributes` and `icons/.gitkeep`.
+**`app.html`:** 566,693 bytes · **`index.html`:** 16,449 bytes — both edited 2026-09-10, **NOT yet pushed**
+**Git:** the 08-29 → 09-05 run is live at `5605169`. The two files above are newer than that and need a push from GitHub Desktop.
 
 ---
 
@@ -15,7 +15,7 @@
 - **Members → Deals** — Robinhood (featured) + Ally referral cards added to `DEALS_PRODUCTS`.
 - **Bug fix** — the home "Try the What-If calculator" nudge now opens the Summary screen (`snapshot`) where the calculator lives, instead of the Invest tab.
 
-Per-change detail: Notion "DistroFi — App Changelog" (page id `375005e2-bce7-8126-85b3-e7e6226ce731`).
+Per-change detail: `CHANGELOG.md` in the repo root (canonical), mirrored as an index-only Google Doc in the `DistroFi` folder in Drive. Notion is retired.
 
 ## Marketing assets produced
 
@@ -25,11 +25,30 @@ Per-change detail: Notion "DistroFi — App Changelog" (page id `375005e2-bce7-8
 
 ---
 
+## Changelog
+
+Canonical: **`CHANGELOG.md`** in the repo root. Git-tracked, appended at the bottom, newest last. Migrated in full from Notion on 2026-09-10 (201 headings, v36 through today), preserved verbatim apart from un-escaping `$` and stripping Notion auto-links.
+
+Drive mirror: **DistroFi — App Changelog** in the `DistroFi` folder in My Drive (file id `1r2G9ELEy_MwN7jcx1NXdG65LdDftvKiRMwaROm6TCas`). Index only, not full text. The Drive connector cannot append to a document, so every republish means passing the whole thing through the conversation, which is why the mirror stays small. Regenerate it when the index has drifted, not every session.
+
+Notion is retired and read-only. The `_superseded/` folder holds the parked entry from before the move.
+
+---
+
 ## Backlog
 
 ### Security (highest priority on this list)
 - **App password scheme is brute-forceable.** `derivePassword(username,pin)` returns `'df_'+username+'_'+pin+'_2024'` and the PIN is 4 digits, so every user's real Supabase password is a deterministic function of a public username and one of 10,000 values. The anon key ships in the page source. Supabase's built-in auth rate limiting is the only mitigation. Does not affect the standalone `/admin` account (real random password) — see `2026-09-10-admin-account-setup.md`.
 - **`polls` writes are gated client-side only.** `POLL_ADMIN_IDS` hides the UI; with the anon key, anyone can insert/update/delete rows via REST. Needs an RLS policy restricting writes to the owner id.
+
+### Landing page accuracy — FIXED 2026-09-10 (unpushed)
+Audit: `2026-09-10-landing-page-accuracy-audit.md`. Both entries are logged in `CHANGELOG.md`.
+- **History cap removed.** `renderHistory()` now shows all archived cycles to everyone. Decision: records are free, the analysis layer (Spending Trends, gated after 3 periods) is what Pro sells. This made the "no caps" claims true, so they stayed on the page.
+- **index.html: 12 copy edits.** Fixed the false "no card required", export, auto-start and "no ads, ever" claims; refreshed the competitor range to $10–18; added investment goals + JSON backup to the Pro list, annual billing, and the Emergency Fund calculator. JSON-LD updated to match.
+
+### Still open from that audit
+- **`payment_method_collection`** is unset in `create-checkout-session.js`, so trials require a card. Copy now describes the `gateFeature()` free preview instead, which is accurate. Revisit a genuine no-card trial as a post-launch growth experiment once there is a trial-to-paid baseline; it needs `payment_method_collection:'if_required'` plus `subscription_data[trial_settings][end_behavior][missing_payment_method]`.
+- **`stripe-webhook.js` does not handle `customer.subscription.updated`** — fine today, but it is the first gap to close before changing trial mechanics.
 
 ### Data hygiene
 - Inspect live `localStorage` for a stray duplicate pay period left by the old "closing a period on its last day" doubling bug. The fix was forward-looking and won't retro-remove an existing duplicate.
