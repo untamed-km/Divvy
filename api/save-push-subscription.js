@@ -1,5 +1,18 @@
 // /api/save-push-subscription.js
-// Edge function — saves or clears a user's push subscription + bill due days in Supabase.
+// Edge function — saves a user's reminder settings, push subscription, bill due days
+// and current pay-period end date in Supabase.
+//
+// Body fields (all optional except userId):
+//   subscription       push subscription JSON — saved when present
+//   clearSubscription  true → clear push credentials (client sends this only when
+//                      bill AND pay-period reminders are both off)
+//   enabled            bill reminders on/off
+//   cycleReminders     pay-period reminders on/off
+//   billDueDays        [{name, dueDay}]
+//   cycleEndDate       'yyyy-mm-dd'
+//
+// Push credentials are never cleared implicitly. (Before 2026-09-29 any call without
+// a subscription wiped them, so reminders silently stopped after the first bill edit.)
 
 export const config = { runtime: 'edge' };
 
@@ -24,21 +37,22 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
   }
 
-  const { userId, subscription, billDueDays, enabled } = body;
+  const { userId, subscription, clearSubscription, billDueDays, enabled, cycleReminders } = body;
 
   if (!userId) {
     return new Response(JSON.stringify({ error: 'Missing userId' }), { status: 400 });
   }
 
-  // Build update payload
-  const updates = { bill_reminders: !!enabled };
+  const updates = {};
 
-  if (subscription) {
+  if (enabled !== undefined) updates.bill_reminders = !!enabled;
+  if (cycleReminders !== undefined) updates.cycle_reminders = !!cycleReminders;
+
+  if (subscription && subscription.endpoint) {
     updates.push_endpoint = subscription.endpoint;
     updates.push_p256dh   = subscription.keys?.p256dh || null;
     updates.push_auth     = subscription.keys?.auth || null;
-  } else {
-    // Disabling — clear push credentials
+  } else if (clearSubscription === true) {
     updates.push_endpoint = null;
     updates.push_p256dh   = null;
     updates.push_auth     = null;
@@ -50,6 +64,13 @@ export default async function handler(req) {
 
   if (body.cycleEndDate !== undefined) {
     updates.cycle_end_date = body.cycleEndDate || null; // yyyy-mm-dd
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return new Response(JSON.stringify({ ok: true, unchanged: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`;

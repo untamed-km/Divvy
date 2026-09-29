@@ -1,7 +1,11 @@
 // /api/send-bill-reminders.js
 // Vercel cron job — runs daily at 9am UTC.
-// Finds users with bill reminders enabled and sends push notifications
-// for bills due today or in 3 days.
+// Sends two kinds of push notifications to users with a push subscription:
+//   • Bill reminders (bill_reminders = true): bills due today or in 3 days.
+//   • Pay-period reminders (cycle_reminders = true):
+//       - the day before the period ends  → "Your pay period ends tomorrow"
+//       - the first run after it ends     → "Time to start your new pay period"
+//     Each is sent once per period end date (cycle_end_warned / cycle_end_notified).
 
 import webpush from 'web-push';
 
@@ -10,6 +14,8 @@ webpush.setVapidDetails(
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
+
+const APP_URL = '/app';
 
 function sbHeaders() {
   return {
@@ -39,6 +45,70 @@ function buildMessage(bill, daysUntil) {
   return { title: `${bill.name} due in ${daysUntil} days`, body: `${bill.name} is coming up. Open DistroFi to review.` };
 }
 
+// 'yyyy-mm-dd' minus one day, in UTC (date-only arithmetic, no timezone drift).
+function dayBefore(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Pure decision: which pay-period pushes are due for this user today?
+// Returns [{ kind: 'warn'|'ended', column, payload }]
+export function cycleActions(todayStr, user) {
+  const end = user.cycle_end_date;
+  if (!end || user.cycle_reminders === false) return [];
+  const actions = [];
+  if (todayStr === dayBefore(end) && user.cycle_end_warned !== end) {
+    actions.push({
+      kind: 'warn',
+      column: 'cycle_end_warned',
+      payload: {
+        title: 'Your pay period ends tomorrow',
+        body: 'Log any last spending today so your numbers are right before the new period starts.',
+        tag: `cycle-warn-${end}`,
+        url: APP_URL,
+      },
+    });
+  }
+  if (todayStr > end && user.cycle_end_notified !== end) {
+    actions.push({
+      kind: 'ended',
+      column: 'cycle_end_notified',
+      payload: {
+        title: 'Time to start your new pay period',
+        body: 'Your last pay period has ended. Open DistroFi to review it and start the next one.',
+        tag: `cycle-end-${end}`,
+        url: APP_URL,
+      },
+    });
+  }
+  return actions;
+}
+
+async function patchProfile(userId, fields) {
+  await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers: sbHeaders(),
+    body: JSON.stringify(fields),
+  });
+}
+
+// Sends one push. Returns 'ok', 'expired' (subscription gone, credentials cleared) or 'error'.
+async function sendPush(user, subscription, payload) {
+  try {
+    await webpush.sendNotification(subscription, JSON.stringify(payload));
+    return 'ok';
+  } catch (e) {
+    console.error(`Push failed for user ${user.id}:`, e.statusCode, e.body);
+    // 404/410 = subscription expired — clear it so we stop trying
+    if (e.statusCode === 404 || e.statusCode === 410) {
+      await patchProfile(user.id, { push_endpoint: null, push_p256dh: null, push_auth: null });
+      return 'expired';
+    }
+    return 'error';
+  }
+}
+
 export default async function handler(req, res) {
   // Allow Vercel cron (GET) or manual POST trigger
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -56,10 +126,10 @@ export default async function handler(req, res) {
 
   const reminderDays = getReminderDays();
   const today = new Date().getDate();
-  const threeDayTarget = reminderDays.find(d => d !== today) ?? today;
+  const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Fetch users with reminders enabled and a push subscription
-  const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?bill_reminders=eq.true&push_endpoint=not.is.null&select=id,push_endpoint,push_p256dh,push_auth,bill_due_days,cycle_end_date,cycle_end_notified`;
+  // Users with a push subscription and at least one reminder type on
+  const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?push_endpoint=not.is.null&or=(bill_reminders.eq.true,cycle_reminders.eq.true)&select=id,push_endpoint,push_p256dh,push_auth,bill_reminders,cycle_reminders,bill_due_days,cycle_end_date,cycle_end_notified,cycle_end_warned`;
   const resp = await fetch(url, { headers: sbHeaders() });
 
   if (!resp.ok) {
@@ -68,51 +138,34 @@ export default async function handler(req, res) {
   }
 
   const users = await resp.json();
-  console.log(`Processing ${users.length} users for bill reminders`);
+  console.log(`Processing ${users.length} users for reminders`);
 
   let sent = 0;
   let errors = 0;
 
   for (const user of users) {
-    const billDueDays = user.bill_due_days;
-
     const subscription = {
       endpoint: user.push_endpoint,
       keys: { p256dh: user.push_p256dh, auth: user.push_auth },
     };
+    let expired = false;
 
-    // ── Cycle-end reminder: first cron run after the period closes ──
-    if (user.cycle_end_date) {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (todayStr > user.cycle_end_date && user.cycle_end_notified !== user.cycle_end_date) {
-        try {
-          await webpush.sendNotification(subscription, JSON.stringify({
-            title: 'Your pay period has ended',
-            body: 'Review last period and start your next one in DistroFi.',
-            tag: `cycle-end-${user.cycle_end_date}`,
-            url: '/',
-          }));
-          sent++;
-          await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
-            method: 'PATCH',
-            headers: sbHeaders(),
-            body: JSON.stringify({ cycle_end_notified: user.cycle_end_date }),
-          });
-        } catch (e) {
-          console.error(`Cycle-end push failed for user ${user.id}:`, e.statusCode, e.body);
-          if (e.statusCode === 404 || e.statusCode === 410) {
-            await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
-              method: 'PATCH',
-              headers: sbHeaders(),
-              body: JSON.stringify({ push_endpoint: null, push_p256dh: null, push_auth: null, bill_reminders: false }),
-            });
-          }
-          errors++;
-        }
+    // ── Pay-period reminders ──
+    for (const action of cycleActions(todayStr, user)) {
+      const r = await sendPush(user, subscription, action.payload);
+      if (r === 'ok') {
+        sent++;
+        await patchProfile(user.id, { [action.column]: user.cycle_end_date });
+      } else {
+        errors++;
+        if (r === 'expired') { expired = true; break; }
       }
     }
+    if (expired) continue;
 
     // ── Bill reminders ──
+    if (!user.bill_reminders) continue;
+    const billDueDays = user.bill_due_days;
     if (!Array.isArray(billDueDays) || billDueDays.length === 0) continue;
 
     // Find bills due today or in 3 days
@@ -120,30 +173,19 @@ export default async function handler(req, res) {
 
     for (const bill of toNotify) {
       const daysUntil = bill.dueDay === today ? 0 : 3;
-      const payload = buildMessage(bill, daysUntil);
-
-      try {
-        await webpush.sendNotification(subscription, JSON.stringify({
-          ...payload,
-          tag: `bill-${bill.name.toLowerCase().replace(/\s+/g, '-')}-${bill.dueDay}`,
-          url: '/',
-        }));
-        sent++;
-      } catch (e) {
-        console.error(`Push failed for user ${user.id}:`, e.statusCode, e.body);
-        // 404/410 = subscription expired — clear it
-        if (e.statusCode === 404 || e.statusCode === 410) {
-          await fetch(`${process.env.SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
-            method: 'PATCH',
-            headers: sbHeaders(),
-            body: JSON.stringify({ push_endpoint: null, push_p256dh: null, push_auth: null, bill_reminders: false }),
-          });
-        }
+      const r = await sendPush(user, subscription, {
+        ...buildMessage(bill, daysUntil),
+        tag: `bill-${bill.name.toLowerCase().replace(/\s+/g, '-')}-${bill.dueDay}`,
+        url: APP_URL,
+      });
+      if (r === 'ok') sent++;
+      else {
         errors++;
+        if (r === 'expired') break;
       }
     }
   }
 
-  console.log(`Bill reminders sent: ${sent}, errors: ${errors}`);
+  console.log(`Reminders sent: ${sent}, errors: ${errors}`);
   return res.status(200).json({ sent, errors, users: users.length });
 }

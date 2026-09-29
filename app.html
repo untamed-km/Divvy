@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 <meta name="theme-color" content="#0d0f1a"/>
-<link rel="apple-touch-icon" href="/assets/logo.png"/>
+<link rel="apple-touch-icon" href="assets/logo.png"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -215,10 +215,166 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 @keyframes df-slide{from{opacity:.6;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .poll-card{padding:0 0 4px;}.poll-q{font-size:.85rem;font-weight:600;color:var(--text);margin:0 0 10px;line-height:1.4;}.poll-opts{display:flex;flex-direction:column;gap:6px;}.poll-btn{background:var(--surface2,#f1f5f9);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.8rem;color:var(--text);text-align:left;cursor:pointer;transition:background .15s;}.poll-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}.poll-bar-row{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);}.poll-opt-label{flex:0 0 auto;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.poll-bar-wrap{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}.poll-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s;}.poll-pct{flex:0 0 30px;text-align:right;font-size:.75rem;}.poll-footer{font-size:.72rem;color:var(--muted);margin:6px 0 0;text-align:right;}
+/* ── Desktop layout (>=1024px): sidebar, dashboard, settings page ── */
+#desk-side,.d-only{display:none!important}
+:root{--d-bills:#818CF8;--d-spend:#FBBF24;--d-save:#2DD4BF;--d-debt:#FB7185;--d-teal:#2DD4BF;--d-violet:#A78BFA;--d-gold:#FCD34D;
+--d-ok:#86EFAC;--d-watch:#FCD34D;--d-over:#FDA4AF;--d-sched:#C4B5FD;--d-idle:#9A9EC0;
+--d-ok-bd:rgba(74,222,128,.55);--d-watch-bd:rgba(251,191,36,.6);--d-over-bd:rgba(251,113,133,.65);--d-sched-bd:rgba(167,139,250,.5);
+--d-ok-bg:rgba(74,222,128,.14);--d-watch-bg:rgba(251,191,36,.14);--d-over-bg:rgba(251,113,133,.16);--d-sched-bg:rgba(167,139,250,.14);
+--d-num-a:#FFFFFF;--d-num-b:var(--d-teal);--d-panel:#13133A;--d-panel-top:#1B1B4C;--d-track:#1E1E46;--d-tick:#ECEEF5;--d-strong:#FFFFFF;--d-side:rgba(9,9,28,.6);--d-shadow-k:0 18px 44px -26px}
+:root.light{--d-bills:#4F46E5;--d-spend:#D97706;--d-save:#0D9488;--d-debt:#E11D48;--d-teal:#0F766E;--d-violet:#7C3AED;--d-gold:#B45309;
+--d-ok:#15803D;--d-watch:#B45309;--d-over:#BE123C;--d-sched:#6D28D9;--d-idle:#6B7280;
+--d-ok-bd:rgba(22,163,74,.45);--d-watch-bd:rgba(217,119,6,.5);--d-over-bd:rgba(225,29,72,.45);--d-sched-bd:rgba(124,58,237,.4);
+--d-ok-bg:rgba(22,163,74,.10);--d-watch-bg:rgba(217,119,6,.10);--d-over-bg:rgba(225,29,72,.08);--d-sched-bg:rgba(124,58,237,.08);
+--d-num-a:#18183A;--d-panel:#FFFFFF;--d-panel-top:#F4F6FB;--d-track:#E5E7F0;--d-tick:#18183A;--d-strong:#111827;--d-side:#FFFFFF;--d-shadow-k:0 8px 22px -16px}
+@media (prefers-color-scheme: light){:root:not(.dark):not(.light){--d-bills:#4F46E5;--d-spend:#D97706;--d-save:#0D9488;--d-debt:#E11D48;--d-teal:#0F766E;--d-violet:#7C3AED;--d-gold:#B45309;
+--d-ok:#15803D;--d-watch:#B45309;--d-over:#BE123C;--d-sched:#6D28D9;--d-idle:#6B7280;
+--d-ok-bd:rgba(22,163,74,.45);--d-watch-bd:rgba(217,119,6,.5);--d-over-bd:rgba(225,29,72,.45);--d-sched-bd:rgba(124,58,237,.4);
+--d-ok-bg:rgba(22,163,74,.10);--d-watch-bg:rgba(217,119,6,.10);--d-over-bg:rgba(225,29,72,.08);--d-sched-bg:rgba(124,58,237,.08);
+--d-num-a:#18183A;--d-panel:#FFFFFF;--d-panel-top:#F4F6FB;--d-track:#E5E7F0;--d-tick:#18183A;--d-strong:#111827;--d-side:#FFFFFF;--d-shadow-k:0 8px 22px -16px}}
+@media (min-width:1024px){
+:root:not(.light){--app-bg:#0D0D22;--card:#14143A;--card2:#1B1B46;--border:#2A2A5A;--muted:#9097BD;--d-bgimg:radial-gradient(1100px 560px at 20% -12%,#1F1F52 0%,rgba(13,13,34,0) 60%),radial-gradient(800px 480px at 108% 6%,#231A48 0%,rgba(13,13,34,0) 55%)}
+body{background-image:var(--d-bgimg,none);background-attachment:fixed}
+#app{max-width:none;margin:0;padding-left:248px;background:transparent}
+.nav,#fab-btn{display:none!important}
+.m-only{display:none!important}
+.d-only{display:flex!important}
+#desk-side{display:flex!important;position:fixed;left:0;top:0;bottom:0;width:248px;z-index:60;flex-direction:column;gap:4px;padding:26px 18px 22px;border-right:0.5px solid var(--border);background:var(--d-side);overflow-y:auto}
+.screen{padding:32px 44px 56px;align-items:center}
+.screen>*{width:100%;max-width:760px;flex-shrink:0}
+#screen-home>*,#screen-settings>*{max-width:1180px}
+#screen-home>div:empty{display:none}
+.modal-overlay{align-items:center;justify-content:center;padding:24px}
+.modal{max-width:560px;border-radius:20px;border:0.5px solid var(--border);max-height:86vh}
+#df-toast{bottom:32px}
+}
+@media (min-width:1024px) and (prefers-color-scheme: light){:root:not(.dark):not(.light){--d-bgimg:none}}
+.ds-brand{display:flex;align-items:center;gap:10px;background:none;border:0;cursor:pointer;padding:4px 8px 22px;color:var(--text);font-family:inherit;text-align:left}
+.ds-brand img{width:38px;height:38px;border-radius:10px;background:#13151f;object-fit:contain;padding:4px;border:0.5px solid var(--border)}
+.ds-word{font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.5px}
+.ds-word span{color:#2dd4bf}
+.ds-log{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-bottom:14px;border-radius:12px;border:0;background:#0C9488;color:#fff;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer;box-shadow:0 10px 24px -12px #2DD4BF}
+.ds-log i{font-size:18px}
+.ds-nav{display:flex;flex-direction:column;gap:4px}
+.ds-btn{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 14px;border-radius:12px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;text-align:left;width:100%}
+.ds-btn i{font-size:20px}
+.ds-btn:hover{color:var(--text);background:var(--card2)}
+.ds-btn.active{color:var(--text);background:linear-gradient(90deg,rgba(45,212,191,.18),rgba(129,140,248,.10));box-shadow:inset 0 0 0 1.5px rgba(45,212,191,.45)}
+.ds-btn.active i{color:var(--d-teal)}
+.ds-grow{flex:1}
+.ds-plan{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:8px;border-radius:12px;border:1px solid rgba(167,139,250,.35);background:rgba(124,58,237,.12);cursor:pointer;font:inherit;color:var(--text);width:100%;text-align:left}
+.ds-plan b{font-size:13px}
+.ds-plan span{margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;color:#fff;background:linear-gradient(135deg,#7C3AED,#6366F1)}
+#desk-side button:focus-visible,.dsh button:focus-visible,#screen-settings button:focus-visible,#screen-settings select:focus-visible{outline:2px solid var(--d-teal);outline-offset:2px}
+#screen-settings input:focus-visible+span{outline:2px solid var(--d-teal);outline-offset:2px}
+.dsh{display:flex;flex-direction:column}
+.dsh-top{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:22px}
+.dsh-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.dsh-date{font-family:'Nunito',sans-serif;font-weight:800;font-size:24px}
+.dsh-period{display:flex;flex-direction:column;padding:10px 18px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.dsh-period b{font-weight:700;font-size:17px}
+.dsh-hero{display:flex;flex-direction:column;gap:22px;padding:28px 30px;border-radius:20px;border:2px solid transparent;background:linear-gradient(160deg,var(--d-panel-top),var(--d-panel) 60%) padding-box,linear-gradient(120deg,var(--d-teal),var(--d-bills) 45%,var(--d-violet) 75%,var(--d-spend)) border-box;box-shadow:var(--d-shadow-k) var(--d-teal);margin-bottom:14px}
+.dsh-hero-main{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap}
+.dsh-big{font-family:'Nunito',sans-serif;font-weight:900;font-size:84px;line-height:1;letter-spacing:-.02em;background:linear-gradient(180deg,var(--d-num-a) 15%,var(--d-num-b) 135%);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums;padding-bottom:4px}
+.dsh-big.neg{--d-num-b:var(--d-debt);--d-num-a:var(--d-debt)}
+.dsh-sub{font-size:14px;color:var(--muted)}
+.dsh-sub2{font-size:13px;color:var(--muted)}
+.dsh-sub2 b{color:var(--d-strong);font-variant-numeric:tabular-nums}
+.dsh-pay{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.dsh-pay .d{font-family:'Nunito',sans-serif;font-weight:800;font-size:32px;color:var(--d-gold);line-height:1.15}
+.dsh-pay .n{font-size:15px;font-weight:600}
+.dsh-alloc{display:flex;gap:2px;height:22px;border-radius:11px;overflow:hidden;background:var(--d-track)}
+.dsh-alloc span{height:100%;min-width:0}
+.dsh-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);margin-top:10px}
+.dsh-legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+.dsh-legend b{color:var(--d-strong);font-weight:600;font-variant-numeric:tabular-nums}
+.dsh-days{display:flex;gap:4px}
+.dsh-days span{flex:1;height:10px;border-radius:3px;background:var(--d-track)}
+.dsh-days span.past{background:color-mix(in srgb,var(--d-teal) 55%,transparent)}
+.dsh-days span.now{background:var(--d-teal);box-shadow:0 0 12px var(--d-teal)}
+.dsh-days-l{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}
+.dsh-days-l b{color:var(--text)}
+.dsh-cats-h{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin:14px 0 22px}
+.dsh-h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:36px;letter-spacing:-.01em;line-height:1.15;background:linear-gradient(90deg,var(--d-teal),var(--d-bills) 60%,var(--d-violet));-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+.dsh-meta{font-size:14px;color:var(--muted);margin-top:4px}
+.dsh-meta .a{color:var(--d-watch);font-weight:600}
+.dsh-meta b{color:var(--d-strong);font-variant-numeric:tabular-nums}
+.dsh-chips{display:flex;gap:8px;flex-wrap:wrap}
+.dsh-chip{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap;background:transparent;border:1.5px solid var(--border);color:var(--muted);cursor:pointer}
+.dsh-chip small{font-size:11.5px;opacity:.75;font-variant-numeric:tabular-nums}
+.dsh-chip[aria-pressed="true"]{background:color-mix(in srgb,var(--d-teal) 18%,transparent);border-color:var(--d-teal);color:var(--d-strong)}
+.dsh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:start}
+.dsh-col{display:flex;flex-direction:column;gap:22px;min-width:0}
+.dg{display:flex;flex-direction:column;border-radius:16px;padding:20px 22px;border:2px solid color-mix(in srgb,var(--gc) 55%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--gc) 12%,var(--d-panel)),var(--d-panel) 160px);box-shadow:var(--d-shadow-k) var(--gc)}
+.dg-bills{--gc:var(--d-bills)}.dg-spend{--gc:var(--d-spend)}.dg-save{--gc:var(--d-save)}.dg-debt{--gc:var(--d-debt)}
+.dg-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--gc)}
+.dg-t{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gc)}
+.dg-t i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--gc);box-shadow:0 0 10px var(--gc)}
+.dg-tot{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dg-sub{font-size:12.5px;color:var(--muted);padding:8px 0 2px}
+.dg-empty{font-size:13px;color:var(--muted);padding:16px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.dr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;width:100%}
+.dr:last-child{border-bottom:0}
+.dr:hover .dr-nm{text-decoration:underline;text-underline-offset:3px}
+.dr-n{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;font-weight:600;font-size:14.5px;color:var(--text)}
+.dr-n .ti{font-size:17px;color:var(--gc)}
+.dr-a{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dr-a b{color:var(--d-strong);font-weight:600}
+.dr-t{grid-column:1/-1;position:relative;height:9px;border-radius:5px;background:var(--d-track);overflow:hidden}
+.dr-t span{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.dr-t span.tick{width:2px;background:var(--d-tick);opacity:.75;border-radius:0}
+.dr-f{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.dp{font-size:11px;font-weight:600;letter-spacing:.03em;padding:2px 9px;border-radius:99px;white-space:nowrap;border:1.5px solid}
+.dp.ok{background:var(--d-ok-bg);border-color:var(--d-ok-bd);color:var(--d-ok)}
+.dp.watch{background:var(--d-watch-bg);border-color:var(--d-watch-bd);color:var(--d-watch)}
+.dp.over{background:var(--d-over-bg);border-color:var(--d-over-bd);color:var(--d-over)}
+.dp.sched{background:var(--d-sched-bg);border-color:var(--d-sched-bd);color:var(--d-sched)}
+.dp.idle{background:transparent;border-color:var(--border);color:var(--d-idle)}
+.dsh-empty{padding:40px;text-align:center;color:var(--muted)}
+.dsh-note{font-size:12px;color:var(--muted);text-align:center;margin-top:22px}
+.dss-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:start;margin-top:24px}
+.dsc{display:flex;flex-direction:column;padding:16px 22px 6px;border-radius:16px;border:1.5px solid var(--border);background:linear-gradient(180deg,var(--d-panel-top),var(--d-panel) 120px)}
+.dsc-t{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px}
+.dsr{display:flex;flex-direction:column;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.dsr:last-child{border-bottom:0}
+.dsr-m{display:flex;align-items:center;gap:14px}
+.dsr-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:color-mix(in srgb,var(--ic) 14%,transparent);color:var(--ic);font-size:20px}
+.dsr-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dsr-tx b{font-size:15px;font-weight:600}
+.dsr-tx span{font-size:12.5px;color:var(--muted)}
+.dsb{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 16px;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font:inherit;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer;flex-shrink:0}
+.dsb:hover{border-color:var(--d-teal)}
+.dsb.danger{border-color:color-mix(in srgb,var(--red) 60%,transparent);color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+.dsb.pink{border-color:rgba(236,72,153,.55);color:#EC4899}
+.dss-sel{min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--text);font:inherit;font-size:13.5px;font-weight:600;max-width:260px}
+.dss-prev{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-left:52px;padding:10px 14px;border-radius:10px;background:var(--card2);font-size:13px;color:var(--muted)}
+.dss-prev b{color:var(--d-strong);font-size:15px;font-variant-numeric:tabular-nums}
+.dss-seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--card2);border:1px solid var(--border)}
+.dss-seg button{flex:1 1 0;min-height:38px;border-radius:9px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.dss-seg button[aria-pressed="true"]{background:#0C9488;color:#fff;box-shadow:0 6px 16px -8px #2DD4BF}
+.dss-below{margin-left:52px}
+.dss-foot{text-align:center;font-size:11px;color:var(--muted);margin-top:22px}
 </style>
 </head>
 <body>
 <div id="app">
+  <!-- ── DESKTOP SIDEBAR (shown at >=1024px only) ── -->
+  <aside id="desk-side" aria-label="DistroFi">
+    <button type="button" class="ds-brand" onclick="openAccountModal()" aria-label="Account"><img src="assets/logo.png" alt=""/><span class="ds-word">Distro<span>Fi</span></span></button>
+    <button type="button" class="ds-log" onclick="openQuickAdd()"><i class="ti ti-plus" aria-hidden="true"></i>Log expense</button>
+    <nav class="ds-nav" aria-label="Main">
+      <button type="button" class="ds-btn active" data-screen="home" onclick="deskNav('home')"><i class="ti ti-home" aria-hidden="true"></i>Home</button>
+      <button type="button" class="ds-btn" data-screen="bills" onclick="deskNav('bills')"><i class="ti ti-checklist" aria-hidden="true"></i>Bills</button>
+      <button type="button" class="ds-btn" data-screen="spend" onclick="deskNav('spend')"><i class="ti ti-wallet" aria-hidden="true"></i>Spend</button>
+      <button type="button" class="ds-btn" data-screen="invest" onclick="deskNav('invest')"><i class="ti ti-trending-up" aria-hidden="true"></i>Invest</button>
+      <button type="button" class="ds-btn" data-screen="debt" onclick="deskNav('debt')"><i class="ti ti-credit-card-off" aria-hidden="true"></i>Debt</button>
+      <button type="button" class="ds-btn" data-screen="snapshot" onclick="deskNav('snapshot')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Summary</button>
+      <button type="button" class="ds-btn" data-screen="marketplace" onclick="deskNav('marketplace')"><i class="ti ti-crown" aria-hidden="true"></i>Members</button>
+    </nav>
+    <div class="ds-grow"></div>
+    <button type="button" id="ds-plan" class="ds-plan" onclick="openProSettings()"></button>
+    <button type="button" class="ds-btn" data-screen="settings" onclick="deskNav('settings')"><i class="ti ti-settings" aria-hidden="true"></i>Settings</button>
+  </aside>
   <div id="onboard-overlay" style="display:none" class="onboard-overlay"></div>
   <div id="tutorial-overlay" style="display:none" class="tutorial-overlay"></div>
   <div id="setup-overlay" style="display:none" class="tutorial-overlay"></div>
@@ -227,7 +383,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;max-width:400px;margin:0 auto;width:100%">
       <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px">
         <div style="width:72px;height:72px;border-radius:18px;background:#13151f;display:flex;align-items:center;justify-content:center;margin-bottom:14px;border:0.5px solid var(--border)">
-          <img src="/assets/logo.png" id="auth-logo" alt="DistroFi" style="width:54px;height:54px;object-fit:contain"/>
+          <img src="assets/logo.png" id="auth-logo" alt="DistroFi" style="width:54px;height:54px;object-fit:contain"/>
         </div>
         <div style="font-family:'Nunito',sans-serif;font-size:30px;font-weight:900;letter-spacing:-1px;color:var(--text)">Distro<span style="color:#2dd4bf">Fi</span></div>
         <div style="font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#2dd4bf;margin-top:4px">Finance Together</div>
@@ -286,10 +442,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
   </div>
   <div id="screen-home" class="screen active">
+    <div id="desk-hero" class="d-only dsh"></div>
     <!-- App banner -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 4px) 0 12px;margin-bottom:4px">
+    <div class="m-only" style="display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 4px) 0 12px;margin-bottom:4px">
       <div style="display:flex;align-items:center;gap:10px">
-        <div onclick="openAccountModal()" style="width:38px;height:38px;border-radius:10px;background:#13151f;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;border:0.5px solid var(--border)"><img src="/assets/logo.png" alt="DistroFi" style="width:38px;height:38px;object-fit:cover;border-radius:10px"/></div>
+        <div onclick="openAccountModal()" style="width:38px;height:38px;border-radius:10px;background:#13151f;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;border:0.5px solid var(--border)"><img src="assets/logo.png" alt="DistroFi" style="width:38px;height:38px;object-fit:cover;border-radius:10px"/></div>
         <div>
           <div style="display:flex;align-items:center;gap:6px">
             <div style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.5px;line-height:1;color:var(--text)">Distro<span style="color:#2dd4bf">Fi</span></div>
@@ -313,11 +470,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
         </button>
       </div>
     </div>
-    <div style="margin-bottom:4px">
+    <div class="m-only" style="margin-bottom:4px">
       <h2 id="cycle-title" style="font-size:15px;font-weight:500;color:var(--muted)"></h2>
     </div>
     <!-- Hero remaining card -->
-    <div id="hero-remaining-card" onclick="showScreen('snapshot',null)" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
+    <div id="hero-remaining-card" class="m-only" onclick="showScreen('snapshot',null)" style="background:var(--card);border-radius:14px;border:1px solid var(--accent);padding:18px 20px 14px;margin-bottom:10px;cursor:pointer;position:relative">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--accent)">Remaining</span>
         <div style="display:flex;align-items:center;gap:6px">
@@ -330,11 +487,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
       <div id="home-remaining-sub" style="font-size:11px;color:var(--muted);margin-top:6px">this pay period</div>
     </div>
     <!-- 2×2 supporting stats -->
-    <div class="summary-row" style="margin-bottom:10px">
+    <div class="summary-row m-only" style="margin-bottom:10px">
       <div class="stat-card" onclick="openIncomeModal()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Income<i class="ti ti-edit" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-income">$0</div><div id="delta-income" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
       <div class="stat-card"><div class="label">Bills left</div><div class="value amber" id="home-bills-left">$0</div><div id="delta-bills" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
     </div>
-    <div class="summary-row">
+    <div class="summary-row m-only">
       <div class="stat-card" onclick="openSpendingChart()" style="cursor:pointer"><div class="label" style="display:flex;justify-content:space-between;align-items:center">Spent<i class="ti ti-chart-bar" style="font-size:12px;opacity:.5"></i></div><div class="value" id="home-spent">$0</div><div id="delta-spent" style="font-size:10px;margin-top:3px;font-variant-numeric:tabular-nums;min-height:13px"></div></div>
       <div class="stat-card"><div class="label">Saved this period</div><div class="value" id="home-saved">$0</div></div>
     </div>
@@ -344,10 +501,11 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     <div id="cycle-banner"></div>
     <div id="partner-split"></div>
     <div id="home-insight-card"></div>
-    <div class="section-label">Spending</div>
-    <div id="home-buckets"></div>
-    <div class="section-label">Bills</div>
-    <div id="home-next-bill" onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="cursor:pointer"></div>
+    <div id="desk-cats" class="d-only dsh"></div>
+    <div class="section-label m-only">Spending</div>
+    <div id="home-buckets" class="m-only"></div>
+    <div class="section-label m-only">Bills</div>
+    <div id="home-next-bill" class="m-only" onclick="showScreen('bills',document.querySelectorAll('.nav-btn')[1])" style="cursor:pointer"></div>
   </div>
   <div id="screen-bills" class="screen">
     <div class="top-bar"><h2>Bills</h2></div>
@@ -751,6 +909,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
     </div>
   </div>
 
+  <div id="screen-settings" class="screen"></div>
   <div id="modal-root"></div>
 <div id="df-toast"></div>
   <button class="fab" id="fab-btn" onclick="openQuickAdd()" aria-label="Log expense"><i class="ti ti-plus"></i></button>
@@ -3980,6 +4139,7 @@ function _obComplete(){
 function skipOnboarding(){localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();}
 function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';}
 function openSettingsModal(){
+  if(isDesk()){deskNav('settings');return;}
   const light=isLight();
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>Settings</h3>
@@ -4054,6 +4214,18 @@ function openSettingsModal(){
           </span>
         </label>
       </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-top:0.5px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:14px">
+          <i class="ti ti-calendar-event" style="font-size:20px;color:var(--accent)"></i>
+          <div><div style="font-size:15px;font-weight:500">Pay period reminders</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Day before it ends &amp; when to start the next</div></div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
+          <input type="checkbox" id="settings-cycle-toggle" aria-label="Pay period reminders" onchange="toggleCycleReminders(this.checked)" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="settings-cycle-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border);transition:.2s;cursor:pointer">
+            <span id="settings-cycle-thumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s"></span>
+          </span>
+        </label>
+      </div>
       <div onclick="openExportModal()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-download" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Export data</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Download as CSV, PDF, or JSON backup</div></div>
@@ -4091,6 +4263,7 @@ function openSettingsModal(){
   if(remToggle){remToggle.checked=remEnabled;}
   if(remTrack){remTrack.style.background=remEnabled?'var(--accent)':'var(--border)';}
   if(remThumb){remThumb.style.transform=remEnabled?'translateX(18px)':'translateX(0)';}
+  _setSwitch('settings-cycle',cycleRemindersOn());
 }
 
 // ── Referral Modal ───────────────────────────────────────────────────────────
@@ -4719,95 +4892,108 @@ function getBillDueDays(){
     .map(b=>({name:b.name,dueDay:b.dueDay}));
 }
 
-async function savePushSubscriptionToServer(sub,enabled){
+// ── Push reminders ──────────────────────────────────────────────────────────
+// Bill reminders and pay-period reminders share ONE push subscription per device.
+// The subscription is only sent when a toggle is switched on, and only cleared
+// (clearSubscription) when both reminder types are off. Sync calls never touch it.
+function billRemindersOn(){return !!localStorage.getItem('distrofi_reminders');}
+// Pay-period reminders default ON for anyone who allows notifications (server column defaults to true).
+function cycleRemindersOn(){const v=localStorage.getItem('distrofi_cycle_reminders');if(v==='1')return true;if(v==='0')return false;return billRemindersOn();}
+function _pinCycleDefault(){if(localStorage.getItem('distrofi_cycle_reminders')==null)localStorage.setItem('distrofi_cycle_reminders',cycleRemindersOn()?'1':'0');}
+async function _postPush(extra){
   const auth=getAuth();
   if(!auth?.user_id)return;
+  const body=Object.assign({userId:auth.user_id,billDueDays:getBillDueDays(),cycleEndDate:(C&&C.endDate)||null,enabled:billRemindersOn(),cycleReminders:cycleRemindersOn()},extra||{});
   try{
-    await fetch('/api/save-push-subscription',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        userId:auth.user_id,
-        subscription:sub,
-        billDueDays:getBillDueDays(),
-        cycleEndDate:(C&&C.endDate)||null,
-        enabled,
-      }),
-    });
-  }catch(e){console.warn('Could not save push subscription:',e);}
+    await fetch('/api/save-push-subscription',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }catch(e){console.warn('Could not save reminder settings:',e);}
 }
-
-async function toggleBillReminders(enable){
-  const track=document.getElementById('settings-reminders-track');
-  const thumb=document.getElementById('settings-reminders-thumb');
-  function setVisual(on){
-    if(track)track.style.background=on?'var(--accent)':'var(--border)';
-    if(thumb)thumb.style.transform=on?'translateX(18px)':'translateX(0)';
-  }
-
-  if(!enable){
-    // Disable
-    localStorage.removeItem('distrofi_reminders');
-    setVisual(false);
-    if('serviceWorker' in navigator){
-      const reg=await navigator.serviceWorker.ready;
-      const sub=await reg.pushManager.getSubscription();
-      if(sub) await sub.unsubscribe();
-    }
-    await savePushSubscriptionToServer(null,false);
-    showToast('Bill reminders off');
-    return;
-  }
-
-  // Enable — request permission first
-  if(!('Notification' in window)){
-    showToast('Push notifications not supported on this browser.');
-    const tog=document.getElementById('settings-reminders-toggle');
-    if(tog)tog.checked=false;
-    setVisual(false);
-    return;
-  }
-
+// Kept for existing callers. sub=null with enabled=false only clears the subscription when no reminder type is left on.
+async function savePushSubscriptionToServer(sub,enabled){
+  const extra={enabled:!!enabled};
+  if(sub)extra.subscription=sub;
+  else if(!enabled&&!cycleRemindersOn())extra.clearSubscription=true;
+  await _postPush(extra);
+}
+function _setSwitch(prefix,on){
+  const tog=document.getElementById(prefix+'-toggle'),track=document.getElementById(prefix+'-track'),thumb=document.getElementById(prefix+'-thumb');
+  if(tog)tog.checked=on;
+  if(track)track.style.background=on?'var(--accent)':'var(--border)';
+  if(thumb)thumb.style.transform=on?'translateX(18px)':'translateX(0)';
+}
+// Ask permission and subscribe this device (reusing an existing subscription). Returns subscription JSON or null.
+async function _subscribePush(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){showToast('Push notifications not supported on this browser.');return null;}
   const permission=await Notification.requestPermission();
-  if(permission!=='granted'){
-    showToast('Enable notifications in your browser settings to use this feature.');
-    const tog=document.getElementById('settings-reminders-toggle');
-    if(tog)tog.checked=false;
-    setVisual(false);
-    return;
-  }
-
+  if(permission!=='granted'){showToast('Enable notifications in your browser settings to use this feature.');return null;}
   try{
     const reg=await navigator.serviceWorker.ready;
-    const sub=await reg.pushManager.subscribe({
-      userVisibleOnly:true,
-      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
-    localStorage.setItem('distrofi_reminders','1');
-    setVisual(true);
-    await savePushSubscriptionToServer(sub.toJSON(),true);
-    showToast('Bill reminders on — we\'ll notify you 3 days before and day of');
+    const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+    return sub.toJSON();
   }catch(e){
     console.error('Push subscribe failed:',e);
     showToast('Could not enable notifications. Try again.');
-    const tog=document.getElementById('settings-reminders-toggle');
-    if(tog)tog.checked=false;
-    setVisual(false);
+    return null;
   }
 }
-
-// Call when bills are saved/edited — keeps server-side due days in sync
+// Unsubscribe the device only when neither reminder type is on. Returns true if it unsubscribed.
+async function _unsubscribePushIfUnused(){
+  if(billRemindersOn()||cycleRemindersOn())return false;
+  if('serviceWorker' in navigator){
+    try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(e){}
+  }
+  return true;
+}
+async function toggleBillReminders(enable){
+  if(!enable){
+    _pinCycleDefault(); // keep pay-period reminders as they were when bill reminders go off
+    localStorage.removeItem('distrofi_reminders');
+    _setSwitch('settings-reminders',false);
+    const cleared=await _unsubscribePushIfUnused();
+    await _postPush(cleared?{enabled:false,clearSubscription:true}:{enabled:false});
+    showToast('Bill reminders off');
+    return;
+  }
+  const sub=await _subscribePush();
+  if(!sub){_setSwitch('settings-reminders',false);return;}
+  localStorage.setItem('distrofi_reminders','1');
+  _setSwitch('settings-reminders',true);
+  _setSwitch('settings-cycle',cycleRemindersOn());
+  await _postPush({subscription:sub,enabled:true});
+  showToast('Bill reminders on. We\'ll notify you 3 days before and the day of.');
+}
+async function toggleCycleReminders(enable){
+  if(!enable){
+    localStorage.setItem('distrofi_cycle_reminders','0');
+    _setSwitch('settings-cycle',false);
+    const cleared=await _unsubscribePushIfUnused();
+    await _postPush(cleared?{cycleReminders:false,clearSubscription:true}:{cycleReminders:false});
+    showToast('Pay period reminders off');
+    return;
+  }
+  const sub=await _subscribePush();
+  if(!sub){_setSwitch('settings-cycle',false);return;}
+  localStorage.setItem('distrofi_cycle_reminders','1');
+  _setSwitch('settings-cycle',true);
+  await _postPush({subscription:sub,cycleReminders:true});
+  showToast('Pay period reminders on. We\'ll notify you the day before it ends and when to start the next one.');
+}
+// Call when bills or the pay period change. Keeps server-side due days and period end date in sync.
+// Never sends or clears the push subscription.
 async function syncBillRemindersIfEnabled(){
-  if(!localStorage.getItem('distrofi_reminders'))return;
-  const auth=getAuth();
-  if(!auth?.user_id)return;
+  if(!billRemindersOn()&&!cycleRemindersOn())return;
+  await _postPush();
+}
+// On startup: re-send this device's existing subscription. Repairs accounts whose push
+// credentials were wiped by the pre-2026-09-29 sync bug, and refreshes rotated endpoints.
+async function healPushSubscription(){
+  if(!billRemindersOn()&&!cycleRemindersOn())return;
+  if(!('Notification' in window)||Notification.permission!=='granted'||!('serviceWorker' in navigator))return;
   try{
-    await fetch('/api/save-push-subscription',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({userId:auth.user_id,billDueDays:getBillDueDays(),cycleEndDate:(C&&C.endDate)||null,enabled:true}),
-    });
-  }catch(e){/* silent */}
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(sub)await _postPush({subscription:sub.toJSON()});
+  }catch(e){}
 }
 
 // Called from init() when Stripe redirects back to /?stripe=success
@@ -6854,7 +7040,217 @@ function accrueMonthlyInterest(){
   }
 }
 
-function render(){accrueMonthlyInterest();accrueSavingsAPY();renderHome();renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
+// ── Desktop layout (>=1024px): sidebar, dashboard, settings page ─────────────
+const DESK_MQ=window.matchMedia?window.matchMedia('(min-width:1024px)'):null;
+function isDesk(){return !!(DESK_MQ&&DESK_MQ.matches);}
+if(DESK_MQ){const _dmq=()=>{try{render();}catch(e){}};if(DESK_MQ.addEventListener)DESK_MQ.addEventListener('change',_dmq);else if(DESK_MQ.addListener)DESK_MQ.addListener(_dmq);}
+let _deskFilter='all',_deskActs=[];
+const DESK_NAV_IDX={home:0,bills:1,spend:2,invest:3,debt:4};
+function deskNav(name){const i=DESK_NAV_IDX[name];showScreen(name,i!=null?document.querySelectorAll('.nav-btn')[i]:null);const sc=document.getElementById('screen-'+name);if(sc)sc.scrollTop=0;}
+function _deskAct(i){const f=_deskActs[i];if(typeof f==='function')f();}
+function deskSetFilter(f){_deskFilter=f;renderDeskDash();}
+function deskSetTheme(light){if(isLight()!==light)toggleTheme();renderDeskSettings();}
+function _dDiff(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);}
+function _dDay(iso,long){return new Date(iso+'T00:00:00').toLocaleDateString('en-US',long?{weekday:'short',month:'short',day:'numeric'}:{month:'short',day:'numeric'});}
+function _dDue(b,start,end){
+  if(!b.dueDay||!start||!end)return null;
+  const s=new Date(start+'T00:00:00'),e=new Date(end+'T00:00:00');
+  const last=(y,m)=>new Date(y,m+1,0).getDate();
+  for(const base of [s,e]){const d=new Date(base.getFullYear(),base.getMonth(),Math.min(b.dueDay,last(base.getFullYear(),base.getMonth())));if(d>=s&&d<=e)return localDateStr(d);}
+  return null;
+}
+// Pure model for the dashboard. Every figure reconciles with remaining():
+// left = income - bills - debt - savings&investing - spent = unassigned + (bucket budgets - spent)
+function deskModel(today){
+  today=today||localDateStr();
+  const start=typeof C.startDate==='string'&&C.startDate?C.startDate:today,end=typeof C.endDate==='string'&&C.endDate?C.endDate:start;
+  const total=Math.max(1,_dDiff(start,end)+1);
+  const dayRaw=_dDiff(start,today)+1;
+  const ended=dayRaw>total;
+  const day=Math.min(total,Math.max(1,dayRaw));
+  const pace=day/total;
+  const pd=new Date(end+'T00:00:00');pd.setDate(pd.getDate()+1);
+  const payday=localDateStr(pd);
+  const daysToPay=Math.max(0,_dDiff(today,payday));
+  const income=totalIncome();
+  const bills=[],debts=[],save=[];
+  (C.bills||[]).filter(billInPeriod).forEach(b=>{
+    const amt=billAmt(b),due=_dDue(b,start,end),dueIn=due?_dDiff(today,due):null;
+    let st,pill,foot;
+    if(b.paid){st='ok';pill='Paid';foot=due?'Paid · due '+_dDay(due):'Paid';}
+    else if(dueIn==null){st='idle';pill='Unpaid';foot=fmt(amt)+' to pay';}
+    else if(dueIn<0){st='over';pill='Past due';foot='Was due '+_dDay(due)+' · '+fmt(amt)+' to pay';}
+    else if(dueIn<=3){st='watch';pill=dueIn===0?'Due today':dueIn===1?'Due tomorrow':'Due in '+dueIn+' days';foot='Due '+_dDay(due,true)+' · '+fmt(amt)+' to pay';}
+    else{st='sched';pill='Due '+_dDay(due);foot=fmt(amt)+' to pay';}
+    const isDebt=!!b.linkedDebtId;
+    (isDebt?debts:bills).push({name:b.name||'Bill',budget:amt,actual:b.paid?amt:0,st,pill,foot,go:isDebt?()=>deskNav('debt'):()=>deskNav('bills')});
+  });
+  const dx=C.debtExtraPayments||0;
+  if(dx>0)debts.push({name:'Extra debt payments',budget:dx,actual:dx,st:'ok',pill:'Paid',foot:'On top of minimums this period',go:()=>deskNav('debt')});
+  const spend=Object.keys(C.buckets||{}).map(k=>{
+    const b=C.buckets[k],budget=b.budget||0,sp=bucketSpent(k),pct=budget>0?sp/budget:(sp>0?1:0);
+    let st,pill,foot;
+    if(sp>budget+0.005){st='over';pill='Over';foot=fmt(sp-budget)+' over budget';}
+    else if(sp===0){st='idle';pill='Not started';foot=fmt(budget)+' available';}
+    else if(!ended&&pct>pace+0.15){st='watch';pill='Ahead of pace';foot=fmt(budget-sp)+' left · '+Math.round(pct*100)+'% used by day '+day;}
+    else{st='ok';pill='On track';foot=fmt(budget-sp)+' left';}
+    return{name:b.label||k,icon:b.icon,budget,actual:sp,st,pill,foot,pace:true,go:()=>showScreenAndScrollToBucket('spend',k)};
+  });
+  const pp=C.savings?.perPaycheck||0;
+  if(pp>0)save.push({name:'Savings this paycheck',budget:pp,actual:pp,st:'ok',pill:'Set aside',foot:'Counted every paycheck',go:()=>deskNav('savings')});
+  (C.savings?.extra||[]).forEach(e=>{if((e.amount||0)>0)save.push({name:e.label||'Extra savings',budget:e.amount,actual:e.amount,st:'ok',pill:'Moved',foot:'Extra this period',go:()=>deskNav('savings')});});
+  (C.investments||[]).forEach(i=>{if((i.amount||0)>0)save.push({name:i.name||'Investment',budget:i.amount,actual:i.amount,st:'ok',pill:'Invested',foot:[i.ticker,i.account].filter(Boolean).join(' · ')||'Investment',go:()=>deskNav('invest')});});
+  const gc=C.goalContrib||0;
+  if(gc>0)save.push({name:'Goal contributions',budget:gc,actual:gc,st:'ok',pill:'Moved',foot:'Toward your savings goals',go:()=>deskNav('savings')});
+  const sum=a=>a.reduce((s,r)=>s+(r.budget||0),0);
+  const billsT=sum(bills),debtT=sum(debts),saveT=sum(save),bucketBudget=sum(spend),spent=totalSpent();
+  const left=remaining();
+  const planned=billsT+debtT+saveT+bucketBudget;
+  const unassigned=income-planned,bucketRem=bucketBudget-spent;
+  const groups=[
+    {key:'bills',cls:'dg-bills',name:'Bills',sub:'Bills that land inside this pay period',rows:bills,empty:'No bills fall in this pay period.',add:()=>deskNav('bills')},
+    {key:'spend',cls:'dg-spend',name:'Spending',sub:'Buckets reset every paycheck',rows:spend,empty:'No spending buckets yet.',add:()=>deskNav('spend')},
+    {key:'save',cls:'dg-save',name:'Savings & investing',sub:'Paid to future you first',rows:save},
+    {key:'debt',cls:'dg-debt',name:'Debt payments',sub:'Minimums and extra payments this period',rows:debts}
+  ];
+  const attn=groups.reduce((a,g)=>a+g.rows.filter(r=>r.st==='watch'||r.st==='over').length,0);
+  return{today,start,end,total,day,ended,pace,payday,daysToPay,income,billsT,debtT,saveT,bucketBudget,spent,left,planned,unassigned,bucketRem,groups,attn};
+}
+function renderDeskSide(){
+  const p=document.getElementById('ds-plan');
+  if(p)p.innerHTML=isPro()?`<b>${isCouplePro()?'Couples':'Pro Solo'}</b><span>Active</span>`:`<b>Free plan</b><span>Upgrade</span>`;
+  const a=document.querySelector('.screen.active');const nm=a?a.id.replace('screen-',''):'';
+  document.querySelectorAll('.ds-btn').forEach(b=>{const on=b.dataset.screen===nm;b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+}
+function renderDeskDash(){
+  const hero=document.getElementById('desk-hero'),cats=document.getElementById('desk-cats');
+  if(!hero||!cats)return;
+  const m=deskModel();_deskActs=[];
+  const act=f=>_deskActs.push(f)-1;
+  const todayLbl=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+  const alloc=[['Bills','var(--d-bills)',m.billsT],['Spent','var(--d-spend)',m.spent],['Savings','var(--d-save)',m.saveT],['Debt','var(--d-debt)',m.debtT],['Left','var(--d-track)',Math.max(m.left,0)]];
+  const base=Math.max(m.income,m.billsT+m.spent+m.saveT+m.debtT,1);
+  const days=Array.from({length:m.total},(_,i)=>`<span class="${i+1<m.day?'past':i+1===m.day&&!m.ended?'now':i+1===m.day?'past':''}"></span>`).join('');
+  const payTxt=m.daysToPay===0?'Today':m.daysToPay===1?'Tomorrow':'In '+m.daysToPay+' days';
+  const payBlock=m.ended
+    ?`<div class="dsh-pay"><span class="dsh-eyebrow">This pay period ended</span><span class="d">${_dDay(m.end,true)}</span><button type="button" class="dsb" style="margin-top:8px" onclick="startNewCycle()">Start new period</button></div>`
+    :`<div class="dsh-pay"><span class="dsh-eyebrow">Next payday</span><span class="d">${_dDay(m.payday,true)}</span><span class="n">${payTxt}</span>${m.left>0&&m.daysToPay>0?`<span class="dsh-sub2">About <b>${fmt(m.left/m.daysToPay)}</b> a day until then</span>`:''}</div>`;
+  const formula=m.income>0
+    ?`<div class="dsh-sub">${fmt0(m.income)} income − ${fmt0(m.billsT)} bills − ${fmt0(m.saveT+m.debtT)} savings &amp; debt − ${fmt0(m.spent)} spent</div>
+      <div class="dsh-sub2">${fmt0(Math.max(m.bucketRem,0))} still in spending buckets ${m.unassigned>=0?'+ '+fmt0(m.unassigned)+' unassigned':'· planned '+fmt0(-m.unassigned)+' more than income'}</div>`
+    :`<div><button type="button" class="dsb" onclick="openIncomeModal()">Add this paycheck’s income</button></div>`;
+  hero.innerHTML=`<div class="dsh-top">
+      <div><div class="dsh-eyebrow">Home</div><div class="dsh-date">${esc(todayLbl)}</div></div>
+      <button type="button" class="dsh-period" onclick="showScreen('snapshot',null)" title="Open summary and What-If calculator"><span class="dsh-eyebrow">Pay period</span><b>${fmtD(m.start)} – ${fmtD(m.end)}</b></button>
+    </div>
+    <section class="dsh-hero" aria-label="Left to spend">
+      <div class="dsh-hero-main">
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span class="dsh-eyebrow">Left to spend · this paycheck</span>
+          <div class="dsh-big${m.left<0?' neg':''}">${fmt(Math.abs(m.left))}${m.left<0?' over':''}</div>
+          ${formula}
+        </div>
+        ${payBlock}
+      </div>
+      ${m.income>0?`<div>
+        <div class="dsh-alloc" role="img" aria-label="${alloc.map(a=>a[0]+' '+fmt0(a[2])).join(', ')} of ${fmt0(m.income)}">${alloc.map(a=>`<span title="${a[0]} ${fmt0(a[2])}" style="flex:0 0 ${(a[2]/base*100).toFixed(2)}%;background:${a[1]}"></span>`).join('')}</div>
+        <div class="dsh-legend">${alloc.map(a=>`<span><i style="background:${a[1]}${a[0]==='Left'?';outline:1px solid var(--muted)':''}"></i>${a[0]} <b>${fmt0(a[2])}</b></span>`).join('')}</div>
+      </div>`:''}
+      <div>
+        <div class="dsh-days" aria-label="Day ${m.day} of ${m.total} in this pay period">${days}</div>
+        <div class="dsh-days-l"><span>${_dDay(m.start,true)}</span><b>${m.ended?'Period ended':'Today · day '+m.day+' of '+m.total}</b><span>${_dDay(m.end,true)}</span></div>
+      </div>
+    </section>`;
+  const f=_deskFilter;
+  const keep=(r,g)=>f==='all'||f===g.key||(f==='attention'&&(r.st==='watch'||r.st==='over'));
+  const rowH=r=>{
+    const pct=r.budget>0?r.actual/r.budget:(r.actual>0?1:0);
+    const bar=r.st==='over'?'var(--d-debt)':r.st==='watch'?'var(--d-spend)':'var(--gc)';
+    return`<button type="button" class="dr" onclick="_deskAct(${act(r.go)})">
+      <span class="dr-n">${r.icon?`<i class="ti ${esc(r.icon)}" aria-hidden="true"></i>`:''}<span class="dr-nm">${esc(r.name)}</span><span class="dp ${r.st}">${esc(r.pill)}</span></span>
+      <span class="dr-a"><b>${fmt(r.actual)}</b> / ${fmt(r.budget)}</span>
+      <span class="dr-t"><span style="width:${Math.min(pct*100,100).toFixed(1)}%;background:${bar}"></span>${r.pace&&!m.ended?`<span class="tick" style="left:${(m.pace*100).toFixed(1)}%"></span>`:''}</span>
+      <span class="dr-f"><span>${esc(r.foot)}</span><span>${r.budget>0?Math.round(pct*100)+'%':''}</span></span>
+    </button>`;
+  };
+  const grp=g=>{
+    const rows=g.rows.filter(r=>keep(r,g));
+    const head=`<div class="dg-h"><span class="dg-t"><i></i>${esc(g.name)}</span><span class="dg-tot">${fmt0(g.rows.reduce((a,r)=>a+r.actual,0))} / ${fmt0(g.rows.reduce((a,r)=>a+r.budget,0))}</span></div><div class="dg-sub">${esc(g.sub)}</div>`;
+    if(!rows.length){
+      if(f==='all'&&g.empty)return`<section class="dg ${g.cls}" aria-label="${esc(g.name)}">${head}<div class="dg-empty"><span>${esc(g.empty)}</span><button type="button" class="dsb" onclick="_deskAct(${act(g.add)})">Open ${esc(g.name)}</button></div></section>`;
+      return'';
+    }
+    return`<section class="dg ${g.cls}" aria-label="${esc(g.name)}">${head}${rows.map(rowH).join('')}</section>`;
+  };
+  const G={};m.groups.forEach(g=>G[g.key]=g);
+  const colA=grp(G.bills)+grp(G.debt),colB=grp(G.spend)+grp(G.save);
+  const chipDefs=[['all','All',m.groups.reduce((a,g)=>a+g.rows.length,0)],['attention','Needs attention',m.attn]].concat(m.groups.filter(g=>g.rows.length).map(g=>[g.key,g.key==='save'?'Savings':g.key==='spend'?'Spending':g.key==='debt'?'Debt':'Bills',g.rows.length]));
+  if(!chipDefs.some(c=>c[0]===f))_deskFilter='all';
+  const chips=chipDefs.map(c=>`<button type="button" class="dsh-chip" aria-pressed="${_deskFilter===c[0]}" onclick="deskSetFilter('${c[0]}')">${c[1]}<small>${c[2]}</small></button>`).join('');
+  const attnTxt=m.attn?`<span class="a">${m.attn===1?'1 needs attention':m.attn+' need attention'}</span>`:'Nothing needs attention';
+  cats.innerHTML=`<div class="dsh-cats-h">
+      <div><h2 class="dsh-h1">Category budgets</h2><div class="dsh-meta">${attnTxt} · ${fmt0(m.planned)} planned of ${fmt0(m.income)} income · <b>${fmt0(m.unassigned)}</b> unassigned</div></div>
+      <div class="dsh-chips" role="group" aria-label="Filter categories">${chips}</div>
+    </div>
+    ${colA||colB?`<div class="dsh-grid"><div class="dsh-col">${colA}</div><div class="dsh-col">${colB}</div></div>`:`<div class="dsh-empty">Nothing needs attention right now.</div>`}
+    <p class="dsh-note">The tick on each spending bar marks where you’d be if you spent evenly across the pay period.</p>`;
+}
+function renderDeskSettings(){
+  const el=document.getElementById('screen-settings');if(!el)return;
+  const light=isLight(),a=getAuth(),cur=getCurrencyCode(),remOn=!!localStorage.getItem('distrofi_reminders');
+  const authSub=a?(a.method==='guest'?'Browsing as guest':a.username?'@'+a.username:(a.name||'Signed in')):'Signed in';
+  const row=(ic,color,title,sub,ctrl,below)=>`<div class="dsr"><div class="dsr-m"><span class="dsr-ic" style="--ic:${color}"><i class="ti ${ic}" aria-hidden="true"></i></span><div class="dsr-tx"><b>${title}</b><span>${sub}</span></div>${ctrl||''}</div>${below?`<div class="dss-below">${below}</div>`:''}</div>`;
+  const card=(t,rows)=>`<section class="dsc" aria-label="${t}"><div class="dsc-t">${t}</div>${rows}</section>`;
+  const btn=(label,onclick,cls)=>`<button type="button" class="dsb${cls?' '+cls:''}" onclick="${onclick}">${label}</button>`;
+  const curSel=`<select class="dss-sel" id="ds-currency" aria-label="Currency" onchange="selectCurrency(this.value)">${CURRENCIES.map(c=>`<option value="${c.code}"${c.code===cur?' selected':''}>${esc(c.label)}</option>`).join('')}</select>`;
+  const freqSeg=`<div class="dss-seg" role="group" aria-label="Pay frequency">${FREQ_OPTIONS.map(o=>`<button type="button" aria-pressed="${getFreq()===o.id}" onclick="${getFreq()===o.id?'':`selectFreq('${o.id}')`}">${o.label}</button>`).join('')}</div>`;
+  const themeSeg=`<div class="dss-seg" role="group" aria-label="Theme" style="width:220px"><button type="button" aria-pressed="${!light}" onclick="deskSetTheme(false)">Dark</button><button type="button" aria-pressed="${light}" onclick="deskSetTheme(true)">Light</button></div>`;
+  const remSw=`<label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0"><input type="checkbox" id="settings-reminders-toggle" aria-label="Bill reminders" ${remOn?'checked':''} onchange="toggleBillReminders(this.checked)" style="opacity:0;width:0;height:0;position:absolute"><span id="settings-reminders-track" style="position:absolute;inset:0;border-radius:99px;background:${remOn?'var(--accent)':'var(--border)'};transition:.2s;cursor:pointer"><span id="settings-reminders-thumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;transform:${remOn?'translateX(18px)':'translateX(0)'}"></span></span></label>`;
+  const cycOn=cycleRemindersOn();
+  const cycSw=`<label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0"><input type="checkbox" id="settings-cycle-toggle" aria-label="Pay period reminders" ${cycOn?'checked':''} onchange="toggleCycleReminders(this.checked)" style="opacity:0;width:0;height:0;position:absolute"><span id="settings-cycle-track" style="position:absolute;inset:0;border-radius:99px;background:${cycOn?'var(--accent)':'var(--border)'};transition:.2s;cursor:pointer"><span id="settings-cycle-thumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;transform:${cycOn?'translateX(18px)':'translateX(0)'}"></span></span></label>`;
+  const p2=getPartners().p2;
+  const partnerSub=getHouseholdId()&&p2?esc(p1Name())+' &amp; '+esc(p2Name())+' · Live sync':p2?esc(p1Name())+' &amp; '+esc(p2Name()):'Budget with a partner on one shared plan';
+  const proTitle=isPro()?(isCouplePro()?'Couples · Active':'Pro Solo · Active'):'Upgrade to Pro';
+  const proSub=isPro()?(isCouplePro()?'Shared features unlocked · $4.99/mo':'AI, trends &amp; more unlocked · $2.99/mo'):'Solo $2.99 · Couples $4.99 · Free trial';
+  const colA=[
+    card('Money &amp; pay periods',[
+      row('ti-currency-dollar','var(--d-teal)','<label for="ds-currency">Currency</label>',esc(getCurrencyDef().label),curSel,`<div class="dss-prev"><span>Amounts look like</span><b>${fmt(1234.56)}</b></div>`),
+      row('ti-calendar-repeat','var(--d-teal)','Pay frequency',esc(freqLabel())+' · sets how long each budget period lasts','',freqSeg),
+      row('ti-refresh','var(--d-teal)','New pay period','Archive current cycle and start fresh',btn('Start new period','startNewCycle()')),
+      row('ti-clock','var(--d-teal)','Pay period history','View all past cycles',btn('View history',"showScreen('history',null)"))
+    ].join('')),
+    card('Appearance',row(light?'ti-sun':'ti-moon','var(--d-gold)','Theme','Currently '+(light?'light':'dark')+' · saved on this device',themeSeg)),
+    card('Community',[
+      row('ti-message-circle','var(--d-bills)','Send feedback','Bugs, ideas, or anything on your mind',btn('Write to us','openFeedbackModal()')),
+      a?.username&&a?.method!=='guest'?row('ti-gift','var(--d-bills)','Refer a friend','Give 14 days free · Earn 1 free month',btn('Invite','openReferralModal()')):'',
+      isPollAdmin()?row('ti-chart-bar','var(--d-bills)','Poll Admin','Create &amp; manage community polls',btn('Open','showPollAdmin()')):''
+    ].join(''))
+  ].join('');
+  const colB=[
+    card('Household &amp; plan',[
+      row('ti-crown','var(--d-violet)',proTitle,proSub,btn(isPro()?'View plans':'See plans','openProSettings()',isPro()&&!isCouplePro()?'pink':'')),
+      row('ti-users','#EC4899','Finance together',partnerSub,btn(p2?'Manage':'Invite partner','openPartnerSetup()')),
+      isPro()?row('ti-credit-card','var(--d-violet)','Manage subscription','Cancel, upgrade, or update payment method',btn('Manage','openBillingPortal()')):''
+    ].join('')),
+    card('Notifications',row('ti-bell','var(--d-gold)','Bill reminders','Notify me 3 days before &amp; day of · this device',remSw)+row('ti-calendar-event','var(--d-gold)','Pay period reminders','Day before it ends &amp; when to start the next · this device',cycSw)),
+    card('Data',row('ti-download','var(--d-teal)','Export data','Download as CSV, PDF, or JSON backup',btn('Export','openExportModal()'))),
+    card('Account',[
+      row('ti-logout','var(--muted)','Log out',esc(authSub),btn('Log out','confirmLogout()')),
+      row('ti-trash','var(--red)','<span style="color:var(--red)">Clear all data</span>','Reset the app. This cannot be undone.',btn('Clear data','confirmClearData()','danger'))
+    ].join(''))
+  ].join('');
+  el.innerHTML=`<div><h1 class="dsh-h1">Settings</h1><div class="dsh-meta">Most settings save to your account and follow you to your phone. Theme and reminders are set per device.</div></div>
+    <div class="dss-grid"><div class="dsh-col">${colA}</div><div class="dsh-col">${colB}</div></div>
+    <div class="dss-foot">DistroFi v${APP_VERSION}</div>`;
+}
+function renderDesk(){
+  if(!isDesk())return;
+  renderDeskSide();
+  const a=document.querySelector('.screen.active');const id=a?a.id:'';
+  if(id==='screen-home')renderDeskDash();
+  else if(id==='screen-settings')renderDeskSettings();
+}
+function render(){accrueMonthlyInterest();accrueSavingsAPY();renderHome();try{renderDesk();}catch(e){console.error('renderDesk',e);}renderBills();renderSpend();renderInvest();renderSnapshot();renderHistory();renderSavingsScreen();renderInvGoalsScreen();renderMarketplace();render401K();renderDebt();}
 
 function renderHome(){
   // Payment past due banner
@@ -7071,9 +7467,12 @@ function dueBadge(b){
   if(!b.dueDay)return'';
   // Show 'next period' tag if bill is outside current period and unpaid
   if(!b.paid&&!billInPeriod(b))return`<span style="font-size:10px;background:#3b82f618;color:var(--blue);padding:1px 6px;border-radius:99px;font-weight:600;margin-left:4px">next period</span>`;
-  const now=new Date();
-  const due=new Date(now.getFullYear(),now.getMonth(),b.dueDay);
-  const diff=Math.ceil((due-now)/(864e5));
+  // Resolve the due date inside the current pay period (a period can span two months),
+  // so this badge agrees with the Upcoming Bills banner and the desktop dashboard.
+  const now=new Date();now.setHours(0,0,0,0);
+  const dueIso=_dDue(b,C.startDate,C.endDate);
+  const due=dueIso?new Date(dueIso+'T00:00:00'):new Date(now.getFullYear(),now.getMonth(),Math.min(b.dueDay,new Date(now.getFullYear(),now.getMonth()+1,0).getDate()));
+  const diff=Math.round((due-now)/(864e5));
   if(b.paid)return`<span style="font-size:11px;color:var(--green);background:#16a34a22;padding:2px 8px;border-radius:99px;margin-left:6px">Paid</span>`;
   if(diff<0)return`<span style="font-size:11px;color:var(--red);background:#ef444422;padding:2px 8px;border-radius:99px;margin-left:6px">Overdue</span>`;
   if(diff===0)return`<span style="font-size:11px;color:var(--amber);background:#f59e0b22;padding:2px 8px;border-radius:99px;margin-left:6px">Due today</span>`;
@@ -7505,6 +7904,7 @@ function renderInvest(){
   if(isLoggedIn()){
     render();
     await handleStripeReturn();
+    healPushSubscription();
     // Handle ?invite=XXXXXX link — auto-open join flow with code pre-filled
     const params=new URLSearchParams(window.location.search);
     const inviteCode=params.get('invite');
