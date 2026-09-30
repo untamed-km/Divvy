@@ -271,6 +271,9 @@ body{background-image:var(--d-bgimg,none);background-attachment:fixed}
 .dsh-top{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:22px}
 .dsh-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .dsh-date{font-family:'Nunito',sans-serif;font-weight:800;font-size:24px}
+.dsh-whatif{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:7px 14px;border-radius:99px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.dsh-whatif:hover{border-color:var(--accent);color:var(--accent)}
+.dsh-whatif:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dsh-period{display:flex;flex-direction:column;padding:10px 18px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;text-align:left;cursor:pointer}
 .dsh-period b{font-weight:700;font-size:17px}
 .dsh-hero{display:flex;flex-direction:column;gap:22px;padding:28px 30px;border-radius:20px;border:2px solid transparent;background:linear-gradient(160deg,var(--d-panel-top),var(--d-panel) 60%) padding-box,linear-gradient(120deg,var(--d-teal),var(--d-bills) 45%,var(--d-violet) 75%,var(--d-spend)) border-box;box-shadow:var(--d-shadow-k) var(--d-teal);margin-bottom:14px}
@@ -484,7 +487,10 @@ body{background-image:var(--d-bgimg,none);background-attachment:fixed}
       </div>
       <div id="home-remaining" style="font-size:36px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;line-height:1;color:var(--green)">$0</div>
       <div style="font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span>Left to spend after bills, savings &amp; debt</span><span onclick="event.stopPropagation();openRemainingHelp()" style="cursor:pointer;color:var(--accent);font-weight:700" title="What does Remaining mean?">ⓘ</span></div>
-      <div id="home-remaining-sub" style="font-size:11px;color:var(--muted);margin-top:6px">this pay period</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap">
+        <div id="home-remaining-sub" style="font-size:11px;color:var(--muted)">this pay period</div>
+        <button type="button" onclick="event.stopPropagation();openWhatIf()" aria-label="What if? Try changes to this paycheck" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;border:0.5px solid #6366f155;background:#6366f114;color:var(--accent);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0"><i class="ti ti-calculator" style="font-size:14px" aria-hidden="true"></i>What if?</button>
+      </div>
     </div>
     <!-- 2×2 supporting stats -->
     <div class="summary-row m-only" style="margin-bottom:10px">
@@ -5287,54 +5293,83 @@ function openProSettings(){
 
 
 // ── What-if scenario planner ──
-let _wiDeltas={income:0,savings:0,bills:0,spend:0};
+// Shared by the Summary card and the What-if panel (openWhatIf). Changes are never saved.
+let _wiDeltas={income:0,savings:0,bills:0,spend:0,invest:0};
+const _WI_SCEN=[
+  {key:'income',label:'Income',icon:'ti-cash',col:'var(--green)',step:50,min:-500,max:1000},
+  {key:'savings',label:'Savings',icon:'ti-pig-money',col:'var(--blue)',step:25,min:-200,max:500},
+  {key:'bills',label:'Bills',icon:'ti-checklist',col:'var(--amber)',step:25,min:-300,max:300},
+  {key:'spend',label:'Spending',icon:'ti-wallet',col:'var(--red)',step:25,min:-300,max:300},
+  {key:'invest',label:'Investing',icon:'ti-trending-up',col:'var(--purple)',step:25,min:-200,max:500},
+];
+function _wiBase(){return{income:totalIncome(),savings:C.savings.perPaycheck+currentExtraSavings(),invest:totalInvested(),bills:totalBills(),spend:totalSpent()};}
+// Starts exactly at Remaining (which also takes out extra debt payments and goal contributions).
+function _wiProjected(){const d=_wiDeltas;return remaining()+(d.income||0)-(d.bills||0)-(d.savings||0)-(d.invest||0)-(d.spend||0);}
+function _wiColor(v){return v<0?'var(--red)':v<200?'var(--amber)':'var(--green)';}
+function _wiDeltaTxt(k){const d=_wiDeltas[k]||0;return d===0?'':(d>0?'+':'−')+fmt(Math.abs(d));}
+function _wiSliders(){
+  const base=_wiBase();
+  return _WI_SCEN.map(s=>`<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label for="wi-${s.key}-__ID__" style="display:flex;align-items:center;gap:6px"><i class="ti ${s.icon}" style="font-size:14px;color:${s.col}" aria-hidden="true"></i><span style="font-size:13px;font-weight:500">${s.label}</span></label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums">${fmt(base[s.key])}</span>
+          <span data-wi-delta="${s.key}" style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums"></span>
+        </div>
+      </div>
+      <input id="wi-${s.key}-__ID__" type="range" data-wi-key="${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${_wiDeltas[s.key]||0}"
+        style="width:100%;accent-color:${s.col};cursor:pointer" oninput="_wiSet('${s.key}',this.value)"/>
+    </div>`).join('');
+}
+// Update numbers in place, so a slider isn't rebuilt while it's being dragged.
+function _wiSet(k,v){_wiDeltas[k]=parseInt(v,10)||0;_wiRefresh();}
+function _wiRefresh(){
+  // Change labels are green when they raise Remaining and red when they lower it.
+  document.querySelectorAll('[data-wi-delta]').forEach(el=>{const k=el.getAttribute('data-wi-delta'),d=_wiDeltas[k]||0,up=k==='income'?d>0:d<0;el.textContent=_wiDeltaTxt(k);el.style.color=up?'var(--green)':'var(--red)';});
+  document.querySelectorAll('input[data-wi-key]').forEach(el=>{const v=String(_wiDeltas[el.getAttribute('data-wi-key')]||0);if(el.value!==v)el.value=v;});
+  const p=_wiProjected(),diff=Math.round((p-remaining())*100)/100;
+  document.querySelectorAll('[data-wi-result]').forEach(el=>{el.textContent=fmt(p);el.style.color=_wiColor(p);});
+  document.querySelectorAll('[data-wi-diff]').forEach(el=>{
+    el.textContent=diff===0?'Drag a slider to try a change':(diff>0?'+':'−')+fmt(Math.abs(diff))+' vs now';
+    el.style.color=diff===0?'var(--muted)':diff>0?'var(--green)':'var(--red)';
+  });
+}
 function resetWhatIf(){
-  _wiDeltas={income:0,savings:0,bills:0,spend:0};
-  renderWhatIf();
+  _wiDeltas={income:0,savings:0,bills:0,spend:0,invest:0};
+  _wiRefresh();
 }
 function renderWhatIf(){
   const sl=document.getElementById('whatif-sliders');
   const res=document.getElementById('whatif-result');
-  if(!sl||!res)return;
-  const base={
-    income:totalIncome(),
-    savings:C.savings.perPaycheck+currentExtraSavings(),
-    invest:totalInvested(),
-    bills:totalBills(),
-    spend:totalSpent(),
-  };
-  const scenarios=[
-    {key:'income',label:'Income',icon:'ti-cash',col:'var(--green)',step:50,min:-500,max:1000},
-    {key:'savings',label:'Savings',icon:'ti-pig-money',col:'var(--blue)',step:25,min:-200,max:500},
-    {key:'bills',label:'Bills',icon:'ti-checklist',col:'var(--amber)',step:25,min:-300,max:300},
-    {key:'spend',label:'Spending',icon:'ti-wallet',col:'var(--red)',step:25,min:-300,max:300},
-    {key:'invest',label:'Investing',icon:'ti-trending-up',col:'var(--purple)',step:25,min:-200,max:500},
-  ];
-  sl.innerHTML=scenarios.map(s=>{
-    const delta=_wiDeltas[s.key]||0;
-    const sign=delta>0?'+':'';
-    const pct=Math.round(((delta-(s.min))/(s.max-s.min))*100);
-    return `<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="display:flex;align-items:center;gap:6px"><i class="ti ${s.icon}" style="font-size:14px;color:${s.col}"></i><span style="font-size:13px;font-weight:500">${s.label}</span></div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums">${fmt(base[s.key])}</span>
-          ${delta!==0?`<span style="font-size:12px;font-weight:600;color:${s.col};font-variant-numeric:tabular-nums">${sign}${fmt(Math.abs(delta))}</span>`:''}
+  if(sl&&!sl.contains(document.activeElement))sl.innerHTML=_wiSliders().replace(/__ID__/g,'card');
+  if(res)res.setAttribute('data-wi-result','');
+  _wiRefresh();
+}
+// The calculator as a panel over the current screen (Home card link, prompts, desktop dashboard).
+function openWhatIf(){
+  _wiDeltas={income:0,savings:0,bills:0,spend:0,invest:0};
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="wi-title">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 id="wi-title" style="margin:0">What if?</h3>
+      <button onclick="closeModal()" aria-label="Close" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.5">See how a change would affect this paycheck. Nothing is saved.</p>
+    <div style="position:sticky;top:-24px;z-index:1;background:var(--card);padding:8px 0 12px;margin-bottom:14px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--accent)">Projected remaining</div>
+          <div data-wi-result aria-live="polite" style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;line-height:1.1">${fmt(remaining())}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--muted)">Remaining now <b style="color:var(--text);font-variant-numeric:tabular-nums">${fmt(remaining())}</b></div>
+          <div data-wi-diff style="font-size:13px;font-weight:600;margin-top:2px"></div>
         </div>
       </div>
-      <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${delta}"
-        style="width:100%;accent-color:${s.col};cursor:pointer"
-        oninput="_wiDeltas['${s.key}']=parseInt(this.value);renderWhatIf()"/>
-    </div>`;
-  }).join('');
-  // Calculate projected remaining
-  const projected=(base.income+(_wiDeltas.income||0))
-    -(base.bills+(_wiDeltas.bills||0))
-    -(base.savings+(_wiDeltas.savings||0))
-    -(base.invest+(_wiDeltas.invest||0))
-    -(base.spend+(_wiDeltas.spend||0));
-  res.textContent=fmt(projected);
-  res.style.color=projected<0?'var(--red)':projected<200?'var(--amber)':'var(--green)';
+    </div>
+    <div id="wi-sheet-sliders">${_wiSliders().replace(/__ID__/g,'sheet')}</div>
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="resetWhatIf()">Reset</button><button class="btn btn-primary" onclick="closeModal()">Done</button></div>
+  </div></div>`;
+  _wiRefresh();
 }
 function openSpendingTrends(){
   // Free for first 3 periods — only gate once user has more history than a trial would show
@@ -7295,6 +7330,7 @@ function renderDeskDash(){
           <span class="dsh-eyebrow">Left to spend · this paycheck</span>
           <div class="dsh-big${m.left<0?' neg':''}">${fmt(Math.abs(m.left))}${m.left<0?' over':''}</div>
           ${formula}
+          <button type="button" class="dsh-whatif" onclick="openWhatIf()"><i class="ti ti-calculator" aria-hidden="true"></i>What if?</button>
         </div>
         ${payBlock}
       </div>
@@ -7507,7 +7543,7 @@ function renderHome(){
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Your spending exceeds your income this period</div>
         </div>
       </div>
-      <div onclick="(function(){showScreen('snapshot',null);setTimeout(()=>{const wc=document.getElementById('whatif-card');if(wc){wc.scrollIntoView({behavior:'smooth',block:'center'});wc.style.transition='box-shadow .2s,border-color .2s';wc.style.borderColor='var(--accent)';wc.style.boxShadow='0 0 0 2px #6366f140';setTimeout(()=>{wc.style.borderColor='';wc.style.boxShadow='';},1800);}},150);})()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+      <div onclick="openWhatIf()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openWhatIf()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
         <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
@@ -7524,7 +7560,7 @@ function renderHome(){
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Only ${pct}% of income remains this period</div>
         </div>
       </div>
-      <div onclick="(function(){showScreen('snapshot',null);setTimeout(()=>{const wc=document.getElementById('whatif-card');if(wc){wc.scrollIntoView({behavior:'smooth',block:'center'});wc.style.transition='box-shadow .2s,border-color .2s';wc.style.borderColor='var(--accent)';wc.style.boxShadow='0 0 0 2px #6366f140';setTimeout(()=>{wc.style.borderColor='';wc.style.boxShadow='';},1800);}},150);})()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
+      <div onclick="openWhatIf()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openWhatIf()" style="background:#6366f110;border:0.5px solid #6366f133;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer">
         <i class="ti ti-calculator" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--accent)">Try the What-If calculator</div>
