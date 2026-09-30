@@ -201,7 +201,7 @@ html,body{height:100%;background:var(--app-bg);color:var(--text);font-family:-ap
 .bill-paid-anim{animation:billPaidPop .45s ease-out forwards;}
 .bill-toggle.paid{animation:checkPop .3s ease-out;}
 
-#df-toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#1e2d3d;color:#e2e8f0;font-size:13px;font-weight:500;padding:10px 18px;border-radius:99px;border:0.5px solid #2a3d52;z-index:10000;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:280px;text-align:center}
+#df-toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#1e2d3d;color:#e2e8f0;font-size:13px;font-weight:500;padding:10px 18px;border-radius:99px;border:0.5px solid #2a3d52;z-index:10000;opacity:0;transition:opacity .2s;pointer-events:none;white-space:normal;width:max-content;max-width:min(340px,calc(100vw - 32px));border-radius:18px;line-height:1.4;text-align:center}
 #df-toast.show{opacity:1;pointer-events:auto}
 /* ── Motion & feedback polish ── */
 .btn,.icon-btn{transition:transform .12s ease,opacity .15s ease}
@@ -4191,26 +4191,38 @@ function _obNext1(){
 function _renderOb2(){
   const list=_obData.bills.length===0
     ?'<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">No bills added yet</div>'
-    :_obData.bills.map((b,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:6px"><span style="font-size:14px">'+b.name+'</span><div style="display:flex;align-items:center;gap:10px"><span style="font-weight:600;color:var(--text)">$'+b.amount+'</span><button onclick="_obRemoveBill('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;line-height:1"><i class="ti ti-x" style="font-size:14px"></i></button></div></div>').join('');
+    :_obData.bills.map((b,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:6px"><span style="font-size:14px">'+esc(b.name)+(b.dueDay?'<span style="color:var(--muted);font-size:12px"> · due '+b.dueDay+ordinal(b.dueDay)+'</span>':'')+'</span><div style="display:flex;align-items:center;gap:10px"><span style="font-weight:600;color:var(--text)">'+fmt(b.amount)+'</span><button onclick="_obRemoveBill('+i+')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;line-height:1"><i class="ti ti-x" style="font-size:14px"></i></button></div></div>').join('');
   return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Fixed bills</h2>'+
     '<p style="font-size:13px;color:var(--muted);margin:0 0 14px">Rent, utilities, subscriptions — monthly recurring costs.</p>'+
     '<div id="ob-bills-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">'+list+'</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:24px">'+
-    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="flex:1;min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
-    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="$" aria-label="Bill amount" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="width:80px;flex-shrink:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px">'+
+    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="width:100%;box-sizing:border-box;min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
+    '<div style="display:flex;gap:8px">'+
+    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="Amount" aria-label="Bill amount" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="flex:1;min-width:0;padding:12px 6px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
+    '<input id="ob-bill-day" type="number" inputmode="numeric" min="1" max="31" placeholder="Due day" aria-label="Due day of the month (1 to 31)" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="flex:1;min-width:0;padding:12px 6px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
     '<button onclick="_obAddBill()" aria-label="Add bill" style="flex-shrink:0;padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
-    '</div>'+
+    '</div></div>'+
+    '<div style="font-size:11px;color:var(--muted);margin:0 2px 20px;line-height:1.4">Due day is the day of the month it\'s due. Not sure? Leave it blank and we\'ll count it in this paycheck.</div>'+
     '<div style="display:flex;gap:8px">'+
     '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
     '<button onclick="_obNext2()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
     '</div>';
 }
+// Due day from the setup form: '' → null (blank), 1–31 → number, anything else → false (invalid).
+function _obReadDay(){
+  const el=document.getElementById('ob-bill-day');const v=(el&&el.value||'').trim();
+  if(!v)return null;const d=Number(v);
+  return Number.isInteger(d)&&d>=1&&d<=31?d:false;
+}
 function _obAddBill(){
   const n=(document.getElementById('ob-bill-name')?.value||'').trim();
   const a=parseFloat(document.getElementById('ob-bill-amt')?.value||0);
   if(!n||!a||a<=0)return;
-  _obData.bills.push({name:n,amount:a});
+  const d=_obReadDay();
+  if(d===false){alert('Due day should be a number from 1 to 31, or leave it blank.');return;}
+  _obData.bills.push({name:n,amount:a,dueDay:d});
   _renderObStep();
+  setTimeout(()=>document.getElementById('ob-bill-name')?.focus(),0);
 }
 function _obRemoveBill(i){_obData.bills.splice(i,1);_renderObStep();}
 // Adds a bill that was typed but not added with "+". Returns false if the row is half-filled.
@@ -4220,11 +4232,13 @@ function _obTakePendingBill(){
   const n=(nEl.value||'').trim(),a=parseFloat(aEl.value||0);
   if(!n&&!aEl.value)return true;
   if(!n||!a||a<=0)return false;
-  _obData.bills.push({name:n,amount:a});nEl.value='';aEl.value='';
+  const d=_obReadDay();if(d===false)return false;
+  _obData.bills.push({name:n,amount:a,dueDay:d});nEl.value='';aEl.value='';
+  const dEl=document.getElementById('ob-bill-day');if(dEl)dEl.value='';
   return true;
 }
 function _obNext2(){
-  if(!_obTakePendingBill()){alert('Finish that bill (name and amount) and tap +, or clear it to continue.');return;}
+  if(!_obTakePendingBill()){alert('Finish that bill (name, amount, and a due day from 1 to 31 or blank) and tap +, or clear it to continue.');return;}
   _obStep=3;_renderObStep();
 }
 // Read whatever is on screen for the current step into _obData, so nothing typed is lost.
@@ -4287,20 +4301,24 @@ function _obComplete(skipGoal){
   const gn=skipGoal?'':(_obData.goalName||'');
   const gt=skipGoal?0:(_obData.goalTarget||0);
   C.income=[{label:'Primary job',amount:_obData.income,recurring:true}];
-  C.bills=_obData.bills.map((b,i)=>({id:'bill_'+(Date.now()+i),name:b.name,amount:b.amount,dueDay:1,paid:false,recurring:true,category:'bill',frequency:'monthly',sortOrder:(i+1)*1000}));
+  setFreq(_obData.period==='twicemonthly'?'semimonthly':_obData.period);
+  if((_obData.period==='weekly'||_obData.period==='biweekly')&&_obData.payAnchor)STATE.payAnchor=_obData.payAnchor;
+  const freshCycle=newCycleData();
+  // A bill with no due day is counted in this first paycheck (its due day = the period's first day),
+  // so a new user's Remaining never leaves it out. They can change the date later.
+  const _defDay=Number(String(freshCycle.startDate).slice(8,10))||1;
+  C.bills=_obData.bills.map((b,i)=>({id:'bill_'+(Date.now()+i),name:b.name,amount:b.amount,dueDay:b.dueDay||_defDay,paid:false,recurring:true,category:'bill',frequency:'monthly',sortOrder:(i+1)*1000}));
   if(C.buckets.food)C.buckets.food.budget=_obData.food;
   if(C.buckets.gas)C.buckets.gas.budget=_obData.gas;
   if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
   if(gn&&gt>0){STATE.savingsBuckets=STATE.savingsBuckets||[];STATE.savingsBuckets.push({name:gn,goal:gt,saved:0,color:'green',createdAt:new Date().toISOString()});}
-  setFreq(_obData.period==='twicemonthly'?'semimonthly':_obData.period);
-  if((_obData.period==='weekly'||_obData.period==='biweekly')&&_obData.payAnchor)STATE.payAnchor=_obData.payAnchor;
-  const freshCycle=newCycleData();
   C.startDate=freshCycle.startDate;
   C.endDate=freshCycle.endDate;
   localStorage.setItem(ONBOARD_KEY,JSON.stringify({setup:true,timestamp:new Date().toISOString()}));
   saveState();
   closeOnboarding();
   render();
+  if(isGuestUser())setTimeout(()=>showToast('You\'re all set! Create a free account in Settings to back up and sync.',5000),600);
 }
 
 function skipOnboarding(){
@@ -4412,12 +4430,17 @@ function openSettingsModal(){
         <i class="ti ti-chart-bar" style="font-size:20px;color:var(--accent)"></i>
         <div><div style="font-size:15px;font-weight:500">Poll Admin</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Create &amp; manage community polls</div></div>
       </div>`:''}
+      ${isGuestUser()?`<div onclick="guestCreateAccount()" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
+        <i class="ti ti-user-plus" style="font-size:20px;color:var(--accent)"></i>
+        <div><div style="font-size:15px;font-weight:500;color:var(--accent)">Create free account</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Back up your budget and sync your devices</div></div>
+      </div>`:''}
       <div onclick="confirmLogout();" style="display:flex;align-items:center;gap:14px;padding:14px 4px;border-top:0.5px solid var(--border);cursor:pointer">
         <i class="ti ti-logout" style="font-size:20px;color:var(--muted)"></i>
         <div><div style="font-size:15px;font-weight:500">Log out</div><div style="font-size:12px;color:var(--muted);margin-top:2px" id="settings-auth-sub">Signed in</div></div>
       </div>
     </div>
-    <div style="text-align:center;font-size:10px;color:var(--muted);padding:12px 0 0">DistroFi v${APP_VERSION}</div>
+    <div style="text-align:center;font-size:11px;padding:14px 0 0"><a href="/privacy" target="_blank" rel="noopener" style="color:var(--muted)">Privacy Policy</a><span style="color:var(--muted);margin:0 8px">&middot;</span><a href="/terms" target="_blank" rel="noopener" style="color:var(--muted)">Terms of Service</a></div>
+    <div style="text-align:center;font-size:10px;color:var(--muted);padding:6px 0 0">DistroFi v${APP_VERSION}</div>
     <div class="modal-btns" style="margin-top:10px">
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
     </div>
@@ -4772,6 +4795,11 @@ function openAccountModal(){
         <span style="font-size:13px;font-weight:500;color:var(--purple)">${fmt(allTimeInvestments().grand)}</span>
       </div>
     </div>
+    ${isGuest?`<div style="background:#6366f112;border:0.5px solid #6366f144;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Keep your budget safe</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px">Right now it lives only on this device. A free account backs it up and keeps your phone and computer in sync. Everything you've entered comes with you.</div>
+      <button class="btn btn-primary" style="width:100%" onclick="guestCreateAccount()">Create free account</button>
+    </div>`:''}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
       ${!isGuest?`<button class="btn btn-danger" onclick="closeModal();confirmLogout()">Sign out</button>`:''}
@@ -6129,77 +6157,9 @@ async function submitForgotUsername(){
   if(btn){btn.disabled=false;btn.textContent='Look up';}
 }
 
-function openToS(){
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="margin:0">Terms of Service</h3>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Application: DistroFi &nbsp;·&nbsp; Mayer Ventures LLC &nbsp;·&nbsp; Version 1.1</div>
-    <div style="font-size:13px;color:var(--text);line-height:1.8">
-      <p style="margin-bottom:12px">Welcome to DistroFi. This Terms of Service agreement ("Agreement") constitutes a legally binding contract between you ("User") and Mayer Ventures LLC ("Company"), the parent legal entity owning and operating DistroFi. By signing up, you acknowledge you have read and agreed to be bound by this Agreement.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">1. Scope of Service</p>
-      <p style="margin-bottom:12px">DistroFi is a structured capital scheduling, visual budgeting, and personal resource-allocation tool. It facilitates a manual or semi-automated approach to dividing user-inputted income into designated containers to help organize expenses, overhead, and savings goals.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">2. Financial Disclaimers</p>
-      <p style="margin-bottom:6px;color:var(--red);font-weight:600;font-size:12px">DISTROFI AND MAYER VENTURES LLC ARE NOT LICENSED FINANCIAL ADVISORS, INVESTMENT ADVISORY SERVICES, OR REGISTERED LEGAL COUNSEL. THE APPLICATION IS A MATHEMATICAL VISUALIZATION UTILITY ONLY.</p>
-      <p style="margin-bottom:12px">All calculations and projections are purely computational and provided for educational purposes only. Nothing in the Application constitutes personal financial planning, tax structuring, or investment advice. You assume complete legal responsibility for any financial decisions made in reliance on the Application. Mayer Ventures LLC shall not be liable for any negative financial outcomes arising from your use of the software.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">3. Account Security</p>
-      <p style="margin-bottom:12px">You bear full responsibility for maintaining confidentiality of your access credentials. You agree to notify the Company immediately of any unauthorized breach of your account. Mayer Ventures LLC disclaims all liability for financial exposure resulting from an unlocked device, shared browser, or negligent handling of credentials.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">4. Third-Party Integrations</p>
-      <p style="margin-bottom:12px">The Application may use encrypted third-party data networks to pull informational balances. These are read-only protocols. Mayer Ventures LLC does not store your banking passwords directly. The Company is not liable for data delivery lag, sync failures, or security events originating within external banking APIs.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">5. Acceptable Use & Intellectual Property</p>
-      <p style="margin-bottom:6px">The architectural flow, visual assets, container configuration system, and source code of DistroFi are protected intellectual property of Mayer Ventures LLC. Users are strictly prohibited from:</p>
-      <ul style="margin-left:16px;margin-bottom:12px;font-size:13px">
-        <li style="margin-bottom:4px">Reverse engineering, decompiling, or extracting source code</li>
-        <li style="margin-bottom:4px">Scraping, crawling, or extracting data via automated tools</li>
-        <li style="margin-bottom:4px">Circumventing or abusing the Application's APIs</li>
-      </ul>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">6. Account Termination</p>
-      <p style="margin-bottom:12px">Mayer Ventures LLC reserves the right to suspend or permanently terminate access to the Application for violations of this Agreement, API abuse, or platform compromise, without prior notification.</p>
-      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">7. Governing Law</p>
-      <p style="margin-bottom:16px">This Agreement is governed by the laws of the State of Florida, United States. Any legal proceedings shall be filed exclusively within state or federal courts in Florida.</p>
-      <p style="font-size:11px;color:var(--muted)">Mayer Ventures LLC &nbsp;·&nbsp; DistroFi Terms of Service v1.1 &nbsp;·&nbsp; State of Florida, United States</p>
-    </div>
-    <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
-  </div></div>`;
-}
-function openPrivacy(){
-  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-height:88vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <h3 style="margin:0">Privacy Policy</h3>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex"><i class="ti ti-x" style="font-size:20px"></i></button>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:16px">DistroFi &nbsp;·&nbsp; Mayer Ventures LLC &nbsp;·&nbsp; Effective: June 2026</div>
-    <div style="font-size:13px;color:var(--text);line-height:1.75">
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:0">1. Overview</p>
-      <p style="color:var(--muted);margin-bottom:14px">Mayer Ventures LLC ("we", "us", "our") operates DistroFi, a personal budgeting application ("App"). This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information. By using DistroFi, you agree to the practices described here.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">2. Information We Collect</p>
-      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Account information:</strong> When you create an account, we collect your chosen username and a display name. We do not collect your real name unless you choose to provide it.</p>
-      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Budget data:</strong> All financial data you enter — income, bills, spending, savings, investments, and debt — is stored locally on your device and, if signed in, synced to our secure cloud database to enable access across devices.</p>
-      <p style="color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Payment information:</strong> Subscription payments are processed by Stripe, Inc. We do not store your credit card number or payment credentials. Stripe's privacy policy governs payment data handling.</p>
-      <p style="color:var(--muted);margin-bottom:14px"><strong style="color:var(--text)">Usage data:</strong> We may collect anonymous usage analytics to improve the App. This data cannot be used to identify you personally.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">3. How We Use Your Information</p>
-      <p style="color:var(--muted);margin-bottom:4px">We use collected information solely to provide and maintain DistroFi, sync your data across devices, process subscription payments, respond to support requests, and improve the App based on anonymous usage patterns.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:14px">4. Data Storage &amp; Security</p>
-      <p style="color:var(--muted);margin-bottom:14px">Your data is stored locally on your device and, for signed-in users, in a secured database hosted in the United States. We use industry-standard encryption in transit and at rest. Access is restricted to your account only. We do not sell, rent, or share your personal data with third parties for marketing purposes.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">5. Third-Party Services</p>
-      <p style="color:var(--muted);margin-bottom:4px">DistroFi uses <strong style="color:var(--text)">Supabase</strong> for authentication and cloud storage, and <strong style="color:var(--text)">Stripe</strong> for subscription payment processing. Each operates under their own privacy policy.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px;margin-top:14px">6. Your Rights</p>
-      <p style="color:var(--muted);margin-bottom:14px">You may access, correct, or request deletion of your personal data at any time. To delete your account and data, use the Clear Data option in the App or contact us directly. Exported data is available via the Export feature.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">7. Data Retention</p>
-      <p style="color:var(--muted);margin-bottom:14px">We retain your data while your account is active. Upon account deletion, data is permanently removed from our servers within 30 days.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">8. Children's Privacy</p>
-      <p style="color:var(--muted);margin-bottom:14px">DistroFi is not directed at children under 13. We do not knowingly collect information from children.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">9. Changes to This Policy</p>
-      <p style="color:var(--muted);margin-bottom:14px">We may update this policy periodically. Material changes will be communicated via the effective date above or an in-app notification.</p>
-      <p style="font-weight:700;color:var(--text);margin-bottom:4px">10. Contact</p>
-      <p style="color:var(--muted);margin-bottom:2px">For privacy questions or data deletion requests:</p>
-      <p style="color:var(--accent);margin-bottom:2px">support@distrofi.org</p>
-      <p style="color:var(--muted);font-size:11px">Mayer Ventures LLC &nbsp;·&nbsp; State of Florida, United States</p>
-    </div>
-    <div class="modal-btns" style="margin-top:20px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
-  </div></div>`;
-}
+function _openLegal(path){const w=window.open(path,'_blank','noopener');if(!w)window.location.href=path;}
+function openToS(){_openLegal('/terms');}
+function openPrivacy(){_openLegal('/privacy');}
 
 async function submitAuth(){
   clearAuthError();
@@ -6246,7 +6206,9 @@ async function submitAuth(){
       // Offline fallback
       setAuth({loggedIn:true,name:displayName,username,pin,method:'local',since:new Date().toISOString()});
     }
-    if(!STATE.partners||!STATE.partners.p1||STATE.partners.p1==='You'){if(!STATE.partners)STATE.partners={};STATE.partners.p1=displayName;saveState();}
+    if(!STATE.partners)STATE.partners={};
+    if(!STATE.partners.p1||STATE.partners.p1==='You'||STATE.partners.p1==='Guest')STATE.partners.p1=displayName;
+    saveState(); // uploads anything built as a guest to the new account
 
   }else{
     // Login
@@ -6282,6 +6244,15 @@ async function submitAuth(){
   enterApp();
 }
 
+// A guest turns their budget into a free account. Sign-up keeps everything on this device
+// and uploads it to the new account.
+function guestCreateAccount(){
+  try{closeModal();}catch(e){}
+  if(authMode!=='signup')toggleAuthMode();
+  const ov=document.getElementById('auth-overlay');
+  if(ov){ov.style.display='flex';ov.scrollTop=0;}
+}
+function isGuestUser(){const a=getAuth();return !!(a&&a.loggedIn&&a.method==='guest');}
 function guestAuth(){
   setAuth({loggedIn:true,name:'Guest',username:null,pin:null,method:'guest',since:new Date().toISOString()});
   enterApp();
@@ -7410,13 +7381,14 @@ function renderDeskSettings(){
     card('Notifications',row('ti-bell','var(--d-gold)','Bill reminders','Notify me 3 days before &amp; day of · this device',remSw)+row('ti-calendar-event','var(--d-gold)','Pay period reminders','Day before it ends &amp; when to start the next · this device',cycSw)),
     card('Data',row('ti-download','var(--d-teal)','Export data','Download as CSV, PDF, or JSON backup',btn('Export','openExportModal()'))),
     card('Account',[
+      isGuestUser()?row('ti-user-plus','var(--accent)','Create free account','Back up your budget and sync your devices. Nothing you have entered is lost.',btn('Create account','guestCreateAccount()')):'',
       row('ti-logout','var(--muted)','Log out',esc(authSub),btn('Log out','confirmLogout()')),
       row('ti-trash','var(--red)','<span style="color:var(--red)">Clear all data</span>','Reset the app. This cannot be undone.',btn('Clear data','confirmClearData()','danger'))
     ].join(''))
   ].join('');
   el.innerHTML=`<div><h1 class="dsh-h1">Settings</h1><div class="dsh-meta">Most settings save to your account and follow you to your phone. Theme and reminders are set per device.</div></div>
     <div class="dss-grid"><div class="dsh-col">${colA}</div><div class="dsh-col">${colB}</div></div>
-    <div class="dss-foot">DistroFi v${APP_VERSION}</div>`;
+    <div class="dss-foot"><a href="/privacy" target="_blank" rel="noopener" style="color:inherit">Privacy Policy</a> &middot; <a href="/terms" target="_blank" rel="noopener" style="color:inherit">Terms of Service</a> &middot; DistroFi v${APP_VERSION}</div>`;
 }
 function renderDesk(){
   if(!isDesk())return;
@@ -8084,7 +8056,13 @@ function renderInvest(){
 }
 // ── Startup ──────────────────────────────────────────────────────────────
 (async function init(){
+  // Links from the website (/app?start=guest) go straight into setup, no account needed.
+  // Anyone already signed in on this device just lands in their budget.
+  const _sp=new URLSearchParams(window.location.search);
+  const _startGuest=_sp.get('start')==='guest';
+  if(_sp.has('start')){_sp.delete('start');const _q=_sp.toString();window.history.replaceState({},'',window.location.pathname+(_q?'?'+_q:'')+window.location.hash);}
   await checkAuthGate();
+  if(_startGuest&&!isLoggedIn())guestAuth();
   if(isLoggedIn()){
     render();
     await handleStripeReturn();

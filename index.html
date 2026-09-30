@@ -10,30 +10,128 @@
 <meta property="og:image" content="https://distrofi.org/assets/og-image.png">
 <meta property="og:url" content="https://distrofi.org">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="DistroFi">
+<meta property="og:image:alt" content="DistroFi: Budget by paycheck, not by calendar month. No bank linking, free forever.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="DistroFi: Budget by paycheck, not by calendar month. No bank linking, free forever.">
 <meta name="theme-color" content="#18183A">
+<link rel="canonical" href="https://distrofi.org/">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="manifest" href="/manifest.json">
+<script defer src="/_vercel/insights/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Why doesn't DistroFi link to my bank?","acceptedAnswer":{"@type":"Answer","text":"On purpose. DistroFi uses manual entry and never asks for your bank credentials — no Plaid, no screen-scraping, no third-party aggregators. Entering transactions yourself also keeps you aware of your spending, which is half of budgeting."}},
-{"@type":"Question","name":"Is DistroFi really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Core tracking — pay periods, bills, spending buckets, savings, debt, history — is free forever with no quantity caps. Pro ($2.99/mo) adds envelope-style rollover, an AI advisor, spending trends, investment goals, and a full JSON backup. Couples ($4.99/mo) adds real-time partner sync."}},
-{"@type":"Question","name":"What pay schedules does DistroFi support?","acceptedAnswer":{"@type":"Answer","text":"Weekly, biweekly, semi-monthly, and monthly. Each pay period is anchored to your actual payday, and when it ends it archives to history and one tap starts the next one."}},
-{"@type":"Question","name":"Is the AI advisor financial advice?","acceptedAnswer":{"@type":"Answer","text":"No. The AI advisor is educational, grounded in your own numbers — it is not licensed financial advice."}},
-{"@type":"Question","name":"How do I install DistroFi on my phone?","acceptedAnswer":{"@type":"Answer","text":"DistroFi is a progressive web app: open distrofi.org/app in your browser, then Add to Home Screen (iOS Safari: Share → Add to Home Screen; Android Chrome: menu → Install app). It works on any device with no app store required."}}
-]}
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "DistroFi",
+ "url": "https://distrofi.org/",
+ "applicationCategory": "FinanceApplication",
+ "operatingSystem": "Web (installs on iPhone, Android, Windows and Mac)",
+ "description": "Paycheck-based budgeting app. Plan every paycheck: bills, savings, debt and spending, with a live Remaining balance. No bank linking.",
+ "offers": [
+  {
+   "@type": "Offer",
+   "name": "Free",
+   "price": "0",
+   "priceCurrency": "USD"
+  },
+  {
+   "@type": "Offer",
+   "name": "Pro Solo",
+   "price": "2.99",
+   "priceCurrency": "USD",
+   "priceSpecification": {
+    "@type": "UnitPriceSpecification",
+    "price": "2.99",
+    "priceCurrency": "USD",
+    "billingDuration": "P1M"
+   }
+  },
+  {
+   "@type": "Offer",
+   "name": "Pro Couples",
+   "price": "4.99",
+   "priceCurrency": "USD",
+   "priceSpecification": {
+    "@type": "UnitPriceSpecification",
+    "price": "4.99",
+    "priceCurrency": "USD",
+    "billingDuration": "P1M"
+   }
+  }
+ ],
+ "publisher": {
+  "@type": "Organization",
+  "name": "Mayer Ventures LLC",
+  "url": "https://distrofi.org/",
+  "email": "support@distrofi.org"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Why doesn't DistroFi link to my bank?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "On purpose. Manual entry means we never ask for your bank credentials: no Plaid, no screen-scraping. It also keeps you aware of every dollar, which is half of what makes budgeting work."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is it really free?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. Core tracking is free forever with no quantity caps, not a stripped-down trial. Pro adds rollover and the AI advisor; Couples adds partner sync."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "I'm paid semi-monthly / weekly. Does that work?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes: weekly, every two weeks, twice a month and monthly. If you're paid weekly or every two weeks, each period starts on your actual payday. Twice-a-month periods run the 1st to the 15th and the 16th to month end, and monthly periods follow the calendar month."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "What happens when my pay period ends?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It archives to history, you decide what to do with any leftover money (save it, roll it, or leave it), and one tap starts the next period."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is the AI advisor financial advice?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. It's educational, grounded in your own numbers. It is not licensed financial advice."
+   }
+  }
+ ]
+}
 </script>
 <style>
-:root{--navy:#18183A;--navy2:#21214A;--teal:#0C9488;--mint:#5EEAD4;--cream:#EFF0EA;--grey:#AAAEC4;--indigo:#6366f1}
+:root{--navy:#18183A;--navy2:#21214A;--teal:#0C9488;--mint:#5EEAD4;--cream:#EFF0EA;--grey:#AAAEC4;--indigo:#6366f1;--teal-btn:#0A857A;--teal-btn-hover:#0A7D73}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--navy);color:#fff;font-family:'Poppins',system-ui,sans-serif;line-height:1.6}
 .accent-bar{height:6px;background:var(--teal)}
 .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
 nav{display:flex;align-items:center;justify-content:space-between;padding:28px 0}
-nav img{height:44px}
-.btn{display:inline-block;background:var(--teal);color:#fff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:12px;transition:background .2s}
-.btn:hover{background:#0da99b}
+nav img{height:44px;width:auto}
+.btn{display:inline-block;background:var(--teal-btn);color:#fff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:12px;transition:background .2s}
+.btn:hover{background:var(--teal-btn-hover)}
+.btn:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 .btn-ghost{background:transparent;border:2px solid var(--teal);padding:12px 26px}
 .btn-ghost:hover{background:rgba(12,148,136,.15)}
 .hero{display:flex;align-items:center;gap:48px;padding:56px 0 72px;flex-wrap:wrap}
@@ -43,7 +141,9 @@ h1{font-size:clamp(2rem,4.5vw,3.2rem);font-weight:700;line-height:1.15}
 .hero-text .mint{color:var(--mint);font-weight:600;font-size:1.1rem;margin-bottom:30px}
 .tealbar{width:150px;height:6px;background:var(--teal);margin:26px 0}
 .phone{border-radius:36px;border:3px solid #3A3A6A;background:#0A0A1A;padding:10px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.phone img{display:block;width:100%;max-width:340px;border-radius:26px}
+.phone img{display:block;width:100%;height:auto;max-width:340px;border-radius:26px}
+.hero .phone{width:min(366px,100%)}
+.feat .phone{width:min(306px,100%)}
 .trust{display:flex;gap:28px;flex-wrap:wrap;color:var(--grey);font-size:.95rem;padding-bottom:56px}
 .trust span::before{content:"✓ ";color:var(--mint);font-weight:700}
 section{padding:72px 0}
@@ -63,6 +163,18 @@ h2{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;margin-bottom:14px}
 .feat-text p{color:var(--grey)}
 .feat-text .pro{display:inline-block;background:rgba(12,148,136,.2);color:var(--mint);font-size:.8rem;font-weight:600;padding:4px 12px;border-radius:999px;margin-top:14px}
 .feat .phone img{max-width:280px}
+.nudge{color:var(--grey);font-size:.9rem;margin-top:12px}
+.cta-final .nudge{margin-top:14px}
+.new{margin-top:8px}
+.new-tag{display:inline-block;background:rgba(94,234,212,.14);color:var(--mint);font-size:.8rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:14px}
+.new h3{font-size:1.5rem;margin-bottom:12px}
+.new > p{color:var(--grey);max-width:680px;margin-bottom:22px}
+.new-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 28px;margin-bottom:34px}
+.new-list li{color:var(--grey);padding-left:26px;position:relative}
+.new-list li::before{content:"\2713";position:absolute;left:0;color:var(--mint);font-weight:700}
+.new-list strong{color:#fff;display:block}
+.screen-desk{border-radius:18px;border:3px solid #3A3A6A;background:#0A0A1A;padding:8px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.screen-desk img{display:block;width:100%;height:auto;border-radius:12px}
 .privacy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
 .pcard{background:var(--navy2);border:1px solid #3A3A6A;border-radius:20px;padding:28px}
 .pcard h3{font-size:1.05rem;margin-bottom:8px;color:var(--mint)}
@@ -78,6 +190,10 @@ h2{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;margin-bottom:14px}
 .plan li{color:var(--grey);font-size:.95rem;padding:5px 0}
 .plan li::before{content:"✓ ";color:var(--mint);font-weight:700}
 .finePrint{color:var(--grey);font-size:.9rem}
+.plan{display:flex;flex-direction:column}
+.plan ul{flex:1}
+.plan-btn{display:block;text-align:center;margin-top:24px}
+#faq h2{margin-bottom:28px}
 .install-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
 .install-grid ol{margin-left:20px;color:var(--grey);font-size:.95rem}
 .install-grid h3{margin-bottom:10px;font-size:1.05rem}
@@ -94,26 +210,30 @@ footer a{color:var(--grey)}
 <body>
 <div class="accent-bar"></div>
 <div class="wrap">
-<nav>
-  <img src="landing-img/logo-white.png" alt="DistroFi">
+<nav aria-label="Primary">
+  <img src="landing-img/logo-white.webp" alt="DistroFi" width="369" height="132">
   <a class="btn btn-ghost" href="https://distrofi.org/app">Open the app</a>
 </nav>
+</div>
 
+<main>
+<div class="wrap">
 <header class="hero">
   <div class="hero-text">
     <h1>Budget by paycheck,<br>not by calendar month.</h1>
     <div class="tealbar"></div>
     <p class="lede">Monthly budgets break when you're paid biweekly. DistroFi starts a fresh plan every payday — bills, savings, debt, and spending come out, and a live <strong>Remaining</strong> balance shows what's actually left.</p>
     <p class="mint">No bank linking. No ad networks. Free forever.</p>
-    <a class="btn" href="https://distrofi.org/app">Start budgeting free</a>
+    <a class="btn" href="https://distrofi.org/app?start=guest">Start budgeting free</a>
+    <p class="nudge">No account needed to try. Create a free one later to back up and sync.</p>
   </div>
-  <div class="phone"><img src="landing-img/screen-home.png" alt="DistroFi home screen showing a pay period plan with live Remaining balance"></div>
+  <div class="phone"><img src="landing-img/screen-home.webp" width="465" height="751" fetchpriority="high" alt="DistroFi home screen for the Sep 25 to Oct 8 pay period, with a live Remaining balance and upcoming bills"></div>
 </header>
 
 <div class="trust">
   <span>Works with weekly, biweekly, semi-monthly &amp; monthly pay</span>
   <span>We never ask for your bank credentials</span>
-  <span>Installs on any device — no app store</span>
+  <span>Works on your phone and computer, no app store needed</span>
 </div>
 </div>
 
@@ -121,7 +241,7 @@ footer a{color:var(--grey)}
   <h2>How it works</h2>
   <p class="sub">One loop, repeated every payday. That's the whole system.</p>
   <div class="steps">
-    <div class="step"><div class="num">01</div><h3>Payday starts a period</h3><p>Your plan is anchored to your real payday — not the 1st of the month.</p></div>
+    <div class="step"><div class="num">01</div><h3>Payday starts a period</h3><p>Paid weekly or every two weeks? Each period starts on your actual payday, not the 1st of the month.</p></div>
     <div class="step"><div class="num">02</div><h3>Plan the check</h3><p>Income in; bills, subscriptions, savings, investments, debt payments, and spending buckets out.</p></div>
     <div class="step"><div class="num">03</div><h3>Watch Remaining</h3><p>One live number tells you what's actually safe to spend, with over-budget warnings and a What-If calculator.</p></div>
     <div class="step"><div class="num">04</div><h3>Period ends, archives</h3><p>History keeps every cycle, free forever. When your payday comes around, one tap starts the next period and you decide what happens to any money left over.</p></div>
@@ -137,7 +257,7 @@ footer a{color:var(--grey)}
       <h3>Bills that know your payday</h3>
       <p>Due-date badges, priority flags, swipe-to-pay, and push reminders 3 days out and day-of. Annual subscriptions are amortized monthly so they never ambush you. Couples can track who paid what.</p>
     </div>
-    <div class="phone"><img src="landing-img/screen-bills.png" alt="DistroFi bills screen with due dates, paid states and subscriptions"></div>
+    <div class="phone"><img src="landing-img/screen-bills.webp" width="465" height="751" loading="lazy" decoding="async" alt="DistroFi bills screen with due dates, paid states and subscriptions"></div>
   </div>
 
   <div class="feat rev">
@@ -146,7 +266,7 @@ footer a{color:var(--grey)}
       <p>Set a budget per bucket per pay period, log expenses in seconds, and search your full transaction history. Unused budget can roll into the next period, envelope-style.</p>
       <span class="pro">Rollover is a Pro feature</span>
     </div>
-    <div class="phone"><img src="landing-img/screen-spend.png" alt="DistroFi spending screen with budget buckets and donut chart"></div>
+    <div class="phone"><img src="landing-img/screen-spend.webp" width="465" height="751" loading="lazy" decoding="async" alt="DistroFi spending screen with budget buckets and donut chart"></div>
   </div>
 
   <div class="feat">
@@ -154,7 +274,7 @@ footer a{color:var(--grey)}
       <h3>Savings goals that fill like a waterfall</h3>
       <p>Your savings fill goals top to bottom — the first goal fills completely before the next one starts. Target dates show whether each goal is on track or behind. The built-in emergency fund calculator sizes a 3, 6, or 12 month target from what you actually spend on essentials.</p>
     </div>
-    <div class="phone"><img src="landing-img/screen-savings.png" alt="DistroFi savings goals with waterfall fill and progress"></div>
+    <div class="phone"><img src="landing-img/screen-savings.webp" width="465" height="751" loading="lazy" decoding="async" alt="DistroFi savings goals with waterfall fill and progress"></div>
   </div>
 
   <div class="feat rev">
@@ -162,7 +282,20 @@ footer a{color:var(--grey)}
       <h3>See your way out of debt</h3>
       <p>Avalanche vs. snowball strategies, an extra-payment slider, and lump-sum what-ifs that show exactly how many months sooner you'd be debt-free and how much interest you'd save. Credit-utilization nudges included.</p>
     </div>
-    <div class="phone"><img src="landing-img/screen-debt.png" alt="DistroFi debt planner showing payoff strategies and interest savings"></div>
+    <div class="phone"><img src="landing-img/screen-debt.webp" width="465" height="751" loading="lazy" decoding="async" alt="DistroFi debt planner showing payoff strategies and interest savings"></div>
+  </div>
+
+  <div class="new" id="new">
+    <span class="new-tag">New</span>
+    <h3>Your budget on your phone and your computer</h3>
+    <p>Open distrofi.org/app on any computer for the full dashboard: what's left to spend, the countdown to your next payday, and every category at a glance. With a free account, a change on one device shows up on the other.</p>
+    <ul class="new-list">
+      <li><strong>Desktop dashboard</strong>Left to spend, next payday and all your categories on one screen.</li>
+      <li><strong>Phone and computer in sync</strong>Sign in on both and your budget stays up to date.</li>
+      <li><strong>Pay period reminders</strong>A heads-up the day before a period ends, and a nudge to start the next one.</li>
+      <li><strong>Periods that start on payday</strong>Paid weekly or every two weeks? Your periods line up with your real paydays.</li>
+    </ul>
+    <div class="screen-desk"><img src="landing-img/screen-desktop.webp" width="1440" height="900" loading="lazy" decoding="async" alt="DistroFi desktop dashboard showing $302.50 left to spend, next payday Friday October 9, and category budgets"></div>
   </div>
 </div></section>
 
@@ -171,8 +304,8 @@ footer a{color:var(--grey)}
   <p class="sub">Most budget apps want your bank login. We never ask for it.</p>
   <div class="privacy-grid">
     <div class="pcard"><h3>No bank linking</h3><p>Manual entry, on purpose. No Plaid, no scraping, no third-party aggregators — we never ask for your bank credentials.</p></div>
-    <div class="pcard"><h3>Couples privacy</h3><p>Share bills and spending with your partner in real time while your income stays on your device. Merge money, not paychecks.</p></div>
-    <div class="pcard"><h3>No ad networks, ever</h3><p>You are the customer, not the product. No tracking pixels, no targeted ads, and we never sell your data. A few clearly labeled partner offers in the app earn us a referral fee, and Pro subscriptions fund the free tier.</p></div>
+    <div class="pcard"><h3>Couples privacy</h3><p>Share bills and spending with your partner in real time while your income can stay on your device. Merge money, not paychecks.</p></div>
+    <div class="pcard"><h3>No ad networks, ever</h3><p>You are the customer, not the product. No ad trackers, no targeted ads, and we never sell your data. We count visits with privacy-friendly analytics that use no cookies. A few clearly labeled partner offers in the app earn us a referral fee, and Pro subscriptions fund the free tier.</p></div>
     <div class="pcard"><h3>Your data is portable</h3><p>Export your budget as CSV or print it to PDF anytime. Pro adds a full JSON backup of everything you have tracked. No lock-in.</p></div>
   </div>
 </div></section>
@@ -185,19 +318,22 @@ footer a{color:var(--grey)}
       <div class="name">Free</div>
       <div class="price">$0</div>
       <ul><li>Unlimited pay-period tracking</li><li>Bills, buckets, savings, debt</li><li>Full history, CSV &amp; PDF export</li><li>Forever. No caps.</li></ul>
+      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app?start=guest">Start free</a>
     </div>
     <div class="plan hot">
       <div class="name">Pro Solo</div>
       <div class="price">$2.99<small>/mo</small></div>
       <ul><li>Envelope-style rollover</li><li>AI advisor grounded in your numbers</li><li>Spending trends &amp; insights</li><li>Investment goal tracking</li><li>Full JSON data backup</li></ul>
+      <a class="btn plan-btn" href="https://distrofi.org/app">Try Pro free</a>
     </div>
     <div class="plan">
       <div class="name">Pro Couples</div>
       <div class="price">$4.99<small>/mo</small></div>
       <ul><li>Real-time partner sync</li><li>Who-paid-what tracking</li><li>Income-privacy option</li><li>Everything in Pro Solo</li></ul>
+      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app">Try Couples free</a>
     </div>
   </div>
-  <p class="finePrint">7-day free trial · Cancel anytime · Annual billing saves you two months. Every Pro feature has a free preview, so you can try them all before you subscribe. The AI advisor is educational and not licensed financial advice.</p>
+  <p class="finePrint">Pro plans start with a 7-day free trial. A card is required, and if you cancel before the trial ends you won't be charged. Annual billing saves you two months. Every Pro feature has a free preview, so you can try them all before you subscribe. The AI advisor is educational and not licensed financial advice.</p>
 </div></section>
 
 <section class="alt" id="install"><div class="wrap">
@@ -212,10 +348,9 @@ footer a{color:var(--grey)}
 
 <section id="faq"><div class="wrap">
   <h2>Questions people actually ask</h2>
-  <p class="sub"></p>
   <details><summary>Why doesn't DistroFi link to my bank?</summary><p>On purpose. Manual entry means we never ask for your bank credentials — no Plaid, no screen-scraping. It also keeps you aware of every dollar, which is half of what makes budgeting work.</p></details>
   <details><summary>Is it really free?</summary><p>Yes. Core tracking is free forever with no quantity caps — not a stripped-down trial. Pro adds rollover and the AI advisor; Couples adds partner sync.</p></details>
-  <details><summary>I'm paid semi-monthly / weekly. Does that work?</summary><p>Yes — weekly, biweekly, semi-monthly, and monthly. Periods anchor to your actual payday.</p></details>
+  <details><summary>I'm paid semi-monthly / weekly. Does that work?</summary><p>Yes: weekly, every two weeks, twice a month and monthly. If you're paid weekly or every two weeks, each period starts on your actual payday. Twice-a-month periods run the 1st to the 15th and the 16th to month end, and monthly periods follow the calendar month.</p></details>
   <details><summary>What happens when my pay period ends?</summary><p>It archives to history, you decide what to do with any leftover money (save it, roll it, or leave it), and one tap starts the next period.</p></details>
   <details><summary>Is the AI advisor financial advice?</summary><p>No — it's educational, grounded in your own numbers. It is not licensed financial advice.</p></details>
 </div></section>
@@ -223,12 +358,15 @@ footer a{color:var(--grey)}
 <div class="cta-final">
   <h2>Your next paycheck deserves a plan.</h2>
   <p class="sub" style="margin:14px auto 30px">Set up your first pay period in under five minutes.</p>
-  <a class="btn" href="https://distrofi.org/app">Start budgeting free</a>
+  <a class="btn" href="https://distrofi.org/app?start=guest">Start budgeting free</a>
+  <p class="nudge">No account needed to try.</p>
 </div>
+
+</main>
 
 <footer><div class="wrap">
   <span>© 2026 Mayer Ventures LLC · DistroFi</span>
-  <span><a href="mailto:support@distrofi.org">support@distrofi.org</a> · <a href="https://distrofi.org/app">Open the app</a></span>
+  <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:support@distrofi.org">support@distrofi.org</a> · <a href="https://distrofi.org/app">Open the app</a></span>
 </div></footer>
 </body>
 </html>
