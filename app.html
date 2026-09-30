@@ -879,7 +879,7 @@ body{background-image:var(--d-bgimg,none);background-attachment:fixed}
 
       <!-- Trust line -->
       <div style="text-align:center;font-size:11px;color:var(--muted);line-height:1.6">
-        <i class="ti ti-lock" style="font-size:12px;vertical-align:-1px"></i> 7-day free trial &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; No card required to try
+        <i class="ti ti-lock" style="font-size:12px;vertical-align:-1px"></i> <span id="members-trial-days">7</span>-day free trial &nbsp;·&nbsp; Card required &nbsp;·&nbsp; Cancel before it ends and you won't be charged
       </div>
     </div>
     <!-- PRO/COUPLES CONTENT — HUB -->
@@ -4208,7 +4208,7 @@ function _renderOb2(){
     '<input id="ob-bill-day" type="number" inputmode="numeric" min="1" max="31" placeholder="Due day" aria-label="Due day of the month (1 to 31)" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="flex:1;min-width:0;padding:12px 6px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
     '<button onclick="_obAddBill()" aria-label="Add bill" style="flex-shrink:0;padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
     '</div></div>'+
-    '<div style="font-size:11px;color:var(--muted);margin:0 2px 20px;line-height:1.4">Due day is the day of the month it\'s due. Not sure? Leave it blank and we\'ll count it in this paycheck.</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin:0 2px 20px;line-height:1.4">Due day is the day of the month it\'s due. Not sure? Leave it blank: it counts in every paycheck until you add one.</div>'+
     '<div style="display:flex;gap:8px">'+
     '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
     '<button onclick="_obNext2()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
@@ -4310,10 +4310,9 @@ function _obComplete(skipGoal){
   setFreq(_obData.period==='twicemonthly'?'semimonthly':_obData.period);
   if((_obData.period==='weekly'||_obData.period==='biweekly')&&_obData.payAnchor)STATE.payAnchor=_obData.payAnchor;
   const freshCycle=newCycleData();
-  // A bill with no due day is counted in this first paycheck (its due day = the period's first day),
-  // so a new user's Remaining never leaves it out. They can change the date later.
-  const _defDay=Number(String(freshCycle.startDate).slice(8,10))||1;
-  C.bills=_obData.bills.map((b,i)=>({id:'bill_'+(Date.now()+i),name:b.name,amount:b.amount,dueDay:b.dueDay||_defDay,paid:false,recurring:true,category:'bill',frequency:'monthly',sortOrder:(i+1)*1000}));
+  // A bill left without a due day is saved with none: the app counts it in every paycheck
+  // (billInPeriod), never marks it past due and sends no reminder until a day is added.
+  C.bills=_obData.bills.map((b,i)=>({id:'bill_'+(Date.now()+i),name:b.name,amount:b.amount,dueDay:b.dueDay||null,paid:false,recurring:true,category:'bill',frequency:'monthly',sortOrder:(i+1)*1000}));
   if(C.buckets.food)C.buckets.food.budget=_obData.food;
   if(C.buckets.gas)C.buckets.gas.budget=_obData.gas;
   if(C.buckets.personal)C.buckets.personal.budget=_obData.personal;
@@ -5001,7 +5000,7 @@ function openPaywall(feature){
     <button onclick="startTrial('couples')" style="width:100%;padding:12px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">
       Couples plan — $4.99/mo
     </button>`}
-    <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px">7-day free trial · Cancel anytime</div>
+    <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">${localStorage.getItem('distrofi_referred')?'14':'7'}-day free trial · Card required · Cancel before it ends and you won't be charged</div>
     <button onclick="closeModal()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Maybe later</button>
   </div></div>`;
 }
@@ -5228,7 +5227,7 @@ async function handleStripeReturn(){
           document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal" style="text-align:center;padding:32px 24px">
             <div style="font-size:48px;margin-bottom:12px">🎉</div>
             <h3 style="margin-bottom:8px">Welcome to ${isCouple?'DistroFi Couples':'DistroFi Pro'}!</h3>
-            <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Your 7-day free trial is active.<br>${isCouple?'Partner sync and all shared features are unlocked.':'All Pro features are now unlocked.'}</p>
+            <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Your ${localStorage.getItem('distrofi_referred')?'14':'7'}-day free trial is active.<br>${isCouple?'Partner sync and all shared features are unlocked.':'All Pro features are now unlocked.'}</p>
             <button onclick="closeModal();render();" style="width:100%;padding:14px;background:linear-gradient(135deg,${isCouple?'#ec4899,#f43f5e':'#7c3aed,#6366f1'});border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Let's go!</button>
           </div></div>`;
           render();
@@ -5285,7 +5284,7 @@ function openProSettings(){
     <button onclick="startTrial('couples')" style="width:100%;padding:12px;background:linear-gradient(135deg,#ec4899,#f43f5e);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:10px">
       Start free trial — Couples
     </button>
-    <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px">7-day free trial · Cancel anytime</div>
+    <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">${localStorage.getItem('distrofi_referred')?'14':'7'}-day free trial · Card required · Cancel before it ends and you won't be charged</div>
     <button class="btn btn-ghost" onclick="closeModal()">Maybe later</button>`}
   </div></div>`;
 }
@@ -8126,6 +8125,7 @@ function attributionSummary(){
 // ── Startup ──────────────────────────────────────────────────────────────
 (async function init(){
   try{_captureAttribution();}catch(e){}
+  try{if(localStorage.getItem('distrofi_referred')){const td=document.getElementById('members-trial-days');if(td)td.textContent='14';}}catch(e){}
   // Links from the website (/app?start=guest) go straight into setup, no account needed.
   // Anyone already signed in on this device just lands in their budget.
   const _sp=new URLSearchParams(window.location.search);
