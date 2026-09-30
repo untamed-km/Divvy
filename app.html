@@ -498,6 +498,7 @@ body{background-image:var(--d-bgimg,none);background-attachment:fixed}
     <div id="payment-past-due-banner"></div>
     <div id="upcoming-bills-banner"></div>
     <div id="balance-warning"></div>
+    <div id="payday-banner"></div>
     <div id="cycle-banner"></div>
     <div id="partner-split"></div>
     <div id="home-insight-card"></div>
@@ -956,6 +957,57 @@ const DEFAULT_INVESTMENTS=[];
 
 // Local calendar date as yyyy-mm-dd (toISOString shifts a day across the UTC boundary)
 function localDateStr(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// ── Paydays ──────────────────────────────────────────────────────────────────
+// Weekly and every-2-weeks pay periods start on the user's real payday
+// (STATE.payAnchor = any past payday, 'yyyy-mm-dd'). Other frequencies are calendar-based.
+function _payLen(){let f='semimonthly';try{f=getFreq();}catch(e){}return f==='weekly'?7:f==='biweekly'?14:0;}
+function _payAnchor(){let v=null;try{v=STATE&&STATE.payAnchor;}catch(e){}if(!v)return null;const d=new Date(v+'T00:00:00');return isNaN(d.getTime())?null:d;}
+// Most recent payday on or before `date`; null when not weekly/biweekly or no payday saved.
+function paydayOnOrBefore(date){
+  const len=_payLen(),a=_payAnchor();if(!len||!a)return null;
+  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  const n=Math.floor(Math.round((d-a)/864e5)/len);
+  const r=new Date(a);r.setDate(a.getDate()+n*len);return r;
+}
+// First payday strictly after `date`.
+function paydayAfter(date){const p=paydayOnOrBefore(date);if(!p)return null;const r=new Date(p);r.setDate(p.getDate()+_payLen());return r;}
+// True when the current period starts on a payday and is one pay cycle long (or alignment doesn't apply).
+function periodAligned(){
+  const len=_payLen(),a=_payAnchor();
+  if(!len||!a||typeof C==='undefined'||!C||!C.startDate||!C.endDate)return true;
+  const st=new Date(C.startDate+'T00:00:00'),en=new Date(C.endDate+'T00:00:00'),p=paydayOnOrBefore(st);
+  return !!p&&p.getTime()===st.getTime()&&Math.round((en-st)/864e5)===len-1;
+}
+// Move the current period onto the pay cycle that contains today. Dates only: nothing entered is archived or lost.
+function alignCurrentPeriod(){
+  const p=paydayOnOrBefore(new Date());
+  if(!p){openPaydaySetup();return;}
+  const e=new Date(p);e.setDate(p.getDate()+_payLen()-1);
+  const s0=localDateStr(p),e0=localDateStr(e);
+  closeModal();
+  if(C.startDate===s0&&C.endDate===e0){saveState();render();showToast('Your pay period already starts on payday');return;}
+  C.startDate=s0;C.endDate=e0;
+  saveState();render();
+  try{syncBillRemindersIfEnabled();}catch(e){}
+  showToast('Pay period lined up: '+fmtD(s0)+' – '+fmtD(e0),3500);
+}
+function openPaydaySetup(){
+  const len=_payLen();
+  if(!len){openFreqPicker();return;}
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>When do you get paid?</h3>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5">Pick your most recent payday. Your ${len===7?'weekly':'2-week'} pay periods will start on that day. Nothing you've entered changes.</p>
+    <label class="modal-label" for="payday-anchor-input">Most recent payday</label>
+    <input type="date" id="payday-anchor-input" max="${localDateStr()}" value="${STATE.payAnchor||''}" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:14px;outline:none;-webkit-appearance:none"/>
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">Not now</button><button class="btn btn-primary" onclick="savePaydayAndAlign('payday-anchor-input')">Line up my pay period</button></div>
+  </div></div>`;
+}
+function savePaydayAndAlign(inputId){
+  const el=document.getElementById(inputId);
+  if(!el||!el.value){showToast('Pick your most recent payday');return;}
+  STATE.payAnchor=el.value;
+  alignCurrentPeriod();
+}
 function newCycleData(prevEnd){
   const now=new Date(),day=now.getDate();
   const _pe=prevEnd?new Date(prevEnd+'T00:00:00'):null;const _peV=_pe&&!isNaN(_pe.getTime());
@@ -963,7 +1015,12 @@ function newCycleData(prevEnd){
   let start,end;
   if(freq==='weekly'||freq==='biweekly'){
     const len=freq==='weekly'?7:14;
-    if(_peV){start=new Date(_pe);start.setDate(_pe.getDate()+1);}
+    const _today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    let _base=_today;
+    if(_peV){const _nx=new Date(_pe);_nx.setDate(_pe.getDate()+1);if(_nx>_base)_base=_nx;}
+    const _paid=paydayOnOrBefore(_base);
+    if(_paid){start=_paid;}
+    else if(_peV){start=new Date(_pe);start.setDate(_pe.getDate()+1);}
     else{
       let anchorStr=null;try{anchorStr=(STATE&&STATE.payAnchor)||null;}catch(e){}
       let anchor=anchorStr?new Date(anchorStr+'T00:00:00'):new Date('2025-01-05T00:00:00');
@@ -4056,11 +4113,12 @@ function selectFreq(f){
   const needsAnchor=(f==='weekly'||f==='biweekly');
   document.getElementById('modal-root').innerHTML=`<div class="modal-overlay"><div class="modal">
     <h3>Apply new frequency?</h3>
-    <p style="font-size:14px;color:var(--muted);margin-bottom:${needsAnchor?'14':'18'}px;line-height:1.5">Pay frequency set to <strong>${freqLabel()}</strong>. Start a new period to apply it.</p>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:${needsAnchor?'14':'18'}px;line-height:1.5">Pay frequency set to <strong>${freqLabel()}</strong>. ${needsAnchor?'Line up this period to switch now without losing anything, or start a fresh period.':'Start a new period to apply it.'}</p>
     ${needsAnchor?`<span class="modal-label">Most recent payday</span>
-    <input type="date" id="freq-anchor-input" value="${STATE.payAnchor||localDateStr()}" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:6px;outline:none;-webkit-appearance:none"/>
+    <input type="date" id="freq-anchor-input" max="${localDateStr()}" value="${STATE.payAnchor||''}" style="width:100%;padding:14px;background:var(--card2);border:0.5px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:6px;outline:none;-webkit-appearance:none"/>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.4">Your ${f==='weekly'?'weekly':'2-week'} periods will start on this day of the week.</div>`:''}
-    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal();render()">Keep current</button><button class="btn btn-primary" onclick="saveFreqAnchor();closeModal();startNewCycle()">Start new period</button></div>
+    ${needsAnchor?`<button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="savePaydayAndAlign('freq-anchor-input')">Line up this period</button>`:''}
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal();render()">Keep current</button><button class="btn ${needsAnchor?'btn-ghost':'btn-primary'}" onclick="saveFreqAnchor();closeModal();startNewCycle()">Start new period</button></div>
   </div></div>`;
 }
 function saveFreqAnchor(){
@@ -4109,7 +4167,7 @@ function _renderOb1(){
     periods.map(([p,l])=>'<button onclick="_obSaveStep1();_obData.period=\''+p+'\';_renderObStep()" style="padding:12px 8px;border:2px solid '+(_obData.period===p?'var(--accent)':'var(--border)')+';border-radius:12px;background:'+(_obData.period===p?'#6366f118':'var(--card)')+';color:'+(_obData.period===p?'var(--accent)':'var(--text)')+';font-size:13px;font-weight:'+(_obData.period===p?'600':'400')+';cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
     '</div></div>'+
     ((_obData.period==='weekly'||_obData.period==='biweekly')?'<div style="margin-bottom:24px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">When was your most recent payday?</label>'+
-    '<input id="ob-payday" type="date" value="'+(_obData.payAnchor||'')+'" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit">'+
+    '<input id="ob-payday" type="date" max="'+localDateStr()+'" value="'+(_obData.payAnchor||'')+'" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;box-sizing:border-box;font-family:inherit">'+
     '<div style="font-size:11px;color:var(--muted);margin-top:5px">So your budget periods line up with your real paychecks.</div></div>':'')+
     '<button onclick="_obNext1()" style="width:100%;padding:15px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>';
 }
@@ -4123,6 +4181,7 @@ function _obNext1(){
   _obSaveStep1();
   const v=parseFloat(document.getElementById('ob-income')?.value||0)||_obData.income;
   if(!v||v<=0){alert('Please enter your take-home pay.');return;}
+  if((_obData.period==='weekly'||_obData.period==='biweekly')&&!_obData.payAnchor){alert('Pick your most recent payday so your pay periods start the day you get paid.');return;}
   _obData.income=v;
   _obData.food=Math.round(v*0.12);
   _obData.gas=Math.round(v*0.06);
@@ -7183,7 +7242,10 @@ function deskModel(today){
   const day=Math.min(total,Math.max(1,dayRaw));
   const pace=day/total;
   const pd=new Date(end+'T00:00:00');pd.setDate(pd.getDate()+1);
-  const payday=localDateStr(pd);
+  // First payday after the period start that is today or later (falls back to the day after the period ends).
+  const _st=new Date(start+'T00:00:00'),_yd=new Date(today+'T00:00:00');_yd.setDate(_yd.getDate()-1);
+  const _np=paydayAfter(_st>_yd?_st:_yd);
+  const payday=_np?localDateStr(_np):localDateStr(pd);
   const daysToPay=Math.max(0,_dDiff(today,payday));
   const income=totalIncome();
   const bills=[],debts=[],save=[];
@@ -7505,6 +7567,15 @@ function renderHome(){
   document.getElementById('cycle-title').textContent=fmtD(C.startDate)+' – '+fmtD(C.endDate);
   const diff=Math.ceil((new Date(C.endDate+'T00:00:00')-new Date())/(864e5));
   document.getElementById('cycle-days').textContent=diff>0?diff+' days left':'Cycle ended';
+  // Payday banner: weekly / every-2-weeks periods should start on payday
+  const pdb=document.getElementById('payday-banner');
+  if(pdb){
+    const _len=_payLen();
+    let _m=null;
+    if(_len&&!_payAnchor())_m=['Set your payday','So your pay periods start the day you get paid'];
+    else if(_len&&!periodAligned())_m=['Line up this pay period','It doesn\'t start on your payday. Nothing you\'ve entered changes.'];
+    pdb.innerHTML=_m?`<div role="button" tabindex="0" onclick="openPaydaySetup()" onkeydown="if(event.key==='Enter')openPaydaySetup()" style="background:#6366f112;border:0.5px solid #6366f144;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:4px"><i class="ti ti-calendar-dollar" style="font-size:22px;color:var(--accent);flex-shrink:0"></i><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--accent)">${_m[0]}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${_m[1]}</div></div><i class="ti ti-chevron-right" style="font-size:15px;color:var(--muted);flex-shrink:0"></i></div>`:'';
+  }
   // Cycle-end banner
   const cb=document.getElementById('cycle-banner');
   if(cb){
