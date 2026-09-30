@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DistroFi vs YNAB: Budget by Paycheck or by Month? | DistroFi</title>
+<meta name="description" content="An honest comparison of DistroFi and YNAB. YNAB is a monthly budget with optional bank import; DistroFi is a manual budget built around your paycheck, from free to $2.99 a month.">
+<meta property="og:title" content="DistroFi vs YNAB: budget by paycheck or by month?">
+<meta property="og:description" content="An honest comparison: price, bank linking, sharing, apps, and who each one is for.">
+<meta property="og:image" content="https://distrofi.org/assets/og-image.png">
+<meta property="og:image:alt" content="DistroFi: Budget by paycheck, not by calendar month.">
+<meta property="og:url" content="https://distrofi.org/vs-ynab">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DistroFi">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#18183A">
+<link rel="canonical" href="https://distrofi.org/vs-ynab">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<script defer src="/_vercel/insights/script.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#18183A;--navy2:#21214A;--teal:#0C9488;--teal-btn:#0A857A;--teal-btn-hover:#0A7D73;--mint:#5EEAD4;--grey:#AAAEC4;--line:#3A3A6A}
+body{background:var(--navy);color:#fff;font-family:'Poppins',system-ui,sans-serif;line-height:1.7}
+a{color:var(--mint)}
+a:focus-visible,.btn:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+.accent-bar{height:4px;background:linear-gradient(90deg,#0C9488,#5EEAD4)}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+nav img{height:40px;width:auto;display:block}
+.btn{display:inline-block;background:var(--teal-btn);color:#fff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:12px}
+.btn:hover{background:var(--teal-btn-hover)}
+.btn-ghost{background:transparent;border:2px solid var(--teal);padding:10px 22px}
+.btn-ghost:hover{background:rgba(12,148,136,.15)}
+main{padding:28px 0 72px}
+h1{font-size:clamp(2rem,5vw,3rem);font-weight:700;line-height:1.15;margin-bottom:16px}
+.lede{color:#D8DAE6;font-size:1.1rem;max-width:720px;margin-bottom:28px}
+h2{font-size:clamp(1.35rem,3vw,1.8rem);font-weight:700;margin:56px 0 14px}
+h3{font-size:1.1rem;font-weight:600;margin-bottom:8px}
+p,li{color:#D8DAE6}
+p{margin-bottom:14px}
+ul{margin:0 0 14px 22px}
+li{margin-bottom:8px}
+strong{color:#fff}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:8px 0 12px}
+.card{background:var(--navy2);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.card.us{border-color:var(--teal)}
+.card ul{margin-bottom:0}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--navy2)}
+table{width:100%;border-collapse:collapse;min-width:560px;font-size:.95rem}
+th,td{text-align:left;vertical-align:top;padding:14px 16px;border-bottom:1px solid var(--line);color:#D8DAE6}
+tr:last-child td,tr:last-child th{border-bottom:0}
+thead th{color:#fff;font-weight:600;background:#1c1c40}
+thead th.us{color:var(--mint)}
+tbody th{color:#fff;font-weight:500;width:26%}
+.example{background:var(--navy2);border-left:4px solid var(--mint);border-radius:0 12px 12px 0;padding:18px 22px;margin:18px 0}
+.example p:last-child{margin-bottom:0}
+.founder{background:var(--navy2);border:1px solid var(--line);border-radius:16px;padding:24px 26px}
+.founder .sig{color:var(--grey);margin:0}
+details{border-bottom:1px solid var(--line);padding:16px 0}
+summary{cursor:pointer;font-weight:600;color:#fff}
+details p{margin:10px 0 0}
+.cta{text-align:center;padding:56px 0 8px}
+.cta h2{margin-top:0}
+.nudge{color:var(--grey);font-size:.9rem;margin-top:12px}
+.fine{color:var(--grey);font-size:.85rem;margin-top:40px}
+footer{border-top:1px solid var(--line);padding:32px 0;color:var(--grey);font-size:.9rem}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+footer a{color:var(--grey)}
+@media(max-width:640px){.pick{grid-template-columns:1fr}table{min-width:0}thead{display:none}tbody tr{display:block;padding:14px 16px;border-bottom:1px solid var(--line)}tbody tr:last-child{border-bottom:0}tbody th,tbody td{display:block;width:auto;border:0;padding:0}tbody th{margin-bottom:8px}tbody td{margin-bottom:8px}tbody td::before{content:attr(data-label);display:block;font-size:.78rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--grey)}tbody td.us::before{color:var(--mint)}}
+</style>
+</head>
+<body>
+<div class="accent-bar"></div>
+<div class="wrap">
+<nav aria-label="Primary">
+  <a href="/"><img src="/landing-img/logo-white.webp" alt="DistroFi home" width="369" height="132"></a>
+  <a class="btn btn-ghost" href="https://distrofi.org/app">Open the app</a>
+</nav>
+</div>
+
+<main><div class="wrap">
+<h1>DistroFi vs YNAB</h1>
+<p class="lede">Both help you give every dollar a plan. <strong>YNAB</strong> is a powerful budgeting system built around the month, with optional bank import. <strong>DistroFi</strong> is a simpler, manual budget built around your paycheck. Here's an honest look at which one fits you.</p>
+<a class="btn" href="https://distrofi.org/app?start=guest">Try DistroFi free</a>
+<p class="nudge">No account needed to try.</p>
+
+<h2>The quick answer</h2>
+<div class="pick">
+  <div class="card">
+    <h3>YNAB is probably better if you</h3>
+    <ul>
+      <li>want transactions to import from your bank automatically</li>
+      <li>like a detailed, month-by-month system with reports and a loan planner</li>
+      <li>want to share one subscription with up to 6 people</li>
+      <li>will use its workshops and community to learn the method</li>
+    </ul>
+  </div>
+  <div class="card us">
+    <h3>DistroFi is probably better if you</h3>
+    <ul>
+      <li>are paid weekly or every two weeks and think in paychecks, not months</li>
+      <li>don't want to connect your bank to a budgeting app</li>
+      <li>want something you can set up in a few minutes</li>
+      <li>want the core budget free, or Pro for $2.99 a month</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Side by side</h2>
+<div class="tbl-wrap">
+<table>
+<thead><tr><th scope="col"></th><th scope="col" class="us">DistroFi</th><th scope="col">YNAB</th></tr></thead>
+<tbody>
+<tr><th scope="row">Budget is built around</th><td class="us" data-label="DistroFi">Each paycheck. Weekly and every-2-weeks periods start on your real payday.</td><td data-label="YNAB">The calendar month. You assign money as it arrives.</td></tr>
+<tr><th scope="row">Price</th><td class="us" data-label="DistroFi">Free core app. Pro $2.99/mo, Couples $4.99/mo; yearly billing saves two months.</td><td data-label="YNAB">$14.99/mo or $109/yr.</td></tr>
+<tr><th scope="row">Free option</th><td class="us" data-label="DistroFi">Yes, free forever with no caps on pay periods, bills or history.</td><td data-label="YNAB">No free plan.</td></tr>
+<tr><th scope="row">Free trial</th><td class="us" data-label="DistroFi">7 days of Pro (card required). Every Pro feature also has a free preview.</td><td data-label="YNAB">34 days, no card required when you sign up with YNAB directly. Free for a year for college students.</td></tr>
+<tr><th scope="row">Bank connections</th><td class="us" data-label="DistroFi">None, on purpose. Everything is entered by you, so we never ask for your bank login.</td><td data-label="YNAB">Optional direct import from select US, Canadian, UK and EU banks, or manual entry.</td></tr>
+<tr><th scope="row">Sharing</th><td class="us" data-label="DistroFi">Couples plan: you and a partner, sharing everything or bills only.</td><td data-label="YNAB">One subscription covers up to 6 people.</td></tr>
+<tr><th scope="row">Apps</th><td class="us" data-label="DistroFi">Web app that installs on iPhone, Android and computers from the browser; desktop dashboard.</td><td data-label="YNAB">Web plus native iPhone and Android apps.</td></tr>
+<tr><th scope="row">Try without an account</th><td class="us" data-label="DistroFi">Yes. Create a free account later to back up and sync.</td><td data-label="YNAB">Account needed.</td></tr>
+<tr><th scope="row">Extras</th><td class="us" data-label="DistroFi">Debt payoff planner (avalanche or snowball), savings goals, emergency fund calculator, bill and pay period reminders, AI advisor (Pro).</td><td data-label="YNAB">Targets, reports, loan planner, free workshops and a large community.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>The big difference: paychecks vs months</h2>
+<p>YNAB's method asks you to budget only the money you have right now, and it lays that out by calendar month. It works well, and plenty of people who live paycheck to paycheck use it successfully. You do the paycheck math yourself, inside a monthly view.</p>
+<p>DistroFi starts from the paycheck. Each pay period has its own start and end date, the bills due inside it, what goes to savings and debt, and your spending budgets. One number, <strong>Remaining</strong>, shows what's actually left until your next payday.</p>
+<div class="example">
+<p><strong>Example.</strong> You're paid every other Friday. Rent is due on the 1st and your car payment on the 20th.</p>
+<p>In DistroFi, your Sep 25 to Oct 8 paycheck shows rent due Oct 1 and leaves the car payment for the next check. When a month has three paydays, that third check simply shows up as another period with fewer bills in it, instead of something you have to work around.</p>
+</div>
+
+<h2>Where YNAB is stronger</h2>
+<ul>
+<li><strong>Bank import.</strong> If typing in transactions sounds like a chore, YNAB's direct import saves real time. DistroFi doesn't import anything.</li>
+<li><strong>Depth.</strong> Years of polish, detailed reports and a loan planner. DistroFi is deliberately simpler.</li>
+<li><strong>Families.</strong> Up to 6 people on one subscription. DistroFi's Couples plan is built for two.</li>
+<li><strong>Learning.</strong> YNAB's free workshops and community are some of the best budgeting education around.</li>
+<li><strong>Native apps</strong> in the App Store and Google Play. DistroFi installs from your browser instead.</li>
+</ul>
+
+<h2>Where DistroFi is different</h2>
+<ul>
+<li><strong>Periods that start on payday.</strong> Paid weekly or every two weeks? Each period starts the day you get paid, and the dashboard counts down to the next one.</li>
+<li><strong>No bank login, ever.</strong> Manual entry is the point: nothing to link, and you notice every dollar.</li>
+<li><strong>Price.</strong> The core budget is free forever. Pro is $2.99 a month.</li>
+<li><strong>Quick to start.</strong> Try it without an account and set up your first paycheck in a few minutes.</li>
+<li><strong>Phone and computer.</strong> Use it on both, with a full desktop dashboard. A free account keeps them in sync.</li>
+</ul>
+
+<h2>Switching from YNAB</h2>
+<p>DistroFi can't import your YNAB data, so you start fresh with your next paycheck. That usually takes a few minutes:</p>
+<ul>
+<li>Enter your take-home pay and your most recent payday.</li>
+<li>Add your bills with the day of the month each is due.</li>
+<li>Set spending budgets for groceries, gas and the rest, then add any savings goals and debts.</li>
+</ul>
+<p>You can keep YNAB running alongside it until you're sure. YNAB lets you export your data if you want to keep a copy.</p>
+
+<h2>Why I built DistroFi</h2>
+<div class="founder">
+<p>I get paid every other Friday, and monthly budgets never matched my paychecks. Some bills landed on one check, some on the next, and I was always doing the math in my head to figure out what was actually safe to spend. So I built the budget I wanted: one plan per paycheck, no bank login, and one number that tells me what's left until payday.</p>
+<p class="sig">Kirk, founder of DistroFi</p>
+</div>
+
+<h2>Questions</h2>
+<details><summary>Can I import my budget from YNAB?</summary><p>No. DistroFi doesn't import from YNAB or from banks. Setting up your next paycheck by hand usually takes a few minutes.</p></details>
+<details><summary>Does DistroFi use zero-based budgeting like YNAB?</summary><p>It's a similar idea. Your paycheck is split into bills, savings, debt and spending budgets, and Remaining shows what hasn't been planned or spent yet. The difference is that each plan covers one paycheck instead of one month.</p></details>
+<details><summary>Is DistroFi really free?</summary><p>Yes. The core budget is free forever with no caps. Pro ($2.99 a month) adds rollover, the AI advisor, spending trends, investment goals and a full backup; Couples ($4.99 a month) adds partner sync.</p></details>
+<details><summary>Does DistroFi work on my phone and computer?</summary><p>Yes. It installs from your browser on iPhone, Android and computers, with no app store needed. Sign in with a free account on each device to keep them in sync.</p></details>
+
+<div class="cta">
+  <h2>Try budgeting by paycheck</h2>
+  <p>Set up your first pay period in a few minutes. It's free.</p>
+  <a class="btn" href="https://distrofi.org/app?start=guest">Start budgeting free</a>
+  <p class="nudge">No account needed to try.</p>
+</div>
+
+<p class="fine">YNAB details checked on ynab.com on September 30, 2026; prices in US dollars and subject to change. YNAB is a trademark of its owner. DistroFi is not affiliated with or endorsed by YNAB.</p>
+</div></main>
+
+<footer><div class="wrap">
+  <span>&copy; 2026 Mayer Ventures LLC &middot; DistroFi</span>
+  <span><a href="/">Home</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="mailto:support@distrofi.org">support@distrofi.org</a></span>
+</div></footer>
+</body>
+</html>

@@ -45,6 +45,10 @@
     {
       "source": "/terms",
       "destination": "/terms.html"
+    },
+    {
+      "source": "/vs-ynab",
+      "destination": "/vs-ynab.html"
     }
   ],
   "headers": [
