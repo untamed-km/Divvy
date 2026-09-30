@@ -1071,7 +1071,9 @@ async function acceptInviteCode(code){
   if(ue)return{ok:false,msg:'Could not link accounts. Try again.'};
   setHouseholdId(hh.id);
   // Push current state as shared state
-  await sb.from('app_state').upsert({user_id:user.id,household_id:hh.id,state_json:buildSyncPayload(),updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  const _hp=buildSyncPayload();
+  await sb.from('app_state').upsert({user_id:user.id,household_id:hh.id,state_json:_hp,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  _syncBaseTs=Date.parse(_hp.lastUpdated)||_syncBaseTs;
   subscribeRealtime(hh.id);
   return{ok:true};
 }
@@ -1108,6 +1110,7 @@ function subscribeRealtime(householdId){
       }
       try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
       C=STATE.current;
+      _syncBaseTs=Date.parse(incoming.lastUpdated||'')||_syncBaseTs;
       render();showToast('Partner updated the budget',2500);
     })
     .subscribe();
@@ -1125,6 +1128,65 @@ function setSyncStatus(status){
 
 // Debounced cloud push
 let _syncTimer=null;
+// ── Cross-device sync ────────────────────────────────────────────────────────
+// STATE.lastUpdated : when this device last changed the budget (set by saveState)
+// _syncBaseTs       : cloud timestamp this device last pulled or pushed (ms)
+let _syncBaseTs=0,_pulling=false,_lastPullAt=0;
+// Order-independent fingerprint of the budget (the database may reorder JSON keys).
+function _canon(v){if(Array.isArray(v))return '['+v.map(_canon).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+_canon(v[k])).join(',')+'}';return JSON.stringify(v===undefined?null:v);}
+function _budgetSig(o){return o?_canon([o.current||null,o.history||[],o.savingsBuckets||[],o.invGoals||[],o.payFrequency||null,o.currency||null]):'';}
+function _cloudTs(sj,row){return Date.parse((sj&&sj.lastUpdated)||(row&&row.updated_at)||'')||0;}
+// Newest cloud copy for this user (or for the household when budgeting together).
+async function _fetchCloudRow(sb,userId){
+  const hid=getHouseholdId();
+  const q=hid
+    ?sb.from('app_state').select('state_json,updated_at').eq('household_id',hid).order('updated_at',{ascending:false}).limit(1).maybeSingle()
+    :sb.from('app_state').select('state_json,updated_at').eq('user_id',userId).maybeSingle();
+  const {data,error}=await q;
+  if(error)throw error;
+  return data;
+}
+function _applyPulledState(sj){
+  if(getHouseholdId()&&sj.syncMode!=='bills'){
+    Object.assign(STATE,sj);migrateState(STATE);C=STATE.current;
+  }else{
+    applyCloudState(sj);
+  }
+  if(sj.lastUpdated)STATE.lastUpdated=sj.lastUpdated;
+  try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
+}
+// Load the cloud copy if another device saved since this one last synced.
+// Runs on startup and whenever the app comes back into view.
+async function pullCloudIfNewer(opts){
+  opts=opts||{};
+  const a=getAuth();
+  if(!a||!a.loggedIn||a.method==='guest')return false;
+  const sb=getSB();
+  if(!sb||_pulling)return false;
+  if(!opts.force&&Date.now()-_lastPullAt<5000)return false;
+  _pulling=true;_lastPullAt=Date.now();
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return false;
+    const row=await _fetchCloudRow(sb,session.user.id);
+    const sj=row&&row.state_json;
+    if(!sj)return false;
+    const cts=_cloudTs(sj,row);
+    if(cts>_syncBaseTs){
+      const changed=_budgetSig(STATE)!==_budgetSig(sj);
+      _applyPulledState(sj);_syncBaseTs=cts;
+      render();setSyncStatus('synced');
+      if(changed)showToast('Updated with changes from your other device',2500);
+      return changed;
+    }
+    // Cloud unchanged; if this device has unsent changes, send them now.
+    if((Date.parse(STATE.lastUpdated||'')||0)>_syncBaseTs)scheduleSyncPush();
+    return false;
+  }catch(e){return false;}
+  finally{_pulling=false;}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullCloudIfNewer();});
+window.addEventListener('pageshow',e=>{if(e.persisted)pullCloudIfNewer({force:true});});
 
 function setSyncMode(mode){
   STATE.syncMode=mode;
@@ -1157,10 +1219,10 @@ function buildSyncPayload(){
         bills:STATE.current.bills,
         buckets:STATE.current.buckets,
       },
-      lastUpdated:new Date().toISOString(),
+      lastUpdated:STATE.lastUpdated||new Date().toISOString(),
     };
   }
-  return{...STATE,lastUpdated:new Date().toISOString()};
+  return{...STATE,lastUpdated:STATE.lastUpdated||new Date().toISOString()};
 }
 
 // Apply a pulled cloud state. Bills-only payloads merge into local state
@@ -1177,6 +1239,7 @@ function applyCloudState(_cs){
     STATE=migrateState(_cs);
   }
   C=STATE.current;
+  if(_cs.lastUpdated){STATE.lastUpdated=_cs.lastUpdated;_syncBaseTs=Date.parse(_cs.lastUpdated)||_syncBaseTs;}
   try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
 }
 
@@ -1189,17 +1252,29 @@ function scheduleSyncPush(){
       const {data:{user}}=await sb.auth.getUser();
       if(!user){setSyncStatus('offline');return;}
       const hid=getHouseholdId();
+      // Another device saved since we last synced? Load theirs instead of overwriting it.
+      if(STATE.syncMode!=='bills'){
+        const cur=await _fetchCloudRow(sb,user.id);
+        const cts=cur&&cur.state_json?_cloudTs(cur.state_json,cur):0;
+        if(cts>_syncBaseTs){
+          _applyPulledState(cur.state_json);_syncBaseTs=cts;
+          render();setSyncStatus('synced');
+          showToast('Your budget was changed on another device, so we loaded the latest. Please redo your last change.',5000);
+          return;
+        }
+      }
       const stateWithTs=buildSyncPayload();
       const row={user_id:user.id,state_json:stateWithTs,updated_at:new Date().toISOString()};
       if(hid)row.household_id=hid;
       const {error}=await sb.from('app_state').upsert(row,{onConflict:'user_id'});
       if(error){console.warn('Sync error:',error.message);setSyncStatus('error');}
-      else setSyncStatus('synced');
+      else{_syncBaseTs=Date.parse(stateWithTs.lastUpdated)||Date.now();setSyncStatus('synced');}
     }catch(e){setSyncStatus('offline');}
   },800);
 }
 
 function saveState(){
+  STATE.lastUpdated=new Date().toISOString();
   try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
   scheduleSyncPush();
 }
@@ -1218,6 +1293,7 @@ async function initHousehold(userId){
         Object.assign(STATE,_in);
         migrateState(STATE);
         C=STATE.current;
+        _syncBaseTs=_cloudTs(_in,data)||_syncBaseTs;
         try{localStorage.setItem('distrofi_app',JSON.stringify(STATE));}catch(e){}
       }
     }
@@ -1270,6 +1346,7 @@ function checkLimit(feature,currentCount){
 }
 
 let STATE=loadState(),C=STATE.current,selectedIcon='ti-star';
+_syncBaseTs=Date.parse(STATE.lastUpdated||'')||0;
 // Pre-paint: set cycle title from state immediately so "Loading..." never shows
 (function(){const el=document.getElementById('cycle-title');if(el&&C&&C.startDate&&C.endDate){const fd=s=>new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});el.textContent=fd(C.startDate)+' – '+fd(C.endDate);}})();
 
@@ -6305,6 +6382,8 @@ async function checkAuthGate(){
         setAuth({loggedIn:true,name:profile?.display_name||'User',username:profile?.username||'',pro_tier:profile?.pro_tier||null,method:'supabase',since:new Date().toISOString()});
         await initHousehold(session.user.id);
         render();
+      }else{
+        await pullCloudIfNewer({force:true});
       }
       ov.style.display='none';
       setSyncStatus('synced');
