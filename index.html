@@ -21,6 +21,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="manifest" href="/manifest.json">
 <script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/attr.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -220,7 +221,7 @@ footer a{color:var(--grey)}
 <div class="wrap">
 <nav aria-label="Primary">
   <img src="landing-img/logo-white.webp" alt="DistroFi" width="369" height="132">
-  <a class="btn btn-ghost" href="https://distrofi.org/app">Open the app</a>
+  <a class="btn btn-ghost" href="https://distrofi.org/app" data-cta="nav-open">Open the app</a>
 </nav>
 </div>
 
@@ -232,7 +233,7 @@ footer a{color:var(--grey)}
     <div class="tealbar"></div>
     <p class="lede">Monthly budgets break when you're paid biweekly. DistroFi starts a fresh plan every payday — bills, savings, debt, and spending come out, and a live <strong>Remaining</strong> balance shows what's actually left.</p>
     <p class="mint">No bank linking. No ad networks. Free forever.</p>
-    <a class="btn" href="https://distrofi.org/app?start=guest">Start budgeting free</a>
+    <a class="btn" href="https://distrofi.org/app?start=guest" data-cta="hero-start">Start budgeting free</a>
     <p class="nudge">No account needed to try. Create a free one later to back up and sync.</p>
   </div>
   <div class="phone"><img src="landing-img/screen-home.webp" width="465" height="751" fetchpriority="high" alt="DistroFi home screen for the Sep 25 to Oct 8 pay period, with a live Remaining balance and upcoming bills"></div>
@@ -326,19 +327,19 @@ footer a{color:var(--grey)}
       <div class="name">Free</div>
       <div class="price">$0</div>
       <ul><li>Unlimited pay-period tracking</li><li>Bills, buckets, savings, debt</li><li>Full history, CSV &amp; PDF export</li><li>Forever. No caps.</li></ul>
-      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app?start=guest">Start free</a>
+      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app?start=guest" data-cta="plan-free">Start free</a>
     </div>
     <div class="plan hot">
       <div class="name">Pro Solo</div>
       <div class="price">$2.99<small>/mo</small></div>
       <ul><li>Envelope-style rollover</li><li>AI advisor grounded in your numbers</li><li>Spending trends &amp; insights</li><li>Investment goal tracking</li><li>Full JSON data backup</li></ul>
-      <a class="btn plan-btn" href="https://distrofi.org/app">Try Pro free</a>
+      <a class="btn plan-btn" href="https://distrofi.org/app" data-cta="plan-pro">Try Pro free</a>
     </div>
     <div class="plan">
       <div class="name">Pro Couples</div>
       <div class="price">$4.99<small>/mo</small></div>
       <ul><li>Real-time partner sync</li><li>Who-paid-what tracking</li><li>Income-privacy option</li><li>Everything in Pro Solo</li></ul>
-      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app">Try Couples free</a>
+      <a class="btn btn-ghost plan-btn" href="https://distrofi.org/app" data-cta="plan-couples">Try Couples free</a>
     </div>
   </div>
   <p class="finePrint">Pro plans start with a 7-day free trial. A card is required, and if you cancel before the trial ends you won't be charged. Annual billing saves you two months. Every Pro feature has a free preview, so you can try them all before you subscribe. The AI advisor is educational and not licensed financial advice.</p>
@@ -367,7 +368,7 @@ footer a{color:var(--grey)}
 <div class="cta-final">
   <h2>Your next paycheck deserves a plan.</h2>
   <p class="sub" style="margin:14px auto 30px">Set up your first pay period in under five minutes.</p>
-  <a class="btn" href="https://distrofi.org/app?start=guest">Start budgeting free</a>
+  <a class="btn" href="https://distrofi.org/app?start=guest" data-cta="final-start">Start budgeting free</a>
   <p class="nudge">No account needed to try.</p>
 </div>
 
@@ -375,7 +376,7 @@ footer a{color:var(--grey)}
 
 <footer><div class="wrap">
   <span>© 2026 Mayer Ventures LLC · DistroFi</span>
-  <span><a href="/vs-ynab">DistroFi vs YNAB</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:support@distrofi.org">support@distrofi.org</a> · <a href="https://distrofi.org/app">Open the app</a></span>
+  <span><a href="/vs-ynab">DistroFi vs YNAB</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:support@distrofi.org">support@distrofi.org</a> · <a href="https://distrofi.org/app" data-cta="footer-open">Open the app</a></span>
 </div></footer>
 </body>
 </html>

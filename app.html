@@ -5034,7 +5034,7 @@ async function startStripeCheckout(tier,cadence){
     const resp=await fetch('/api/create-checkout-session',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tier:t,cadence:c,userId:auth.user_id,referred:!!localStorage.getItem('distrofi_referred')}),
+      body:JSON.stringify({tier:t,cadence:c,userId:auth.user_id,referred:!!localStorage.getItem('distrofi_referred'),attribution:attributionSummary()}),
     });
     const data=await resp.json();
     if(data.url){
@@ -6188,7 +6188,7 @@ async function submitAuth(){
       const {data:existing}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
       if(existing){showAuthError('Username taken — try another.');setAuthLoading(false);return;}
       // Create Supabase account
-      const {data,error}=await sb.auth.signUp({email,password,options:{data:{username,display_name:displayName}}});
+      const {data,error}=await sb.auth.signUp({email,password,options:{data:{username,display_name:displayName,signup_source:attributionSummary()}}});
       if(error){showAuthError(error.message);setAuthLoading(false);return;}
       // Save profile
       if(data.user){
@@ -8054,8 +8054,42 @@ function renderInvest(){
     });
   }
 }
+// ── Link attribution ─────────────────────────────────────────────────────
+// The website (/attr.js) and the app share localStorage "distrofi_attr":
+//   first = first visit seen, last = most recent visit with campaign tags, a referral code
+//   or an outside referring site, cta = the website button clicked (e.g. hero-start).
+const ATTR_KEY='distrofi_attr';
+const _ATTR_TAGS=['utm_source','utm_medium','utm_campaign','utm_content','utm_term','ref'];
+function getAttribution(){try{return JSON.parse(localStorage.getItem(ATTR_KEY)||'null')||{};}catch(e){return {};}}
+function _captureAttribution(){
+  const q=new URLSearchParams(window.location.search),v={};let tagged=false;
+  _ATTR_TAGS.forEach(k=>{const x=q.get(k);if(x){v[k]=String(x).slice(0,100);tagged=true;}});
+  let ref='';try{if(document.referrer){const h=new URL(document.referrer).host;if(h&&h!==window.location.host)ref=h;}}catch(e){}
+  if(ref)v.referrer=ref.slice(0,100);
+  const a=getAttribution(),now=new Date().toISOString();
+  // Tags carried over from the website's buttons match the visit already saved there; keep that one
+  // (it has the real landing page and referring site).
+  const carried=!ref&&a.last&&_ATTR_TAGS.every(k=>(a.last[k]||'')===(v[k]||''));
+  if((tagged||ref)&&!carried){v.landing=window.location.pathname;v.at=now;if(!a.first)a.first=v;a.last=v;}
+  else if(!a.first){a.first={landing:window.location.pathname,at:now};}
+  const cta=q.get('cta');
+  if(cta){a.cta=String(cta).slice(0,40);a.ctaAt=now;}
+  try{localStorage.setItem(ATTR_KEY,JSON.stringify(a));}catch(e){}
+}
+// Short summary saved with a new account and with a Pro checkout.
+function attributionSummary(){
+  const a=getAttribution(),f=a.first||{},l=a.last||f,out={};
+  const put=(k,v)=>{if(v)out[k]=String(v).slice(0,100);};
+  const src=x=>x.utm_source||(x.ref?'referral':'')||x.referrer||'';
+  put('source',src(l)||'direct');put('medium',l.utm_medium);put('campaign',l.utm_campaign);
+  put('content',l.utm_content);put('term',l.utm_term);put('referral_code',l.ref);put('referrer',l.referrer);
+  put('cta',a.cta);put('landing',l.landing);
+  put('first_source',src(f)||'direct');put('first_campaign',f.utm_campaign);put('first_at',f.at);
+  return out;
+}
 // ── Startup ──────────────────────────────────────────────────────────────
 (async function init(){
+  try{_captureAttribution();}catch(e){}
   // Links from the website (/app?start=guest) go straight into setup, no account needed.
   // Anyone already signed in on this device just lands in their budget.
   const _sp=new URLSearchParams(window.location.search);

@@ -23,9 +23,9 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: CORS });
   }
 
-  let tier, cadence, userId, referred;
+  let tier, cadence, userId, referred, attribution;
   try {
-    ({ tier, cadence, userId, referred } = await req.json());
+    ({ tier, cadence, userId, referred, attribution } = await req.json());
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: CORS });
   }
@@ -57,6 +57,20 @@ export default async function handler(req) {
     success_url: `${origin}/app?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/app?stripe=cancel`,
   });
+
+  // Where this customer came from (campaign tags, referring site, website button), sent by the app.
+  // Saved on the checkout session and the subscription so it shows in the Stripe dashboard.
+  // Only known keys, short values; anything else is ignored.
+  const ATTR_KEYS = ['source', 'medium', 'campaign', 'content', 'term', 'referral_code', 'referrer', 'cta', 'landing', 'first_source', 'first_campaign', 'first_at'];
+  if (attribution && typeof attribution === 'object') {
+    for (const k of ATTR_KEYS) {
+      const v = attribution[k];
+      if (typeof v !== 'string' || !v) continue;
+      const clean = v.replace(/[\u0000-\u001f]/g, '').slice(0, 100);
+      params.set(`metadata[${k}]`, clean);
+      params.set(`subscription_data[metadata][${k}]`, clean);
+    }
+  }
 
   const resp = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
