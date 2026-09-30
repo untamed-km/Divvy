@@ -4018,7 +4018,7 @@ function _renderObStep(){
   else if(_obStep===2)body=_renderOb2();
   else if(_obStep===3)body=_renderOb3();
   else body=_renderOb4();
-  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:min(440px,calc(100vw - 40px));flex-shrink:0;box-shadow:0 24px 80px rgba(0,0,0,0.5);border:1px solid var(--border);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">Skip</button></div>'+prog+body+'</div>';
+  ov.innerHTML='<div style="background:var(--app-bg);border-radius:20px;padding:32px 24px 40px;width:min(440px,calc(100vw - 40px));flex-shrink:0;box-shadow:0 24px 80px rgba(0,0,0,0.5);border:1px solid var(--border);">'+'<div style="text-align:right;margin-bottom:4px"><button onclick="skipOnboarding()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 0;font-family:inherit">'+(_obStep>1?'Finish later':'Skip')+'</button></div>'+prog+body+'</div>';
 }
 function _renderOb1(){
   const periods=[['weekly','Weekly'],['biweekly','Bi-weekly'],['twicemonthly','Twice/month'],['monthly','Monthly']];
@@ -4060,13 +4060,13 @@ function _renderOb2(){
     '<p style="font-size:13px;color:var(--muted);margin:0 0 14px">Rent, utilities, subscriptions — monthly recurring costs.</p>'+
     '<div id="ob-bills-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">'+list+'</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:24px">'+
-    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
-    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="$" style="width:72px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
-    '<button onclick="_obAddBill()" style="padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
+    '<input id="ob-bill-name" type="text" placeholder="Bill name (e.g. Rent)" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="flex:1;min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit">'+
+    '<input id="ob-bill-amt" type="number" inputmode="decimal" placeholder="$" aria-label="Bill amount" onkeydown="if(event.key===\'Enter\')_obAddBill()" style="width:80px;flex-shrink:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:14px;font-family:inherit;text-align:center">'+
+    '<button onclick="_obAddBill()" aria-label="Add bill" style="flex-shrink:0;padding:12px 14px;background:#6366f118;border:1px solid var(--accent);border-radius:12px;color:var(--accent);cursor:pointer;font-family:inherit;font-weight:700;font-size:18px;line-height:1">+</button>'+
     '</div>'+
     '<div style="display:flex;gap:8px">'+
     '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
-    '<button onclick="_obStep=3;_renderObStep()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
+    '<button onclick="_obNext2()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Continue →</button>'+
     '</div>';
 }
 function _obAddBill(){
@@ -4077,6 +4077,36 @@ function _obAddBill(){
   _renderObStep();
 }
 function _obRemoveBill(i){_obData.bills.splice(i,1);_renderObStep();}
+// Adds a bill that was typed but not added with "+". Returns false if the row is half-filled.
+function _obTakePendingBill(){
+  const nEl=document.getElementById('ob-bill-name'),aEl=document.getElementById('ob-bill-amt');
+  if(!nEl||!aEl)return true;
+  const n=(nEl.value||'').trim(),a=parseFloat(aEl.value||0);
+  if(!n&&!aEl.value)return true;
+  if(!n||!a||a<=0)return false;
+  _obData.bills.push({name:n,amount:a});nEl.value='';aEl.value='';
+  return true;
+}
+function _obNext2(){
+  if(!_obTakePendingBill()){alert('Finish that bill (name and amount) and tap +, or clear it to continue.');return;}
+  _obStep=3;_renderObStep();
+}
+// Read whatever is on screen for the current step into _obData, so nothing typed is lost.
+function _obCapture(){
+  if(_obStep===1){
+    _obSaveStep1();
+    const v=parseFloat(document.getElementById('ob-income')?.value||0);
+    if(v>0&&!_obData.food&&!_obData.gas&&!_obData.personal){_obData.food=Math.round(v*0.12);_obData.gas=Math.round(v*0.06);_obData.personal=Math.round(v*0.07);}
+  }else if(_obStep===2){
+    _obTakePendingBill();
+  }else if(_obStep===3){
+    ['food','gas','personal'].forEach(k=>{const el=document.getElementById('ob-'+k);if(el)_obData[k]=parseFloat(el.value||0)||0;});
+  }else if(_obStep===4){
+    const gn=document.getElementById('ob-goal-name'),gt=document.getElementById('ob-goal-target');
+    if(gn)_obData.goalName=(gn.value||'').trim();
+    if(gt)_obData.goalTarget=parseFloat(gt.value||0)||0;
+  }
+}
 function _renderOb3(){
   const cats=[['food','ob-food','ti-shopping-cart','Food & Groceries'],['gas','ob-gas','ti-gas-station','Gas & Transport'],['personal','ob-personal','ti-user','Personal & Misc']];
   return '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">Spending limits</h2>'+
@@ -4114,11 +4144,12 @@ function _renderOb4(){
     '<button onclick="_obStep--;_renderObStep()" style="flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">← Back</button>'+
     '<button onclick="_obComplete()" style="flex:2;padding:14px;background:var(--accent);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Set up my budget ✓</button>'+
     '</div>'+
-    '<button onclick="skipOnboarding()" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Skip for now</button>';
+    '<button onclick="_obComplete(true)" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Skip the goal and finish</button>';
 }
-function _obComplete(){
-  const gn=(document.getElementById('ob-goal-name')?.value||'').trim();
-  const gt=parseFloat(document.getElementById('ob-goal-target')?.value||0)||0;
+function _obComplete(skipGoal){
+  _obCapture();
+  const gn=skipGoal?'':(_obData.goalName||'');
+  const gt=skipGoal?0:(_obData.goalTarget||0);
   C.income=[{label:'Primary job',amount:_obData.income,recurring:true}];
   C.bills=_obData.bills.map((b,i)=>({id:'bill_'+(Date.now()+i),name:b.name,amount:b.amount,dueDay:1,paid:false,recurring:true,category:'bill',frequency:'monthly',sortOrder:(i+1)*1000}));
   if(C.buckets.food)C.buckets.food.budget=_obData.food;
@@ -4136,7 +4167,10 @@ function _obComplete(){
   render();
 }
 
-function skipOnboarding(){localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();}
+function skipOnboarding(){
+  if(typeof _obData==='object'&&_obData){_obCapture();if(_obData.income>0){_obComplete(true);return;}}
+  localStorage.setItem(ONBOARD_KEY,JSON.stringify({choices:[],skipped:true,timestamp:new Date().toISOString()}));closeOnboarding();
+}
 function closeOnboarding(){const ov=document.getElementById('onboard-overlay');if(ov)ov.style.display='none';}
 function openSettingsModal(){
   if(isDesk()){deskNav('settings');return;}
